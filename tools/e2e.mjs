@@ -170,7 +170,7 @@ try {
           if (!talkChecked && i === 0) {
             // dialogue on the stage: the question in the doctor's balloon, the answer in the patient side's, no transcript in the chart
             talkChecked = true;
-            const exp = await page.evaluate(() => { const e = window.__plantao.shift.current; const l = e.log.filter((x) => x.kind === 'q').at(-1); return { q: l.q, a: l.a, who: e.speaker.name }; });
+            const exp = await page.evaluate(() => { const e = window.__plantao.shift.current; const l = e.log.filter((x) => x.kind === 'q').at(-1); const sp = e.speakerFor(l.a); return { q: l.q, a: sp.text, who: sp.name }; });
             const got = await page.evaluate(() => {
               const b = (w) => document.querySelector(`.talk .balloon[data-who=${w}]`);
               const stage = document.querySelector('.talk').getBoundingClientRect();

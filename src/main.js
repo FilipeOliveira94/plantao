@@ -398,8 +398,8 @@ function callPatient(enc) {
 // A line on the stage: the doctor's, or the patient side's (the patient or the companion, see Encounter.speaker).
 function say(enc, text, who = 'pt') {
   if (who === 'doctor') { ui.talk.say('doctor', 'Você', 'doctor', text); return; }
-  const sp = enc.speaker;
-  ui.talk.say('pt', sp.name, sp.role, text);
+  const sp = enc.speakerFor(text);
+  ui.talk.say('pt', sp.name, sp.role, sp.text);
 }
 
 // ----------------------------------------------------------------------

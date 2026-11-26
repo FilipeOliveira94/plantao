@@ -16,6 +16,7 @@ export function createTalk() {
     slots[side] = { box, who, text, anchor: null, size: null, pos: '' };
   }
   let gen = 0;
+  let lastW = 0;
 
   /** side: 'doctor' | 'pt'; anchor: 'doctor' | 'patient' | 'companion' (a key of IsoScene.anchors). */
   function say(side, name, anchor, text) {
@@ -37,6 +38,7 @@ export function createTalk() {
   /** Called every frame with the scene's head anchors (CSS px in the canvas' box). */
   function place(anchors) {
     const W = el.clientWidth, H = el.clientHeight;
+    if (W !== lastW) { lastW = W; for (const s of Object.values(slots)) { s.size = null; s.pos = ''; } } // wrapping changes with the width
     const rects = [];
     for (const side of ['doctor', 'pt']) {
       const s = slots[side];
