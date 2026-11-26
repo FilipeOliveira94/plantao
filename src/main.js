@@ -302,7 +302,7 @@ function renderChart() {
       const state = t.id === 'tests' && newResults && tab !== 'tests' ? 'new' : seen.opened.has(t.id) ? 'done' : 'unopened';
       return h('button', {
         class: `tab ${state} ${tab === t.id ? 'active' : ''}`, role: 'tab', 'aria-selected': String(tab === t.id),
-        'aria-label': `${t.label}, ${TAB_STATE_LABEL[state]}`, style: `--tab: ${t.color}`,
+        'aria-label': [t.label, counts[t.id] ? `${counts[t.id]} ${COUNT_LABEL[t.id]}` : null, state === 'new' ? `${newResults} resultado${newResults > 1 ? 's' : ''} novo${newResults > 1 ? 's' : ''}` : TAB_STATE_LABEL[state]].filter(Boolean).join(', '), style: `--tab: ${t.color}`,
         onclick: () => { sfx.page(); tab = t.id; renderChart(); },
       },
       h('span', { class: 'ic', 'aria-hidden': 'true' }, t.icon), t.label,
@@ -324,7 +324,8 @@ const CHART_TABS = [
   { id: 'tests', label: 'Exames', icon: '🧪', color: '#8a5cc7' },
   { id: 'decision', label: 'Decisão', icon: '⚖️', color: '#1f7a6b' },
 ];
-const TAB_STATE_LABEL = { unopened: 'não aberta', new: 'resultados novos', done: 'já vista' };
+const COUNT_LABEL = { history: 'perguntas feitas', physical: 'itens examinados' };
+const TAB_STATE_LABEL = { unopened: 'não aberta', done: 'já vista' };
 
 function footerFor(enc) {
   const pend = enc.pendingExams(shift.clock).length;

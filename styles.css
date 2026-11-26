@@ -86,7 +86,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .tab.active { background: color-mix(in srgb, var(--tab) 12%, var(--card)); }
 .tab .ic { display: inline-block; width: 1.3em; text-align: center; margin-right: 3px; }
 .tab .mark { margin-left: 3px; font-size: 11px; color: var(--muted); }
-.tab.unopened { box-shadow: inset 0 4px 0 color-mix(in srgb, var(--tab) 35%, transparent); color: var(--muted); }
+.tab.unopened { box-shadow: inset 0 4px 0 color-mix(in srgb, var(--tab) 35%, transparent); }
 .tab.unopened .mark { color: var(--tab); font-size: 9px; vertical-align: 2px; }
 .tab .mark.new { color: #fff; background: var(--tab); border-radius: 999px; padding: 1px 7px; font-weight: 800; animation: tab-pulse 1.4s ease-in-out infinite; }
 @keyframes tab-pulse { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--tab) 30%, transparent); } }

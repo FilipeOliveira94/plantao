@@ -37,6 +37,7 @@ try {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/01-menu.png` });
 
   const units = await page.$$eval('.unit', (els) => els.length);
+  let tabsChecked = false;
   for (let u = 0; u < units; u++) {
     await page.locator('.unit').nth(u).click();
     const specs = await page.locator('.spec').count();
@@ -57,6 +58,12 @@ try {
         }
         const enc = await page.evaluate(() => window.__plantao.shift?.current?.c.id);
         if (!enc) continue;
+        if (!tabsChecked) {
+          // chart tabs name their state: only the opening tab has been seen
+          tabsChecked = true;
+          const labels = await page.$$eval('.tab', (els) => els.map((e) => e.getAttribute('aria-label')));
+          if (!/já vista/.test(labels[0]) || labels.slice(1).some((l) => !/não aberta/.test(l))) throw new Error(`unexpected tab states: ${labels}`);
+        }
         // ask a few questions and do one physical exam item
         await page.getByRole('tab', { name: /Anamnese/ }).click();
         for (let i = 0; i < 4; i++) {
@@ -88,6 +95,7 @@ try {
       await page.locator('.unit').nth(u).click();
     }
   }
+  if (!tabsChecked) throw new Error('tab states were never checked');
   // PICU scene
   if (SHOTS) {
     await page.locator('.unit').last().click();
