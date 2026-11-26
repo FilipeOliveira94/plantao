@@ -7,6 +7,7 @@
 ## Principles
 
 - **Evidence-based medical content.** Don't invent diseases, findings or management. Every case cites references; follow `docs/MEDICAL-CONTENT.md`. When unsure, leave it out and add a `TODO(medical review)`.
+- **Physician review gates v1.0, not the MVP.** MVP releases (v0.x) may ship cases pending review; the first final release needs every case reviewed by a physician of its specialty. Add each new case to `docs/REVIEW-STATUS.md` as pending, and never mark one reviewed yourself.
 - **Language split:** player-facing strings in pt-BR; identifiers, comments, docs and commits in English.
 - **No runtime dependencies** for now: plain ES modules served statically. A move to a bundler or Three.js should happen in a dedicated PR, keeping `src/data` independent from the engine.
 - **Layering:** `data/` (pure content, no logic), `game/` (rules, no DOM), `render/` and `audio/` (presentation), `main.js` and `ui/` (screens).
