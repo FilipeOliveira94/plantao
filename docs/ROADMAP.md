@@ -86,7 +86,7 @@ Other things found while reading: `AGENTS.md` said 14 cases, but there are 23 (8
 | [P4-02](https://github.com/FilipeOliveira94/plantao/issues/38) | Unit cards with the place | Each menu card shows its city or neighborhood: landmark, landscape, building at the right scale. | Lo/- | Sm/- | P4-01 |
 | [P4-03](https://github.com/FilipeOliveira94/plantao/issues/39) | Scene backdrop per unit | The room shows where it is: view through the window, weather and light (rain in Belém, cold light in Curitiba), furniture and wear matching the unit type. | Lo/- | Md/- | P4-01 |
 | [P4-04](https://github.com/FilipeOliveira94/plantao/issues/40) | Small-town units | Add units outside state capitals (a rural health post, a small-town hospital) with the resources they would really have. | Med/- | Sm/- | P4-03 |
-| [P4-05](https://github.com/FilipeOliveira94/plantao/issues/41) | Ambient sound per unit | Rain, fans, PICU monitors, waiting-room noise, with a volume control. | Lo/- | Sm/- | none |
+| [P4-05](https://github.com/FilipeOliveira94/plantao/issues/41) | Ambient sound per unit | Rain, fans, PICU monitors, waiting-room noise, with a volume control. | Lo/Lo | Sm/Sm | none |
 
 ## P5: Online features (need the backend decision)
 

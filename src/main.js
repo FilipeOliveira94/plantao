@@ -4,11 +4,14 @@ import { Shift } from './game/shift.js';
 import { load, save, reset, levelOf, applyCase, applyShift, BADGES } from './game/progress.js';
 import { IsoScene } from './render/iso.js';
 import { sfx } from './audio/sfx.js';
+import { ambient } from './audio/ambient.js';
 import { h, mount, toast, modal } from './ui/dom.js';
 
 const app = document.getElementById('app');
 let state = load();
 sfx.setMuted(state.settings.muted);
+ambient.setMuted(state.settings.muted);
+ambient.setVolume(state.settings.ambientVolume ?? 0.5);
 
 let shift = null;
 let scene = null;
@@ -33,6 +36,7 @@ let menuSel = { unit: null, spec: null };
 
 function renderMenu() {
   scene = null;
+  ambient.stop();
   const lvl = levelOf(state.xp);
   const unitCards = UNITS.map((u) => {
     const locked = lvl.number < u.unlockLevel;
@@ -72,6 +76,7 @@ function renderMenu() {
         h('button', { class: 'btn', onclick: showBadges }, '🏅 Conquistas'),
         h('button', { class: 'btn', onclick: showHelp }, '❓ Como jogar'),
         h('button', { class: 'btn ghost', onclick: toggleMute, title: 'Som' }, state.settings.muted ? '🔇' : '🔊'),
+        ambientSlider(),
       ),
     ),
     h('p', { class: 'section-title' }, 'Escolha a unidade'),
@@ -90,11 +95,22 @@ function renderMenu() {
   ));
 }
 
+function ambientSlider() {
+  const vol = state.settings.ambientVolume ?? 0.5;
+  return h('label', { class: 'ambient-vol small', title: 'Volume do som ambiente' }, '🌧️ ',
+    h('input', {
+      type: 'range', min: 0, max: 100, step: 5, value: Math.round(vol * 100), 'aria-label': 'Volume do som ambiente',
+      oninput: (e) => { state.settings.ambientVolume = e.target.value / 100; ambient.setVolume(state.settings.ambientVolume); },
+      onchange: () => save(state),
+    }));
+}
+
 const levelTitle = (n) => ['Interno(a)', 'Residente R1', 'Residente R2', 'Residente R3', 'Plantonista'][n - 1] || '';
 
 function toggleMute() {
   state.settings.muted = !state.settings.muted;
   sfx.setMuted(state.settings.muted);
+  ambient.setMuted(state.settings.muted);
   save(state);
   if (shift) renderTop(); else renderMenu();
 }
@@ -141,6 +157,7 @@ function startShift(unit, specialty) {
   sfx.unlock();
   shift = new Shift({ unit, specialty, completedCases: state.cases });
   if (!shift.encounters.length) { toast('Ainda não há casos para essa combinação.'); return; }
+  ambient.play(unit.ambience);
   renderGame();
   toast(`Plantão iniciado: ${unit.name} (${unit.city}/${unit.uf}). ${unit.flavor}`, 6000);
 }
@@ -180,6 +197,7 @@ function renderTop() {
     h('span', { class: 'small' }, `Nv ${lvl.number} · ${state.xp} XP`),
     h('span', { class: 'clock', title: 'Relógio do plantão' }, shift.clockLabel),
     h('button', { class: 'btn ghost', onclick: toggleMute }, state.settings.muted ? '🔇' : '🔊'),
+    ambientSlider(),
   );
 }
 
@@ -539,4 +557,4 @@ function showShiftSummary() {
 renderMenu();
 
 // exposed for automated tests
-window.__plantao = { get shift() { return shift; }, get state() { return state; } };
+window.__plantao = { get shift() { return shift; }, get state() { return state; }, get ambience() { return ambient.layers; } };

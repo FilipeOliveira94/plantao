@@ -34,6 +34,9 @@ function tone(freq, { at = 0, dur = 0.15, type = 'sine', vol = 0.6, slide = 0 } 
   o.stop(t0 + dur + 0.02);
 }
 
+/** The shared AudioContext (created on first use), or null without WebAudio. */
+export function audioContext() { return ac(); }
+
 export const sfx = {
   setMuted(v) { muted = v; },
   get muted() { return muted; },
