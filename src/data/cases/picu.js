@@ -69,6 +69,8 @@ export default [
         { id: 'plaq', label: 'Transfusão de plaquetas e plasma fresco congelado como prioridade inicial, pela púrpura extensa e plaquetopenia; coagulograma, fibrinogênio e D-dímero seriados para acompanhar a CIVD.' },
       ],
     },
+    // TODO(medical review): 'plaq' is not flagged harmful, yet it puts transfusion before antibiotic and fluids in a
+    // time-critical case; consider harmful: true (P1-03).
     teaching: 'Febre com púrpura que progride rápido, má perfusão (TEC > 3 s, extremidades frias, pulsos finos), hipotensão e rebaixamento definem choque séptico — a meningococcemia é a principal hipótese. Primeira hora: oxigênio, acesso vascular (IO se preciso), bolus de cristaloide de 10–20 mL/kg titulados por reavaliação (atenção a sinais de sobrecarga), hemocultura sem atrasar o antibiótico e cefalosporina de 3ª geração. Epinefrina ou norepinefrina se o choque persiste após volume. Punção lombar está contraindicada na instabilidade hemodinâmica e na coagulopatia. Hipoglicemia deve ser corrigida. Notificação compulsória e quimioprofilaxia dos contactantes.',
     references: [
       'Weiss SL, et al. Surviving Sepsis Campaign International Guidelines for the Management of Septic Shock and Sepsis-Associated Organ Dysfunction in Children. Pediatr Crit Care Med. 2020;21(2):e52–e106.',
@@ -461,6 +463,7 @@ export default [
     // composition. The case assumes a clandestine cholinesterase-inhibitor rodenticide from the toxidrome alone.
     // The atropinization endpoints (clear chest, HR > 80 bpm, SBP > 80 mmHg) come from the guideline's Figure 2,
     // which gives adult bolus doses; confirm the pediatric targets. Text read: the CONITEC summary of chapter 2.
+    // P1-03: 'naloxona' is not flagged harmful, yet it leaves out atropine in a time-critical case; consider harmful: true.
     teaching: 'Miose, bradicardia, sialorreia, lacrimejamento, broncorreia, vômitos e diarreia (efeitos muscarínicos) somados a fasciculações e fraqueza (nicotínicos) e rebaixamento do nível de consciência formam a síndrome colinérgica: o diagnóstico é clínico e a história de raticida clandestino fecha o quadro. Glasgow ≤ 13, alteração respiratória, fasciculações, FC abaixo de 60 bpm e hipotensão definem intoxicação moderada ou grave, com indicação de terapia intensiva. A atropina é dada rapidamente após o diagnóstico clínico, em doses repetidas até a atropinização: na criança, 0,01–0,06 mg/kg/dose a cada 5–15 minutos, seguida de infusão contínua. O alvo é a ausculta limpa, com frequência cardíaca e pressão adequadas; taquicardia isolada não é motivo para suspender. A dosagem de colinesterase ajuda no diagnóstico e no seguimento, mas não deve atrasar o tratamento. A diretriz brasileira não recomenda indução de vômito, catárticos, oximas, nem lavagem gástrica ou carvão ativado de rotina; se considerados, só com via aérea protegida. Ligue para o CIATox e notifique todo caso no Sinan. Entre 24 e 96 horas depois pode surgir a síndrome intermediária, com fraqueza da musculatura respiratória.',
     references: [
       'Brasil. Ministério da Saúde. Diretrizes Brasileiras para Diagnóstico e Tratamento de Intoxicações por Agrotóxicos. Capítulo 2: Inibidores de colinesterase. Portaria nº 79, de 14 de dezembro de 2018.',
