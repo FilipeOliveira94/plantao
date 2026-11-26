@@ -442,7 +442,7 @@ export default [
     type: 'new',
     settings: ['hospital'],
     difficulty: 3,
-    timeCritical: { minutes: 20, reason: 'No AVC isquêmico, a alteplase só pode ser infundida até 4 h 30 min do início dos sintomas: cada minuto de atraso reduz o benefício.' },
+    timeCritical: { minutes: 25, reason: 'No AVC isquêmico, a alteplase só pode ser infundida até 4 h 30 min do início dos sintomas: cada minuto de atraso reduz o benefício.' },
     patient: {
       name: 'Antônio Pereira', age: '67 anos', sex: 'M',
       look: { skin: '#c98e66', hair: '#cfcfcf', shirt: '#4d6fa3', build: 'elder' },
@@ -504,7 +504,7 @@ export default [
         { id: 'aguardar_rm', label: 'Aguardar ressonância magnética para confirmar a isquemia antes de decidir o tratamento.' },
       ],
     },
-    teaching: 'Déficit focal de instalação súbita é AVC até prova em contrário, e o relógio começa na última vez em que o paciente foi visto bem: aqui, 7h30, pouco mais de 2 horas antes. Glicemia capilar (hipoglicemia imita AVC) e TC de crânio sem contraste (exclui hemorragia) são os exames que liberam a decisão. Pelo PCDT do Ministério da Saúde, a alteplase deve ser infundida em até 4 h 30 min do início dos sintomas, com avaliação do neurologista e imagem sem hemorragia; PA acima de 185/110 mmHg que não responde ao tratamento contraindica a trombólise. Uso prévio de antiagregante (AAS) não é contraindicação, e o coagulograma só precisa ser aguardado em quem usa anticoagulante ou tem suspeita de coagulopatia. Reduzir a PA de forma agressiva não é a meta: a diretriz brasileira recomenda apenas trazê-la para menos de 185/110 mmHg antes do trombolítico.',
+    teaching: 'Déficit focal de instalação súbita é AVC até prova em contrário, e o relógio começa na última vez em que o paciente foi visto bem: aqui, 7h30, pouco mais de 2 horas antes. Glicemia capilar (hipoglicemia imita AVC) e TC de crânio sem contraste (exclui hemorragia) são os exames que liberam a decisão. Pelo PCDT do Ministério da Saúde, a alteplase deve ser infundida em até 4 h 30 min do início dos sintomas, com avaliação do neurologista e imagem sem hemorragia; PA acima de 185/110 mmHg que não responde ao tratamento contraindica a trombólise. Uso prévio de antiagregante (AAS) não é contraindicação, e o coagulograma só precisa ser aguardado em quem usa anticoagulante ou tem suspeita de coagulopatia. Reduzir a PA de forma agressiva não é a meta: a diretriz brasileira recomenda apenas trazê-la para menos de 185/110 mmHg antes do trombolítico. Heparina em dose terapêutica e punção lombar recente entram nas contraindicações à trombólise: fazê-las na admissão tira do paciente o tratamento que muda o desfecho.',
     references: [
       'Brasil. Ministério da Saúde. Protocolo Clínico e Diretrizes Terapêuticas do Acidente Vascular Cerebral Isquêmico Agudo. Portaria Conjunta SECTICS/SAES/MS nº 29, de 12 de dezembro de 2023.',
       'Barroso WKS, Rodrigues CIS, Bortolotto LA, et al. Diretrizes Brasileiras de Hipertensão Arterial – 2020. Arq Bras Cardiol. 2021;116(3):516–658. Seção 13.7.1: Acidente vascular encefálico isquêmico.',
@@ -524,7 +524,7 @@ export default [
     triage: {
       complaint: 'Febre há 6 dias, dor nas pernas, “olho vermelho” e tosse.',
       priority: 'orange',
-      vitals: { PA: '100/60 mmHg', FC: '112 bpm', FR: '30 irpm', Tax: '38,6 °C', SpO2: '92%', Peso: '70 kg' },
+      vitals: { PA: '100/60 mmHg', FC: '112 bpm', FR: '26 irpm', Tax: '38,6 °C', SpO2: '90%', Peso: '70 kg' },
       note: 'Passou em outro serviço há 3 dias: “virose, pode ser dengue”. Voltou pior.',
     },
     opening: 'Doutor(a), me disseram que era dengue e mandaram beber água. Mas eu não tô aguentando ficar em pé de tanta dor na batata da perna, e agora deu essa tosse.',
@@ -542,7 +542,7 @@ export default [
     physical: [
       { id: 'olhos', label: 'Olhos e mucosas', finding: 'Sufusão conjuntival bilateral (hiperemia e edema da conjuntiva). Icterícia discreta de escleras.', key: true },
       { id: 'panturrilhas', label: 'Musculoesquelético', finding: 'Dor intensa à compressão das panturrilhas, bilateral. Dor à palpação da musculatura lombar.', key: true },
-      { id: 'resp', label: 'Aparelho respiratório', finding: 'Taquipneico (FR 30 irpm). Estertores crepitantes em ambas as bases.', key: true },
+      { id: 'resp', label: 'Aparelho respiratório', finding: 'Taquipneico (FR 26 irpm), sem cianose. Estertores crepitantes em ambas as bases.', key: true },
       { id: 'hidratacao', label: 'Hidratação e perfusão', finding: 'Desidratado (+/4+), mucosas secas. TEC 3 s. Sem edema.' },
       { id: 'abdome', label: 'Abdome', finding: 'Flácido, doloroso difusamente, fígado palpável a 2 cm do rebordo costal. Sem sinais de irritação peritoneal.' },
       { id: 'pele', label: 'Pele', finding: 'Sem petéquias ou equimoses. Sem exantema.' },
@@ -552,10 +552,11 @@ export default [
       bun_creatinine: { result: 'Ureia 118 mg/dL · Creatinina 3,2 mg/dL.', relevance: 'key' },
       electrolytes: { result: 'Na 133 mEq/L · K 3,1 mEq/L · Cl 99 mEq/L.', relevance: 'useful', note: 'Potássio normal ou baixo apesar da insuficiência renal é típico da leptospirose.' },
       chest_xray: { result: 'Infiltrado alveolar bilateral, predominando em bases.', relevance: 'useful' },
-      blood_gas: { result: 'Gasometria arterial em ar ambiente: pH 7,30 · pO2 62 mmHg · pCO2 30 mmHg · HCO3 15 mEq/L.', relevance: 'useful' },
+      blood_gas: { result: 'Gasometria arterial em ar ambiente: pH 7,30 · pO2 56 mmHg · pCO2 30 mmHg · HCO3 15 mEq/L.', relevance: 'useful' },
       liver_enzymes: { result: 'TGO 142 U/L · TGP 96 U/L.', relevance: 'useful', note: 'Na leptospirose as transaminases sobem pouco (em geral menos de 500), com TGO maior que TGP.' },
       urinalysis: { result: 'Densidade baixa, proteinúria, hematúria microscópica e leucocitúria.', relevance: 'neutral' },
       blood_culture: { result: 'Coletada. Resultado em 24–72 h.', relevance: 'neutral' },
+      lactate: { result: 'Lactato 2,6 mmol/L.', relevance: 'neutral' },
       ecg: { result: 'Taquicardia sinusal, sem arritmias.', relevance: 'neutral' },
       rapid_dengue: { result: 'NS1 negativo · IgM não reagente.', relevance: 'neutral' },
       tourniquet_test: { result: 'Negativa.', relevance: 'neutral' },
@@ -585,7 +586,7 @@ export default [
         { id: 'aguardar_sorologia', label: 'Internar e aguardar a sorologia para leptospirose antes de iniciar o antibiótico.' },
       ],
     },
-    teaching: 'Febre, cefaleia e mialgia (sobretudo em panturrilhas) após contato com água de enchente definem caso suspeito de leptospirose; a sufusão conjuntival reforça. Oligúria, tosse com taquipneia, escarro hemoptoico e icterícia são sinais de alerta: basta um para indicar internação, antibiótico e suporte dirigido a pulmões e rins. Taquipneia acima de 28 irpm, escarro hemoptoico, infiltrado pulmonar e insuficiência renal aguda são critérios de UTI. Na fase tardia o antibiótico é venoso (penicilina cristalina, ampicilina, ceftriaxona ou cefotaxima) por pelo menos 7 dias, e não se espera a sorologia para começar. Com pulmão comprometido, a hidratação é cautelosa, porque o excesso de volume piora a função pulmonar, e a diálise deve ser precoce na insuficiência renal oligúrica. Leucocitose com desvio à esquerda, plaquetopenia, creatinina alta com potássio baixo e transaminases pouco elevadas separam o quadro da dengue. Todo caso suspeito é notificado.',
+    teaching: 'Febre, cefaleia e mialgia (sobretudo em panturrilhas) após contato com água de enchente definem caso suspeito de leptospirose; a sufusão conjuntival reforça. Oligúria, tosse com taquipneia, escarro hemoptoico e icterícia são sinais de alerta: basta um para indicar internação, antibiótico e suporte dirigido a pulmões e rins. Escarro hemoptoico, infiltrado pulmonar, hipoxemia (pO2 abaixo de 60 mmHg em ar ambiente) e insuficiência renal aguda são critérios de UTI, e a hipoxemia indica oxigênio. Na fase tardia o antibiótico é venoso (penicilina cristalina, ampicilina, ceftriaxona ou cefotaxima) por pelo menos 7 dias, e não se espera a sorologia para começar; o esquema oral ambulatorial é só para quem não tem sinais de alerta. Entre os sintomáticos, evita-se o AAS. Com pulmão comprometido, a hidratação é cautelosa, porque o excesso de volume piora a função pulmonar, e a diálise deve ser precoce na insuficiência renal oligúrica. Leucocitose com desvio à esquerda ajuda a separar o quadro de uma infecção viral aguda como a dengue; o potássio normal ou baixo com creatinina alta distingue a leptospirose de outras causas infecciosas de insuficiência renal aguda. Todo caso suspeito é notificado.',
     references: [
       'Brasil. Ministério da Saúde. Secretaria de Vigilância em Saúde. Leptospirose: diagnóstico e manejo clínico. Brasília: Ministério da Saúde, 2014.',
     ],
