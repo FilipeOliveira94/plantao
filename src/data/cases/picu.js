@@ -376,4 +376,88 @@ export default [
       'Sociedade Brasileira de Pediatria. Departamentos Científicos de Cardiologia e Neonatologia. Sistematização do atendimento ao recém-nascido com suspeita ou diagnóstico de cardiopatia congênita. Manual de Orientação nº 4, 11 de agosto de 2022.',
     ],
   },
+
+  {
+    id: 'picu-organophosphate-carbamate-poisoning',
+    specialty: 'picu',
+    type: 'new',
+    settings: ['picu'],
+    difficulty: 3,
+    timeCritical: { minutes: 12, reason: 'Na síndrome colinérgica, a atropina deve ser administrada rapidamente após o diagnóstico clínico: a broncorreia e o broncoespasmo levam à insuficiência respiratória.' },
+    patient: {
+      name: 'Kauã Oliveira', age: '2 anos e 6 meses', sex: 'M',
+      look: { skin: '#8d5a3b', hair: '#1d1410', shirt: '#cdd5df', build: 'child', inBed: true },
+      companion: { name: 'Dona Lurdes (avó)', look: { skin: '#8d5a3b', hair: '#cfcfcf', shirt: '#7a9e4f', build: 'elder' } },
+    },
+    triage: {
+      complaint: 'Admissão: vômitos, “babando muito”, sonolento e com falta de ar.',
+      priority: 'red',
+      vitals: { FC: '58 bpm', FR: '44 irpm', PA: '72/40 mmHg', Tax: '35,8 °C', SpO2: '86% (máscara de O2)', Glasgow: '10', Peso: '13 kg' },
+      note: 'Roupa molhada de suor e vômito. Um acesso periférico.',
+    },
+    previousNote: {
+      title: 'Passagem de caso — UPA (Dra. Yasmin)',
+      text: 'Pré-escolar previamente hígido, trazido pela avó após ser encontrado no quintal “com uma coisa preta na boca”. Vomitou várias vezes, muita secreção, “tremores” — pensei em crise convulsiva ou broncoaspiração. Fiz O2 e aspirei a boca. Não fiz lavagem nem medicação. Regulação liberou a vaga rápido.',
+    },
+    opening: '(avó) Doutor(a), ele tava brincando no quintal enquanto eu estendia roupa. Quando olhei, tava vomitando e todo mole. Isso foi rápido demais!',
+    questions: [
+      { id: 'achado', cat: 'HDA', q: 'O que a senhora viu na boca ou na mão dele?', a: '(avó) Uns grãozinhos pretos, parecendo chumbo de caça. Tinha no chão também, perto do muro.' },
+      { id: 'produto', cat: 'HDA', q: 'A senhora sabe o que eram esses grãozinhos? Tem veneno em casa?', a: '(avó, hesita) É… é veneno de rato. Eu botei ontem atrás do tanque, que tá dando muito rato.', key: true },
+      { id: 'embalagem', cat: 'HDA', q: 'Qual veneno? Trouxe a embalagem?', a: '(avó, tira um saquinho plástico do bolso) É o chumbinho, comprei na feira. Não tem rótulo, não tem nome, nada. O moço disse que era “o forte”.', requires: 'produto', key: true },
+      { id: 'tempo', cat: 'HDA', q: 'Há quanto tempo foi isso? Sabe quanto ele engoliu?', a: '(avó) Faz umas duas horas, por aí. Quanto eu não sei, tinha uns grãos espalhados.' },
+      { id: 'sintomas', cat: 'Sinais de alarme', q: 'O que apareceu primeiro? Teve diarreia, urinou na roupa?', a: '(avó) Primeiro vomitou e começou a babar e chorar muita lágrima. Fez cocô mole e xixi na roupa. Depois ficou tremendo os musculinhos e amoleceu.', key: true },
+      { id: 'outros', cat: 'Epidemiologia', q: 'Tem outra criança em casa que possa ter mexido no veneno?', a: '(avó) A irmã de cinco anos tava na escola. Mas o saquinho ainda tá lá no quintal, meu Deus…' },
+      { id: 'antecedentes', cat: 'Antecedentes', q: 'Ele tem alguma doença, convulsão, usa remédio?', a: '(avó) Nada. Nunca teve convulsão.' },
+      { id: 'remedios', cat: 'Medicações', q: 'Deram alguma coisa pra ele em casa? Leite, remédio, provocaram vômito?', a: '(avó) A vizinha mandou dar leite, ele tomou dois goles e vomitou. Mais nada.' },
+    ],
+    physical: [
+      { id: 'pupilas', label: 'Pupilas', finding: 'Miose puntiforme bilateral, pouco reativa.', key: true },
+      { id: 'secrecoes', label: 'Secreções e aparelho respiratório', finding: 'Sialorreia e lacrimejamento intensos, sudorese profusa. Broncorreia: roncos, sibilos e estertores difusos. Respiração superficial.', key: true },
+      { id: 'neuromuscular', label: 'Neuromuscular', finding: 'Fasciculações em face e membros. Hipotonia e fraqueza generalizadas. Sonolento, desperta com estímulo doloroso (Glasgow 10).', key: true },
+      { id: 'cardio', label: 'Cardiovascular', finding: 'Bradicárdico (FC 58 bpm), pulsos finos, TEC 4 s.' },
+      { id: 'odor', label: 'Boca, pele e roupas', finding: 'Resíduos de grânulos escuros em mucosa oral. Roupas úmidas de vômito e suor.' },
+      { id: 'abdome', label: 'Abdome', finding: 'Ruídos hidroaéreos muito aumentados. Fralda com fezes líquidas e urina.' },
+    ],
+    exams: {
+      blood_gas: { result: 'pH 7,18 · pCO2 58 mmHg · pO2 52 mmHg · HCO3 20 mEq/L.', relevance: 'useful' },
+      capillary_glucose: { result: '142 mg/dL.', relevance: 'useful' },
+      ecg: { result: 'Bradicardia sinusal, 56 bpm.', relevance: 'useful' },
+      electrolytes: { result: 'Na 137 mEq/L · K 3,4 mEq/L · Cl 100 mEq/L.', relevance: 'useful' },
+      chest_xray: { result: 'Infiltrado peri-hilar bilateral.', relevance: 'neutral' },
+      cbc: { result: 'Hb 11,8 g/dL · Leucócitos 15.200/mm³ · Plaquetas 298.000/mm³.', relevance: 'neutral' },
+      liver_enzymes: { result: 'TGO 34 U/L · TGP 28 U/L.', relevance: 'neutral' },
+      head_ct: { result: 'Transporte para tomografia em paciente instável — exame adiado pela equipe.', relevance: 'unnecessary', harmful: true },
+      csf: { result: 'Punção não realizada: paciente instável e sem indicação.', relevance: 'unnecessary', harmful: true },
+      abdominal_xray: { result: 'Distribuição gasosa normal. Sem corpo estranho radiopaco.', relevance: 'unnecessary' },
+    },
+    diagnosis: {
+      correct: 'colinergica',
+      options: [
+        { id: 'colinergica', label: 'Síndrome colinérgica aguda grave por inibidor de colinesterase (organofosforado ou carbamato — “chumbinho”)' },
+        { id: 'opioide', label: 'Intoxicação por opioide' },
+        { id: 'convulsao', label: 'Estado de mal epiléptico' },
+        { id: 'cumarinico', label: 'Intoxicação por raticida anticoagulante (cumarínico)' },
+        { id: 'aspiracao', label: 'Pneumonia aspirativa com sepse' },
+      ],
+    },
+    conduct: {
+      correct: 'atropina',
+      options: [
+        { id: 'atropina', label: 'Proteger a via aérea e ventilar, aspirar secreções; dois acessos venosos (um exclusivo para atropina); atropina EV 0,01–0,06 mg/kg/dose já, repetida a cada 5–15 min até a atropinização (ausculta limpa, FC e PA adequadas), seguida de infusão contínua; reposição de fluidos; sem oximas e sem lavagem gástrica de rotina; ligar para o CIATox (0800 722 6001) e notificar no Sinan.' },
+        { id: 'aguardar_colinesterase', label: 'Colher colinesterase e aguardar o resultado para confirmar antes de iniciar a atropina.', harmful: true },
+        { id: 'lavagem', label: 'Lavagem gástrica e carvão ativado de imediato, antes de qualquer outra medida, com a criança sonolenta e sem via aérea protegida.', harmful: true },
+        { id: 'vomito', label: 'Induzir o vômito e dar catártico para eliminar o veneno.', harmful: true },
+        { id: 'oxima', label: 'Pralidoxima como antídoto principal, deixando a atropina para se a bradicardia piorar.', harmful: true },
+        { id: 'naloxona', label: 'Naloxona EV pela miose e depressão respiratória, e observar a resposta.' },
+      ],
+    },
+    // TODO(medical review): the guideline covers organophosphates and carbamates; it does not mention "chumbinho" or its
+    // composition. The case assumes a clandestine cholinesterase-inhibitor rodenticide from the toxidrome alone.
+    // The atropinization endpoints (clear chest, HR > 80 bpm, SBP > 80 mmHg) come from the guideline's Figure 2,
+    // which gives adult bolus doses; confirm the pediatric targets. Text read: the CONITEC summary of chapter 2.
+    teaching: 'Miose, bradicardia, sialorreia, lacrimejamento, broncorreia, vômitos e diarreia (efeitos muscarínicos) somados a fasciculações e fraqueza (nicotínicos) e rebaixamento do nível de consciência formam a toxíndrome colinérgica: o diagnóstico é clínico e a história de raticida clandestino fecha o quadro. Glasgow ≤ 13, alteração respiratória, fasciculações, FC abaixo de 60 bpm e hipotensão definem intoxicação moderada ou grave, com indicação de terapia intensiva. A atropina é dada rapidamente após o diagnóstico clínico, em doses repetidas até a atropinização: na criança, 0,01–0,06 mg/kg/dose a cada 5–15 minutos, seguida de infusão contínua. O alvo é a ausculta limpa, com frequência cardíaca e pressão adequadas; taquicardia isolada não é motivo para suspender. A dosagem de colinesterase ajuda no diagnóstico e no seguimento, mas não deve atrasar o tratamento. A diretriz brasileira não recomenda indução de vômito, catárticos, oximas, nem lavagem gástrica ou carvão ativado de rotina; se considerados, só com via aérea protegida. Ligue para o CIATox e notifique todo caso no Sinan. Entre 24 e 96 horas depois pode surgir a síndrome intermediária, com fraqueza da musculatura respiratória.',
+    references: [
+      'Brasil. Ministério da Saúde. Diretrizes Brasileiras para Diagnóstico e Tratamento de Intoxicações por Agrotóxicos. Capítulo 2: Inibidores de colinesterase. Portaria nº 79, de 14 de dezembro de 2018.',
+    ],
+  },
 ];
