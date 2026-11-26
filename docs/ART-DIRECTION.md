@@ -38,7 +38,7 @@ A building is drawn at the scale it really has. A small health post is not a tow
 
 ## Unit cards (menu)
 
-Menu cards show the city or neighborhood: a landmark, the landscape and the building at its scale. The default is the same flat code-drawn style as the scene. A stock photo is allowed on a card only, never in the scene, and only under the license rules below.
+Menu cards show the city: a landmark, the landscape and the building at its scale. The default is the same flat code-drawn style as the scene. A stock photo is allowed on a card only, never in the scene, and only under the license rules below.
 
 ## Sound
 
@@ -63,5 +63,5 @@ Rules:
 - **Every external asset gets a row in `CREDITS.md` in the same PR that adds it**: file path, title, author, source URL, license, and any change made to it.
 - Keep the original file name or note the original name in `CREDITS.md`.
 - No photos of identifiable patients, staff or real health units' interiors.
-- No logos, names or uniforms of real hospitals, brands or government programs in art. Unit names in `src/data/catalog.js` are fictional and stay so.
+- No logos, names or uniforms of real hospitals, brands or government programs in art. Unit names must be invented, never a real service or neighborhood (P4-06).
 - When unsure about a license, leave the asset out.
