@@ -162,3 +162,5 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
   .stage { border-right: none; border-bottom: 2px solid var(--ink); grid-template-rows: 300px auto; }
   .chart { min-height: 70vh; }
 }
+.music-vol { display: inline-flex; align-items: center; gap: 4px; }
+.music-vol input { width: 80px; }

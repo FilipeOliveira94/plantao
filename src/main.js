@@ -4,11 +4,14 @@ import { Shift } from './game/shift.js';
 import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS } from './game/progress.js';
 import { IsoScene } from './render/iso.js';
 import { sfx } from './audio/sfx.js';
+import { music } from './audio/music.js';
 import { h, mount, toast, modal } from './ui/dom.js';
 
 const app = document.getElementById('app');
 let state = load();
 sfx.setMuted(state.settings.muted);
+music.setMuted(state.settings.muted);
+music.setVolume(state.settings.musicVolume ?? 0.4);
 
 let shift = null;
 let scene = null;
@@ -33,6 +36,7 @@ let menuSel = { unit: null, spec: null };
 
 function renderMenu() {
   scene = null;
+  music.stop();
   const lvl = levelOf(state.xp);
   const unitCards = UNITS.map((u) => {
     const locked = lvl.number < u.unlockLevel;
@@ -73,6 +77,7 @@ function renderMenu() {
         h('button', { class: 'btn', onclick: showBadges }, '🏅 Conquistas'),
         h('button', { class: 'btn', onclick: showHelp }, '❓ Como jogar'),
         h('button', { class: 'btn ghost', onclick: toggleMute, title: 'Som' }, state.settings.muted ? '🔇' : '🔊'),
+        musicSlider(),
       ),
     ),
     h('p', { class: 'section-title' }, 'Escolha a unidade'),
@@ -89,6 +94,16 @@ function renderMenu() {
     h('p', { class: 'disclaimer' },
       'Jogo educativo. Casos fictícios baseados em diretrizes clínicas citadas em cada atendimento. Não substitui julgamento clínico, protocolos institucionais nem a bula/prescrição. Doses e condutas podem mudar com atualizações das diretrizes.'),
   ));
+}
+
+function musicSlider() {
+  const vol = state.settings.musicVolume ?? 0.4;
+  return h('label', { class: 'music-vol small', title: 'Volume da música' }, '🎵 ',
+    h('input', {
+      type: 'range', min: 0, max: 100, step: 5, value: Math.round(vol * 100), 'aria-label': 'Volume da música',
+      oninput: (e) => { state.settings.musicVolume = e.target.value / 100; music.setVolume(state.settings.musicVolume); },
+      onchange: () => save(state),
+    }));
 }
 
 /** XP bar; `fraction` in 0..1. */
@@ -128,6 +143,7 @@ function showCareer() {
 function toggleMute() {
   state.settings.muted = !state.settings.muted;
   sfx.setMuted(state.settings.muted);
+  music.setMuted(state.settings.muted);
   save(state);
   if (shift) renderTop(); else renderMenu();
 }
@@ -137,7 +153,7 @@ function confirmReset() {
     h('h2', {}, 'Zerar progresso?'),
     h('p', {}, 'XP, conquistas e histórico de casos serão apagados deste navegador.'),
     h('div', { class: 'menu-actions' },
-      h('button', { class: 'btn warn', onclick: () => { state = reset(); m.close(); renderMenu(); } }, 'Zerar'),
+      h('button', { class: 'btn warn', onclick: () => { state = reset(); sfx.setMuted(false); music.setMuted(false); music.setVolume(0.4); m.close(); renderMenu(); } }, 'Zerar'),
       h('button', { class: 'btn', onclick: () => m.close() }, 'Cancelar')),
   ));
 }
@@ -174,6 +190,7 @@ function startShift(unit, specialty) {
   sfx.unlock();
   shift = new Shift({ unit, specialty, completedCases: state.cases });
   if (!shift.encounters.length) { toast('Ainda não há casos para essa combinação.'); return; }
+  music.play(unit.music);
   renderGame();
   toast(`Plantão iniciado: ${unit.name} (${unit.city}/${unit.uf}). ${unit.flavor}`, 6000);
 }
@@ -213,6 +230,7 @@ function renderTop() {
     h('span', { class: 'small' }, `Nv ${lvl.number} · ${state.xp} XP`),
     h('span', { class: 'clock', title: 'Relógio do plantão' }, shift.clockLabel),
     h('button', { class: 'btn ghost', onclick: toggleMute }, state.settings.muted ? '🔇' : '🔊'),
+    musicSlider(),
   );
 }
 
@@ -572,4 +590,4 @@ function showShiftSummary() {
 renderMenu();
 
 // exposed for automated tests
-window.__plantao = { get shift() { return shift; }, get state() { return state; } };
+window.__plantao = { get shift() { return shift; }, get state() { return state; }, get music() { return music.playing; } };

@@ -85,6 +85,7 @@ try {
   let reportChecked = false;
   let tabsChecked = false;
   let menuChecked = false;
+  let musicChecked = false;
   let shuffledSeen = 0;
   for (let u = 0; u < units; u++) {
     await page.locator('.unit').nth(u).click();
@@ -93,6 +94,15 @@ try {
       await page.locator('.spec').nth(s).click();
       await page.getByRole('button', { name: /Começar plantão/ }).click();
       await page.waitForSelector('.game');
+      // music: the unit's track (and weather) plays during the shift, and the slider sets and saves the volume
+      const mus = await page.evaluate(() => ({ playing: window.__plantao.music, expected: window.__plantao.shift.unit.music }));
+      if (!mus.expected?.track || mus.playing?.track !== mus.expected.track || mus.playing.weather !== (mus.expected.weather ?? null)) throw new Error(`music ${JSON.stringify(mus.playing)} != ${JSON.stringify(mus.expected)}`);
+      if (!musicChecked) {
+        musicChecked = true;
+        await page.locator('.topbar .music-vol input').fill('20');
+        const vol = await page.evaluate(() => JSON.parse(localStorage.getItem('plantao.save.v1')).settings.musicVolume);
+        if (vol !== 0.2) throw new Error(`music volume not saved: ${vol}`);
+      }
       let guard = 0;
       while (guard++ < 60) {
         const done = await page.evaluate(() => window.__plantao.shift?.done);
@@ -174,6 +184,7 @@ try {
       if (u === units - 1 && SHOTS) await page.screenshot({ path: `${SHOTS}/04-fim.png` });
       console.log(`✔ unit ${u} · specialty ${s}`);
       await page.getByRole('button', { name: /Voltar ao menu/ }).click();
+      if (await page.evaluate(() => window.__plantao.music)) throw new Error('music still playing on the menu');
       await page.locator('.unit').nth(u).click();
     }
   }
