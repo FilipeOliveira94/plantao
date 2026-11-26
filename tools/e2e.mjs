@@ -1,5 +1,5 @@
 // End-to-end test: plays a full shift in every unit/specialty, always picking the correct answers.
-// Requires Playwright (global or local) and Python 3 to serve the files.
+// Requires Playwright (`npm ci && npx playwright install chromium`) and Python 3 to serve the files.
 // Usage: node tools/e2e.mjs [--shots dir]
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -7,8 +7,10 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 let chromium;
-try { ({ chromium } = require('playwright')); } catch {
-  ({ chromium } = require('/opt/node22/lib/node_modules/playwright'));
+try { ({ chromium } = require('playwright')); } catch (e) {
+  if (e.code !== 'MODULE_NOT_FOUND') throw e;
+  console.error('Playwright not found: run `npm ci && npx playwright install chromium`.');
+  process.exit(1);
 }
 
 const PORT = 8765;
@@ -17,15 +19,28 @@ const SHOTS = shotsIdx > -1 ? process.argv[shotsIdx + 1] : null;
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
 const server = spawn('python3', ['-m', 'http.server', String(PORT)], { stdio: 'ignore' });
-await new Promise((r) => setTimeout(r, 800));
+process.on('exit', () => server.kill()); // never leave the server running, whatever fails below
+// wait until our server answers (a slow CI runner can take more than a second)
+for (let tries = 0; ; tries++) {
+  if (server.exitCode !== null) {
+    console.error(`E2E server exited (is port ${PORT} already in use?).`);
+    process.exit(1);
+  }
+  try { if ((await fetch(`http://localhost:${PORT}/index.html`, { signal: AbortSignal.timeout(1000) })).ok) break; } catch { /* not up yet */ }
+  if (tries >= 50) {
+    console.error(`E2E server did not start on port ${PORT}.`);
+    process.exit(1);
+  }
+  await new Promise((r) => setTimeout(r, 200));
+}
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1366, height: 820 } });
 const errors = [];
-page.on('pageerror', (e) => errors.push(e.message));
-page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
 try {
+  const page = await browser.newPage({ viewport: { width: 1366, height: 820 } });
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(`http://localhost:${PORT}/index.html`);
   // the menu states that the cases are AI-generated and links to the references table
   const refs = page.locator('.ai-notice a');
