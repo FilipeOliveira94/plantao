@@ -497,7 +497,7 @@ function paneFor(enc) {
     return [
       asked.length ? h('details', { class: 'asked', open: askedOpen, ontoggle: (e) => { askedOpen = e.target.open; } },
         h('summary', {}, `Já perguntado (${asked.length})`),
-        h('ul', {}, asked.map((l) => h('li', {}, h('b', {}, l.q), ' ', l.a)))) : null,
+        h('ul', {}, asked.map((l) => h('li', {}, h('b', {}, l.q), ' ', enc.speakerFor(l.a).text)))) : null,
       groups.length ? groups.map(([cat, qs]) => h('div', { class: 'opt-group' }, h('h5', {}, cat), h('div', { class: 'opts' }, qs.map((q) => h('button', { class: 'opt', onclick: () => doAsk(enc, q.id) }, q.q, h('span', { class: 'muted small' }, ` · ${ACTION_COST.question} min`)))))) : h('p', { class: 'muted' }, 'Sem mais perguntas relevantes.'),
     ];
   }
