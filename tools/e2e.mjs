@@ -75,17 +75,17 @@ try {
           const e = window.__plantao.shift.current;
           return { dx: e.c.diagnosis.correct, cd: e.c.conduct.correct, fileOrder: e.dxOptions.every((o, i) => o.id === e.c.diagnosis.options[i].id) && e.cdOptions.every((o, i) => o.id === e.c.conduct.options[i].id) };
         });
-        const rendered = await page.$$eval('input[name=dx]', (els) => els.map((el) => el.value));
-        const expected = await page.evaluate(() => window.__plantao.shift.current.dxOptions.map((o) => o.id));
-        if (rendered.join() !== expected.join()) throw new Error(`diagnosis options render out of the encounter's order: ${rendered} vs ${expected}`);
+        const renderedOrder = () => page.evaluate(() => ['dx', 'cd'].map((n) => [...document.querySelectorAll(`input[name=${n}]`)].map((el) => el.value).join()).join('|'));
+        const rendered = await renderedOrder();
+        const expected = await page.evaluate(() => { const e = window.__plantao.shift.current; return [e.dxOptions, e.cdOptions].map((l) => l.map((o) => o.id).join()).join('|'); });
+        if (rendered !== expected) throw new Error(`options render out of the encounter's order: ${rendered} vs ${expected}`);
         if (!correct.fileOrder) shuffledSeen++;
         await page.locator(`input[name=dx][value="${correct.dx}"]`).check();
         await page.locator(`input[name=cd][value="${correct.cd}"]`).check();
         // switching tabs re-renders the chart; the order must stay the same
         await page.getByRole('tab', { name: /Triagem/ }).click();
         await page.getByRole('tab', { name: /Decisão/ }).click();
-        const again = await page.$$eval('input[name=dx]', (els) => els.map((el) => el.value));
-        if (again.join() !== rendered.join()) throw new Error('option order changed on re-render');
+        if (await renderedOrder() !== rendered) throw new Error('option order changed on re-render');
         if (!(await page.locator(`input[name=dx][value="${correct.dx}"]`).isChecked())) throw new Error('diagnosis choice lost on re-render');
         await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
         await page.waitForSelector('.modal');
@@ -102,6 +102,14 @@ try {
   }
   if (!shuffledSeen) throw new Error('answer options were never shuffled in any encounter');
   console.log(`✔ options shuffled in ${shuffledSeen} encounters`);
+  // the same seed gives the same option order
+  const sameSeed = await page.evaluate(async () => {
+    const { Shift } = await import('./src/game/shift.js');
+    const { UNITS } = await import('./src/data/catalog.js');
+    const order = () => new Shift({ unit: UNITS[0], specialty: UNITS[0].specialties[0], seed: 42 }).encounters.map((e) => [...e.dxOptions, ...e.cdOptions].map((o) => o.id).join()).join('|');
+    return order() === order();
+  });
+  if (!sameSeed) throw new Error('option order is not deterministic for a fixed seed');
   // PICU scene
   if (SHOTS) {
     await page.locator('.unit').last().click();
