@@ -154,6 +154,15 @@ export class Shift {
     if (this.current === enc) this.current = null;
   }
 
+  /** The doctor waits in the room for the current patient's next result, never past the end of the shift.
+   *  Shift time passes; consultation time does not. */
+  waitInRoom() {
+    if (!this.current || this.over) return [];
+    const times = this.current.pendingExams(this.clock).map(([, r]) => r.readyAt);
+    if (!times.length) return [];
+    return this.advance(Math.max(1, Math.min(Math.min(...times), SHIFT_MINUTES) - this.clock));
+  }
+
   /** Advances the clock to the next event (arrival or test result), never past the end of the shift. */
   waitForNext() {
     if (this.over) return [];

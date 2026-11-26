@@ -182,6 +182,17 @@ try {
           await page.locator('.test-search').fill('bioquimica');
           if (!(await page.locator('.test-cat[open] summary', { hasText: 'Bioquímica' }).count())) throw new Error('category search did not open Bioquímica');
           await page.locator('.test-search').fill('');
+          // ordering a point-of-care test costs 1 consultation minute; the result comes after its duration
+          const before = await page.evaluate(() => window.__plantao.shift.current.minutesSpent);
+          await page.locator('.test-search').fill('glicemia capilar');
+          await page.locator('.test-cat[open] .opt').first().click();
+          const after = await page.evaluate(() => { const s = window.__plantao.shift; const r = s.current.requested.get('capillary_glucose'); return { spent: s.current.minutesSpent, wait: r.readyAt - s.clock }; });
+          if (after.spent !== before + 1 || after.wait <= 0) throw new Error(`test order cost: ${JSON.stringify({ before, ...after })}`);
+          if (!/\d+ \/ \d+ min de consulta/.test(await page.locator('.chart .chip', { hasText: 'min de consulta' }).textContent())) throw new Error('chart does not show consultation time against its target');
+          await page.getByRole('button', { name: /Aguardar aqui/ }).click();
+          if (await page.evaluate(() => window.__plantao.shift.current.minutesSpent) !== after.spent) throw new Error('waiting in the room counted as consultation time');
+          if (!(await page.locator('.exam-row', { hasText: 'Glicemia capilar' }).getByText('Liberado').count())) throw new Error('point-of-care result not ready after waiting in the room');
+          await page.locator('.test-search').fill('');
         }
         // correct decision
         await page.getByRole('tab', { name: /Decisão/ }).click();
@@ -241,6 +252,35 @@ try {
     return order() === order();
   });
   if (!sameSeed) throw new Error('option order is not deterministic for a fixed seed');
+  // consultation time budget: the focused path costs nothing, asking everything is penalized and capped,
+  // and the old efficiency bonus is gone
+  const budget = await page.evaluate(async () => {
+    const { Encounter, consultTarget, focusedMinutes, OVERTIME_CAP } = await import('./src/game/encounter.js');
+    const { CASES } = await import('./src/data/cases/index.js');
+    const bad = [];
+    for (const c of CASES) {
+      const pick = { diagnosisId: c.diagnosis.correct, conductId: c.conduct.correct, now: 0 };
+      const focused = new Encounter(c, c.settings[0]);
+      const keyQ = new Set(); const add = (q) => { if (q && !keyQ.has(q.id)) { keyQ.add(q.id); add(c.questions.find((x) => x.id === q.requires)); } };
+      c.questions.filter((q) => q.key).forEach(add);
+      // ask prerequisites first
+      for (const q of c.questions) if (keyQ.has(q.id)) focused.ask(q.id);
+      c.physical.filter((p) => p.key).forEach((p) => focused.examine(p.id));
+      Object.entries(c.exams || {}).filter(([, e]) => e.relevance === 'key' && !e.brought).forEach(([id]) => focused.request(id, 0));
+      const f = focused.score(pick);
+      if (focused.minutesSpent !== focusedMinutes(c)) bad.push(`${c.id}: focused path ${focused.minutesSpent} min, helper says ${focusedMinutes(c)}`);
+      if (f.lines.some((l) => /tempo-alvo|eficiente/.test(l.label))) bad.push(`${c.id}: focused path penalized: ${f.lines.map((l) => l.label)}`);
+      const all = new Encounter(c, c.settings[0]);
+      for (let i = 0; i < 3; i++) c.questions.forEach((q) => { if (!q.requires || all.asked.has(q.requires)) all.ask(q.id); });
+      c.physical.forEach((p) => all.examine(p.id));
+      const line = all.score(pick).lines.find((l) => /tempo-alvo/.test(l.label));
+      const over = all.minutesSpent - consultTarget(c);
+      if (over > 0 && (!line || line.v !== -Math.min(OVERTIME_CAP, 2 * over))) bad.push(`${c.id}: ${all.minutesSpent} min vs ${consultTarget(c)}: ${JSON.stringify(line)}`);
+    }
+    return bad;
+  });
+  if (budget.length) throw new Error(budget.join('\n'));
+  console.log('✔ consultation budget: focused paths free, overtime penalized and capped');
   // arrivals: same seed, same schedule; 5 patients (PICU 4) or the whole pool, spread over the arrival window
   const arrivals = await page.evaluate(async () => {
     const { Shift, ARRIVAL_WINDOW, PATIENTS_PER_SHIFT } = await import('./src/game/shift.js');

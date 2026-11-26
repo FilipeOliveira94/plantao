@@ -2,6 +2,7 @@
 import { CASES } from '../src/data/cases/index.js';
 import { EXAMS, EXAM_CATS, UNIT_TYPES, UNITS, SPECIALTIES, TRIAGE } from '../src/data/catalog.js';
 import { LEVELS } from '../src/game/progress.js';
+import { consultTarget, focusedMinutes } from '../src/game/encounter.js';
 
 const errors = [];
 const warn = [];
@@ -42,6 +43,14 @@ for (const c of CASES) {
   if (!c.opening) err(id, 'missing opening line');
   if (!c.teaching || c.teaching.length < 80) err(id, 'teaching missing or too short');
   if (!c.references?.length) err(id, 'no references');
+  // Time fit (game balance, not clinical validation): the key items must fit the case's consultation
+  // target and its time-critical window, or a focused player could not avoid the penalty.
+  if (c.consultMinutes !== undefined && !(Number.isInteger(c.consultMinutes) && c.consultMinutes > 0)) err(id, `consultMinutes must be a positive integer: ${c.consultMinutes}`);
+  else if (TRIAGE[c.triage?.priority] && c.questions && c.physical) {
+    const focused = focusedMinutes(c);
+    if (focused > consultTarget(c)) err(id, `key items take ${focused} min, over the ${consultTarget(c)}-min consultation target`);
+    if (c.timeCritical && focused > c.timeCritical.minutes) err(id, `key items take ${focused} min, over the ${c.timeCritical.minutes}-min time-critical window`);
+  }
   if (c.type === 'follow_up' && !c.previousNote) warn.push(`[${id}] follow-up without previousNote`);
 
   const qids = new Set();
