@@ -427,4 +427,76 @@ export default [
       'American Academy of Pediatrics, Subcommittee on Urinary Tract Infection. Reaffirmation of AAP Clinical Practice Guideline: The Diagnosis and Management of the Initial Urinary Tract Infection in Febrile Infants and Young Children 2–24 Months of Age. Pediatrics. 2016;138(6):e20163026.',
     ],
   },
+
+  {
+    id: 'peds-anaphylaxis',
+    specialty: 'pediatrics',
+    type: 'new',
+    settings: ['upa', 'hospital'],
+    difficulty: 2,
+    timeCritical: { minutes: 10, reason: 'Na anafilaxia, a adrenalina intramuscular é a droga de primeira linha e deve ser aplicada imediatamente: a prescrição precoce é essencial para reverter o quadro.' },
+    patient: {
+      name: 'Miguel Santos', age: '6 anos', sex: 'M',
+      look: { skin: '#a8714f', hair: '#1d1410', shirt: '#e85d75', build: 'child' },
+      companion: { name: 'Patrícia (mãe)', look: { skin: '#a8714f', hair: '#1d1410', shirt: '#f2c14e', build: 'adult' } },
+    },
+    triage: {
+      complaint: '“Empolou todo”, boca inchada e tosse depois do almoço.',
+      priority: 'red',
+      vitals: { FC: '142 bpm', FR: '36 irpm', PA: '88/52 mmHg', Tax: '36,6 °C', SpO2: '91%', Peso: '22 kg' },
+      note: 'Chegou no colo da mãe, coçando o corpo todo. Vomitou na recepção.',
+    },
+    opening: '(mãe) Doutor(a), ele tava no aniversário do primo, comeu e começou a se coçar. Dei o antialérgico em casa e só piorou, agora tá com essa tosse e a boca desse tamanho!',
+    questions: [
+      { id: 'tempo', cat: 'HDA', q: 'Quanto tempo depois de comer isso começou? Como evoluiu?', a: '(mãe) Uns quinze minutos. Primeiro coçou a boca, depois empolou o pescoço, a barriga… aí inchou o beiço, começou a tossir e vomitou duas vezes. Tudo em menos de uma hora.', key: true },
+      { id: 'alimento', cat: 'HDA', q: 'O que ele comeu? Tinha alguma coisa que ele nunca tinha comido?', a: '(mãe) Arroz, salgadinho, bolo… e vatapá. Camarão ele nunca tinha comido, lá em casa ninguém faz.' },
+      { id: 'respiracao', cat: 'Sinais de alarme', q: 'Ele reclamou de falta de ar, aperto na garganta, voz diferente?', a: '(Miguel, rouco) Minha garganta tá apertando… (mãe) A voz dele não é assim, não.', key: true },
+      { id: 'remedio', cat: 'Medicações', q: 'Que remédio a senhora deu em casa?', a: '(mãe) O antialérgico, aquele xarope que todo mundo tem.' },
+      { id: 'remedio_qual', cat: 'Medicações', q: 'Qual o nome do xarope e há quanto tempo deu?', a: '(mãe, procura na bolsa) Esse: dexclorfeniramina. Dei uma colher faz uns quarenta minutos e fiquei esperando fazer efeito. Não fez.', requires: 'remedio' },
+      { id: 'asma', cat: 'Antecedentes', q: 'Ele tem asma, bronquite, usa bombinha?', a: '(mãe) Tem bronquite. Usa a bombinha azul quando ataca. A outra, a de todo dia, acabou e eu não peguei mais.', key: true },
+      { id: 'alergias', cat: 'Antecedentes', q: 'Já teve alguma reação alérgica antes? A remédio, comida, picada?', a: '(mãe) Uma vez empolou com um peixe, mas passou sozinho. Nunca foi assim.' },
+      { id: 'picada', cat: 'HDA', q: 'Foi picado por abelha, formiga? Tomou algum remédio hoje antes disso?', a: '(mãe) Não. Remédio hoje só o xarope, depois que começou.' },
+    ],
+    physical: [
+      { id: 'pele', label: 'Pele e mucosas', finding: 'Urticária generalizada em tronco, pescoço e membros. Angioedema de lábios e pálpebras.', key: true },
+      { id: 'resp', label: 'Aparelho respiratório', finding: 'Rouquidão, tosse seca repetida. Tiragem intercostal, sibilos difusos bilaterais. SpO2 91% em ar ambiente.', key: true },
+      { id: 'cardio', label: 'Cardiovascular e perfusão', finding: 'Taquicárdico, bulhas normofonéticas. Pulsos cheios, TEC 2 s.' },
+      { id: 'abdome', label: 'Abdome', finding: 'Dor em cólica difusa, sem defesa. Ruídos hidroaéreos aumentados.' },
+      { id: 'neuro', label: 'Neurológico', finding: 'Alerta, assustado, responde às perguntas.' },
+    ],
+    exams: {
+      capillary_glucose: { result: '96 mg/dL.', relevance: 'neutral' },
+      ecg: { result: 'Taquicardia sinusal.', relevance: 'neutral' },
+      chest_xray: { result: 'Hiperinsuflação pulmonar discreta, sem consolidações.', relevance: 'unnecessary', note: 'O diagnóstico de anafilaxia é clínico. Nenhum exame deve atrasar a adrenalina.' },
+      cbc: { result: 'Hb 12,4 g/dL · Leucócitos 9.800/mm³ · Plaquetas 280.000/mm³.', relevance: 'unnecessary' },
+      crp: { result: '3 mg/L.', relevance: 'unnecessary' },
+      blood_gas: { result: 'Gasometria venosa: pH 7,36 · pCO2 38 mmHg · HCO3 21 mEq/L.', relevance: 'unnecessary' },
+    },
+    diagnosis: {
+      correct: 'anafilaxia',
+      options: [
+        { id: 'anafilaxia', label: 'Anafilaxia (provável desencadeante alimentar: camarão)' },
+        { id: 'urticaria', label: 'Urticária aguda isolada' },
+        { id: 'asma', label: 'Exacerbação de asma' },
+        { id: 'escombroidismo', label: 'Intoxicação alimentar (escombroidismo)' },
+        { id: 'corpo_estranho', label: 'Aspiração de corpo estranho' },
+      ],
+    },
+    conduct: {
+      correct: 'adrenalina_im',
+      options: [
+        { id: 'adrenalina_im', label: 'Adrenalina 1:1000 (1 mg/mL) 0,01 mg/kg IM na face anterolateral da coxa (máx. 0,3 mg), agora, repetindo a cada 5–15 min se necessário; decúbito dorsal com membros inferiores elevados, oxigênio, acesso venoso; salbutamol inalatório para o broncoespasmo; observação por no mínimo 6–8 h.' },
+        { id: 'antih1_corticoide', label: 'Anti-histamínico e corticosteroide EV e reavaliar em 1 hora; adrenalina só se a pressão cair.', harmful: true },
+        { id: 'so_salbutamol', label: 'Salbutamol inalatório e corticosteroide oral, como crise de asma.', harmful: true },
+        { id: 'adrenalina_ev', label: 'Adrenalina 1:1000 em bolus endovenoso.', harmful: true },
+        { id: 'alta_rapida', label: 'Adrenalina IM e alta assim que a urticária melhorar, com anti-histamínico.', harmful: true },
+      ],
+    },
+    // TODO(medical review): the SBP guide was updated in 2021 (diagnostic criteria went from three to two); the 2021 PDF
+    // could not be retrieved, so doses and observation times here follow the 2016 edition. Check them against 2021.
+    teaching: 'Pele (urticária, angioedema) somada a comprometimento respiratório e gastrintestinal, minutos após a exposição a um alérgeno provável, é anafilaxia: não é preciso hipotensão para o diagnóstico, que é clínico. A adrenalina é a droga de primeira linha: 0,01 mg/kg da solução 1:1000, intramuscular, na face anterolateral da coxa, máximo de 0,3 mg na criança, repetida a cada 5–15 minutos se necessário. Anti-histamínicos são de segunda linha e os corticosteroides têm pouca ou nenhuma ação no tratamento agudo; nenhum dos dois substitui a adrenalina. A via endovenosa, em diluições de 1:10.000 ou 1:100.000, fica restrita à parada cardiorrespiratória ou à hipotensão profunda que não respondeu a volume e a doses IM repetidas. O paciente fica em decúbito dorsal com membros inferiores elevados: levantar-se ou sentar-se subitamente está associado a desfechos fatais. Reações bifásicas ocorrem em até 10% dos casos, 8 a 12 horas depois, por isso a observação mínima é de 6–8 horas nos casos leves e de 24–48 horas nos graves. Asma mal controlada aumenta o risco de reação fatal. Na alta: plano de ação por escrito, orientação sobre adrenalina autoinjetável e encaminhamento ao alergista.',
+    references: [
+      'Sociedade Brasileira de Pediatria. Departamento Científico de Alergia. Anafilaxia. Guia Prático de Atualização nº 1, outubro de 2016.',
+    ],
+  },
 ];
