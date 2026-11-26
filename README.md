@@ -12,7 +12,7 @@ The game text is in **Brazilian Portuguese** on purpose: the target audience is 
 
 - **3 specialties:** internal medicine, general pediatrics and pediatric ICU.
 - **5 units:** UBS (Recife/PE), UPA 24h (Belém/PA), general hospital (Belo Horizonte/MG), children's hospital (Curitiba/PR) and PICU (Porto Alegre/RS). Each unit only offers the tests it would realistically have. At a UBS, for example, lab results only come back at the follow-up visit.
-- **14 clinical cases** based on published guidelines (Brazilian Ministry of Health, SBP, SBC, SBPT, SBD, GINA, ISPAD, Surviving Sepsis Campaign, AES/ILAE and others). Every case lists its references.
+- **23 clinical cases** based on published guidelines (Brazilian Ministry of Health, SBP, SBC, SBPT, SBD, GINA, ISPAD, Surviving Sepsis Campaign, AES/ILAE and others). Every case lists its references.
 - **Shift simulation:** Manchester triage priorities, staggered arrivals and a game clock. Lab and imaging tests take time, so the patient goes to the waiting room and comes back when results are ready. Random events happen too (lab analyzer down, no beds available).
 - **Continuity of care:** follow-up visits with tests the patient brings, specialist counter-referral letters and handoff notes from the previous doctor.
 - **Scoring and rewards:** stars per encounter, XP, 8 levels (from intern to head of shift), 11 achievements and unlockable units. Penalties for unnecessary tests (Choosing Wisely), waits beyond the triage target, missed time-critical windows and harmful management.
