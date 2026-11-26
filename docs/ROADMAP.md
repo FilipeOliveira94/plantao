@@ -95,7 +95,7 @@ Each note was checked against the open issues. Where an issue already covered it
 
 | ID | Issue | Scope | Expected/Seen Risk | Expected/Seen Size | Depends on |
 | --- | --- | --- | --- | --- | --- |
-| [P3-01](https://github.com/FilipeOliveira94/plantao/issues/29) | Safer local save | Schema version with migration, export and import of the save as a file or code (validated as untrusted input). A notice in the menu says progress is stored in this browser only. Resume of a shift in progress moved to P3-14. | Med/- | Md/- | none |
+| [P3-01](https://github.com/FilipeOliveira94/plantao/issues/29) | Safer local save | Schema version with migration, export and import of the save as a file or code (validated as untrusted input). A notice in the menu says progress is stored in this browser only. Resume of a shift in progress moved to P3-14. | Med/Med | Md/Md | none |
 | [P3-02](https://github.com/FilipeOliveira94/plantao/issues/30) | Career screen | A level track showing what each level unlocks and the XP still needed. Locked unit cards show progress and the requirement. One source for level titles. | Lo/Lo | Md/Sm | none |
 | [P3-03](https://github.com/FilipeOliveira94/plantao/issues/31) | Unlocks for every level | Every level of the P3-12 ladder unlocks something (units, daily shift, hard mode, new specialties). Some unlocks ask for a goal, not only XP (for example "finish 3 shifts at the UPA"). | Lo/- | Md/- | P3-02, P3-12 |
 | [P3-04](https://github.com/FilipeOliveira94/plantao/issues/32) | Daily shift | One shift per day from a date seed, the same cases for every player, one scored attempt, a streak counter and a shareable text result. Works without a backend. | Med/- | Md/- | P1-01 |
