@@ -10,6 +10,10 @@ Every case must be reviewed by a physician of its specialty before the first fin
 - Only Filipe or the reviewing physician changes a row to `reviewed`, with the reviewer's name and the date. Agents add rows as `pending` and never change the status.
 - A reviewed case that changes medical content (findings, tests, diagnosis, management, doses, `harmful` flags, references) goes back to `pending`.
 
+## Player reports
+
+The feedback screen after each case has a "Relatar um problema neste caso" link. It opens a new GitHub issue titled `[Caso] <case id>: problema relatado`, prefilled with the case id, the unit and the player's answer (option ids and labels). The note next to the link says the issue is public. Check open `[Caso]` issues when reviewing a case.
+
 ## Release gate
 
 v1.0 cannot be tagged while any row below is `pending` or any `TODO(medical review)` remains in `src/data`:

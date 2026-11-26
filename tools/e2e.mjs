@@ -37,6 +37,7 @@ try {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/01-menu.png` });
 
   const units = await page.$$eval('.unit', (els) => els.length);
+  let reportChecked = false;
   let tabsChecked = false;
   let menuChecked = false;
   let shuffledSeen = 0;
@@ -109,6 +110,17 @@ try {
         if (!(await page.locator(`input[name=dx][value="${correct.dx}"]`).isChecked())) throw new Error('diagnosis choice lost on re-render');
         await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
         await page.waitForSelector('.modal');
+        if (!reportChecked) {
+          // feedback links to a prefilled GitHub issue with the case id and the answer given
+          reportChecked = true;
+          const a = page.locator('.modal .report-case a');
+          const url = new URL(await a.getAttribute('href'));
+          if (url.origin + url.pathname !== 'https://github.com/FilipeOliveira94/plantao/issues/new') throw new Error(`report link points elsewhere: ${url}`);
+          const title = url.searchParams.get('title'), body = url.searchParams.get('body');
+          const ids = await page.evaluate(() => { const { enc: e } = window.__plantao.shift.results.at(-1); return [e.c.diagnosis.correct, e.c.conduct.correct]; });
+          if (!title.includes(enc) || !body.includes(`\`${enc}\``) || ids.some((id) => !body.includes(`\`${id}\``))) throw new Error(`report link misses the case or answer: ${title}\n${body}`);
+          if (await a.getAttribute('target') !== '_blank' || !/noopener/.test(await a.getAttribute('rel') || '')) throw new Error('report link must open in a new tab with rel=noopener');
+        }
         if (u === 0 && s === 0 && guard < 3 && SHOTS) await page.screenshot({ path: `${SHOTS}/03-feedback.png` });
         await page.locator('.modal .btn.primary').click();
         await page.waitForTimeout(150);
@@ -120,6 +132,7 @@ try {
       await page.locator('.unit').nth(u).click();
     }
   }
+  if (!reportChecked) throw new Error('report link was never checked');
   if (!tabsChecked) throw new Error('tab states were never checked');
   if (!menuChecked) throw new Error('test menu was never checked');
   if (!shuffledSeen) throw new Error('answer options were never shuffled in any encounter');

@@ -76,7 +76,7 @@ Other things found while reading: `AGENTS.md` said 14 cases, but there are 23 (8
 | [P3-05](https://github.com/FilipeOliveira94/plantao/issues/33) | Logbook | A list of cases seen with best result, teaching text and references to read again, and "retry" for the ones missed. | Lo/- | Md/- | none |
 | [P3-06](https://github.com/FilipeOliveira94/plantao/issues/34) | Why each wrong option is wrong | Each distractor carries a one-line rationale with a reference, shown in feedback for the option the player chose. | Hi/- | Md/- | P1-03 |
 | [P3-07](https://github.com/FilipeOliveira94/plantao/issues/35) | Difficulty modes | Intern mode shows hints and budgets; preceptor mode hides them and tightens the budgets. | Med/- | Md/- | P1-05 |
-| [P3-08](https://github.com/FilipeOliveira94/plantao/issues/36) | Report a problem with a case | A link in the feedback screen opens a prefilled GitHub issue with the case id. Feeds the physician review. | Lo/- | Sm/- | none |
+| [P3-08](https://github.com/FilipeOliveira94/plantao/issues/36) | Report a problem with a case | A link in the feedback screen opens a prefilled GitHub issue with the case id. Feeds the physician review. | Lo/Lo | Sm/Sm | none |
 
 ## P4: A sense of place
 
