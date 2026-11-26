@@ -24,6 +24,30 @@ export class Encounter {
     }
   }
 
+  /** Who answers for the patient: `patient.speaker` when the case sets it, else the companion for an infant, a child or a PICU patient in bed. */
+  get speaker() {
+    const p = this.c.patient;
+    const byRule = p.companion && (p.look.build === 'infant' || p.look.build === 'child' || (p.look.inBed && this.unitType === 'picu')) ? 'companion' : 'patient';
+    const role = p.companion ? (p.speaker ?? byRule) : 'patient';
+    return { role, name: role === 'companion' ? p.companion.name : p.name };
+  }
+
+  /**
+   * Who says one line. Case text may open with a tag such as "(mãe)", "(filha, liga para a mãe)" or "(Lucas)":
+   * a tag naming the companion's relation or the patient's name picks that speaker; any other tag is a stage
+   * direction and keeps the default speaker. A tag that only names the speaker is dropped from the shown text.
+   */
+  speakerFor(text) {
+    const p = this.c.patient;
+    const m = /^\(([^)]+)\)\s*/.exec(text);
+    const head = m?.[1].split(',')[0].trim().toLowerCase();
+    let sp = this.speaker;
+    if (head && p.companion && (p.companion.name.toLowerCase().includes(`(${head})`) || p.companion.name.toLowerCase().startsWith(head))) sp = { role: 'companion', name: p.companion.name };
+    else if (head && p.name.toLowerCase().startsWith(head)) sp = { role: 'patient', name: p.name };
+    else return { ...sp, text };
+    return { ...sp, text: m[1].includes(',') ? text : text.slice(m[0].length) };
+  }
+
   get availableQuestions() {
     return this.c.questions.filter((q) => !q.requires || this.asked.has(q.requires));
   }

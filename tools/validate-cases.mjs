@@ -40,6 +40,9 @@ for (const c of CASES) {
   if (!c.settings?.length) err(id, 'no settings');
   if (!TRIAGE[c.triage?.priority]) err(id, `invalid priority: ${c.triage?.priority}`);
   if (!c.opening) err(id, 'missing opening line');
+  const sp = c.patient?.speaker;
+  if (sp !== undefined && !['patient', 'companion'].includes(sp)) err(id, `invalid patient.speaker: ${sp}`);
+  if (sp === 'companion' && !c.patient.companion) err(id, 'patient.speaker is companion but there is no companion');
   if (!c.teaching || c.teaching.length < 80) err(id, 'teaching missing or too short');
   if (!c.references?.length) err(id, 'no references');
   if (c.type === 'follow_up' && !c.previousNote) warn.push(`[${id}] follow-up without previousNote`);
