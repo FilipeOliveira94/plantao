@@ -214,6 +214,8 @@ export default [
         { id: 'enfermaria', label: 'Manter na enfermaria com cateter nasal até 2 L/min, aspiração de VAS, dieta por SNG e oximetria contínua; transferir para a UTI só se houver nova apneia.', harmful: true },
       ],
     },
+    // TODO(medical review): the 'sepse_neo' option says "Sepse neonatal tardia" for a 6-week-old, past the neonatal
+    // period; confirm whether to reword it (e.g. "sepse bacteriana grave do lactente jovem") (P1-03).
     teaching: 'Lactente pequeno, ex-prematuro, com apneia, hipoxemia, esforço importante e hipercapnia tem bronquiolite grave com indicação de UTI. Suporte ventilatório não invasivo (CNAF ou CPAP) é a primeira escolha; intubação se falha, apneias recorrentes ou exaustão. Broncodilatadores, corticoides, antibióticos e fisioterapia de rotina não têm benefício. Coqueluche é diagnóstico diferencial importante em menores de 3 meses com apneia.',
     references: [
       'Ralston SL, et al. Clinical Practice Guideline: Bronchiolitis. Pediatrics. 2014;134(5):e1474–e1502.',
