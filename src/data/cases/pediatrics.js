@@ -399,6 +399,7 @@ export default [
       chest_xray: { result: 'Sem consolidações. Sem alterações.', relevance: 'unnecessary', note: 'Sem tosse, taquipneia ou alteração na ausculta, a radiografia não ajuda a achar o foco.' },
       csf: { result: 'Punção não realizada: lactente em bom estado geral, sem sinais meníngeos e com foco urinário identificado.', relevance: 'unnecessary' },
       rapid_covid: { result: 'Negativo.', relevance: 'unnecessary' },
+      rapid_strep: { result: 'Negativo.', relevance: 'unnecessary' },
     },
     diagnosis: {
       correct: 'itu_febril',
@@ -434,7 +435,7 @@ export default [
     type: 'new',
     settings: ['upa', 'hospital'],
     difficulty: 2,
-    timeCritical: { minutes: 10, reason: 'Na anafilaxia, a adrenalina intramuscular é a droga de primeira linha e deve ser aplicada imediatamente: a prescrição precoce é essencial para reverter o quadro.' },
+    timeCritical: { minutes: 14, reason: 'Na anafilaxia, a adrenalina intramuscular é a droga de primeira linha e deve ser aplicada imediatamente: a prescrição precoce é essencial para reverter o quadro.' },
     patient: {
       name: 'Miguel Santos', age: '6 anos', sex: 'M',
       look: { skin: '#a8714f', hair: '#1d1410', shirt: '#e85d75', build: 'child' },
@@ -446,12 +447,12 @@ export default [
       vitals: { FC: '142 bpm', FR: '36 irpm', PA: '88/52 mmHg', Tax: '36,6 °C', SpO2: '91%', Peso: '22 kg' },
       note: 'Chegou no colo da mãe, coçando o corpo todo. Vomitou na recepção.',
     },
-    opening: '(mãe) Doutor(a), ele tava no aniversário do primo, comeu e começou a se coçar. Dei o antialérgico em casa e só piorou, agora tá com essa tosse e a boca desse tamanho!',
+    opening: '(mãe) Doutor(a), ele tava no aniversário do primo, comeu e começou a se coçar. Dei o antialérgico que eu tinha na bolsa e só piorou, agora tá com essa tosse e a boca desse tamanho!',
     questions: [
       { id: 'tempo', cat: 'HDA', q: 'Quanto tempo depois de comer isso começou? Como evoluiu?', a: '(mãe) Uns quinze minutos. Primeiro coçou a boca, depois empolou o pescoço, a barriga… aí inchou o beiço, começou a tossir e vomitou duas vezes. Tudo em menos de uma hora.', key: true },
       { id: 'alimento', cat: 'HDA', q: 'O que ele comeu? Tinha alguma coisa que ele nunca tinha comido?', a: '(mãe) Arroz, salgadinho, bolo… e vatapá. Camarão ele nunca tinha comido, lá em casa ninguém faz.' },
       { id: 'respiracao', cat: 'Sinais de alarme', q: 'Ele reclamou de falta de ar, aperto na garganta, voz diferente?', a: '(Miguel, rouco) Minha garganta tá apertando… (mãe) A voz dele não é assim, não.', key: true },
-      { id: 'remedio', cat: 'Medicações', q: 'Que remédio a senhora deu em casa?', a: '(mãe) O antialérgico, aquele xarope que todo mundo tem.' },
+      { id: 'remedio', cat: 'Medicações', q: 'Que remédio a senhora deu?', a: '(mãe) O antialérgico, aquele xarope que todo mundo tem.' },
       { id: 'remedio_qual', cat: 'Medicações', q: 'Qual o nome do xarope e há quanto tempo deu?', a: '(mãe, procura na bolsa) Esse: dexclorfeniramina. Dei uma colher faz uns quarenta minutos e fiquei esperando fazer efeito. Não fez.', requires: 'remedio' },
       { id: 'asma', cat: 'Antecedentes', q: 'Ele tem asma, bronquite, usa bombinha?', a: '(mãe) Tem bronquite. Usa a bombinha azul quando ataca. A outra, a de todo dia, acabou e eu não peguei mais.', key: true },
       { id: 'alergias', cat: 'Antecedentes', q: 'Já teve alguma reação alérgica antes? A remédio, comida, picada?', a: '(mãe) Uma vez empolou com um peixe, mas passou sozinho. Nunca foi assim.' },
@@ -485,7 +486,7 @@ export default [
     conduct: {
       correct: 'adrenalina_im',
       options: [
-        { id: 'adrenalina_im', label: 'Adrenalina 1:1000 (1 mg/mL) 0,01 mg/kg IM na face anterolateral da coxa (máx. 0,3 mg), agora, repetindo a cada 5–15 min se necessário; decúbito dorsal com membros inferiores elevados, oxigênio, acesso venoso; salbutamol inalatório para o broncoespasmo; observação por no mínimo 6–8 h.' },
+        { id: 'adrenalina_im', label: 'Adrenalina 1:1000 (1 mg/mL) 0,01 mg/kg IM na face anterolateral da coxa (máx. 0,3 mg), agora, repetindo a cada 5–15 min se necessário; decúbito dorsal com membros inferiores elevados, oxigênio, acesso venoso; salbutamol inalatório para o broncoespasmo; observação por 24–48 h, por ser um caso grave (nos leves, mínimo de 6–8 h).' },
         { id: 'antih1_corticoide', label: 'Anti-histamínico e corticosteroide EV e reavaliar em 1 hora; adrenalina só se a pressão cair.', harmful: true },
         { id: 'so_salbutamol', label: 'Salbutamol inalatório e corticosteroide oral, como crise de asma.', harmful: true },
         { id: 'adrenalina_ev', label: 'Adrenalina 1:1000 em bolus endovenoso.', harmful: true },
@@ -494,7 +495,7 @@ export default [
     },
     // TODO(medical review): the SBP guide was updated in 2021 (diagnostic criteria went from three to two); the 2021 PDF
     // could not be retrieved, so doses and observation times here follow the 2016 edition. Check them against 2021.
-    teaching: 'Pele (urticária, angioedema) somada a comprometimento respiratório e gastrintestinal, minutos após a exposição a um alérgeno provável, é anafilaxia: não é preciso hipotensão para o diagnóstico, que é clínico. A adrenalina é a droga de primeira linha: 0,01 mg/kg da solução 1:1000, intramuscular, na face anterolateral da coxa, máximo de 0,3 mg na criança, repetida a cada 5–15 minutos se necessário. Anti-histamínicos são de segunda linha e os corticosteroides têm pouca ou nenhuma ação no tratamento agudo; nenhum dos dois substitui a adrenalina. A via endovenosa, em diluições de 1:10.000 ou 1:100.000, fica restrita à parada cardiorrespiratória ou à hipotensão profunda que não respondeu a volume e a doses IM repetidas. O paciente fica em decúbito dorsal com membros inferiores elevados: levantar-se ou sentar-se subitamente está associado a desfechos fatais. Reações bifásicas ocorrem em até 10% dos casos, 8 a 12 horas depois, por isso a observação mínima é de 6–8 horas nos casos leves e de 24–48 horas nos graves. Asma mal controlada aumenta o risco de reação fatal. Na alta: plano de ação por escrito, orientação sobre adrenalina autoinjetável e encaminhamento ao alergista.',
+    teaching: 'Pele (urticária, angioedema) somada a comprometimento respiratório e gastrintestinal, minutos após a exposição a um alérgeno provável, é anafilaxia: não é preciso hipotensão para o diagnóstico, que é clínico. A adrenalina é a droga de primeira linha: 0,01 mg/kg da solução 1:1000, intramuscular, na face anterolateral da coxa, máximo de 0,3 mg na criança, repetida a cada 5–15 minutos se necessário. Anti-histamínicos são de segunda linha e os corticosteroides têm pouca ou nenhuma ação no tratamento agudo; nenhum dos dois substitui a adrenalina. A via endovenosa, em diluições de 1:10.000 ou 1:100.000, fica restrita à parada cardiorrespiratória ou à hipotensão profunda que não respondeu a volume e a doses IM repetidas. O paciente fica em decúbito dorsal com membros inferiores elevados: levantar-se ou sentar-se subitamente está associado a desfechos fatais. Reações bifásicas ocorrem em até 10% dos casos, 8 a 12 horas depois, por isso a observação mínima é de 6–8 horas nos casos leves e de 24–48 horas nos graves, como este, com comprometimento respiratório e hipoxemia. Asma mal controlada aumenta o risco de reação fatal. Na alta: plano de ação por escrito, orientação sobre adrenalina autoinjetável e encaminhamento ao alergista.',
     references: [
       'Sociedade Brasileira de Pediatria. Departamento Científico de Alergia. Anafilaxia. Guia Prático de Atualização nº 1, outubro de 2016.',
     ],
@@ -521,7 +522,7 @@ export default [
     questions: [
       { id: 'mecanismo', cat: 'HDA', q: 'Como foi a queda? De que altura?', a: '(mãe) Caiu do escorregador da pracinha. Diz que foi lá de cima.', key: true },
       { id: 'testemunha', cat: 'HDA', q: 'A senhora viu a queda? Quem estava com ele?', a: '(mãe) Eu não, tava no trabalho. Quem tava era minha mãe. (liga para a avó, no viva-voz) (avó) Ele escorregou do degrau do meio, minha filha, um metro do chão no máximo. Caiu na areia, bateu a testa na beirada de madeira.', requires: 'mecanismo', key: true },
-      { id: 'consciencia', cat: 'Sinais de alarme', q: 'Ele desmaiou? Chorou na hora?', a: '(avó, no viva-voz) Chorou na mesma hora, um berro. Não desmaiou, não ficou parado. Levantou sozinho.', key: true },
+      { id: 'consciencia', cat: 'Sinais de alarme', q: 'Ele desmaiou? Chorou na hora?', a: '(avó, no viva-voz) Chorou na mesma hora, um berro. Não desmaiou, não ficou parado. Levantou sozinho.', requires: 'testemunha', key: true },
       { id: 'vomitos', cat: 'Sinais de alarme', q: 'Vomitou depois da queda?', a: '(mãe) Não vomitou nenhuma vez. Comeu um biscoito no caminho.', key: true },
       { id: 'cefaleia', cat: 'Sinais de alarme', q: 'Pedro, sua cabeça está doendo? Onde?', a: '(Pedro, aponta o galo) Só aqui, quando aperta.', key: true },
       { id: 'comportamento', cat: 'Sinais de alarme', q: 'Ele está diferente do normal? Mais sonolento, confuso, irritado?', a: '(mãe) Tá normal. Veio o caminho todo perguntando se ia ganhar adesivo.', key: true },
@@ -538,7 +539,7 @@ export default [
     ],
     exams: {
       otoscopy: { result: 'Membranas timpânicas íntegras, sem hemotímpano.', relevance: 'useful' },
-      head_ct: { result: 'Sem fratura, sem sangramento intracraniano.', relevance: 'unnecessary', harmful: true, note: 'Criança sem nenhum preditor da regra PECARN: a TC expõe à radiação ionizante sem benefício.' },
+      head_ct: { result: 'Sem fratura, sem sangramento intracraniano.', relevance: 'unnecessary', note: 'Criança sem nenhum preditor da regra PECARN: a TC expõe à radiação ionizante sem benefício.' },
       cbc: { result: 'Hb 12,6 g/dL · Leucócitos 8.900/mm³ · Plaquetas 310.000/mm³.', relevance: 'unnecessary' },
       electrolytes: { result: 'Na 138 mEq/L · K 4,3 mEq/L · Cl 103 mEq/L.', relevance: 'unnecessary' },
       capillary_glucose: { result: '92 mg/dL.', relevance: 'unnecessary' },
@@ -556,7 +557,7 @@ export default [
     conduct: {
       correct: 'alta_orientada',
       options: [
-        { id: 'alta_orientada', label: 'Não solicitar tomografia; analgésico simples e alta com um adulto responsável observando nas primeiras 24–48 h, com orientação por escrito dos sinais de retorno (vômitos repetidos, sonolência excessiva, confusão, convulsão, fraqueza, sangue ou líquido claro pelo nariz ou ouvido).' },
+        { id: 'alta_orientada', label: 'Não solicitar tomografia; alta com um adulto responsável observando nas primeiras 24–48 h, com orientação por escrito dos sinais de retorno (vômitos repetidos, sonolência excessiva, confusão, convulsão, fraqueza, sangue ou líquido claro pelo nariz ou ouvido).' },
         { id: 'tc', label: 'Tomografia de crânio para tranquilizar a família.', harmful: true },
         { id: 'internar', label: 'Internar por 48 h para observação neurológica.' },
         { id: 'alta_sem_orientacao', label: 'Alta imediata: “foi só um galo”, sem orientações de retorno.' },
