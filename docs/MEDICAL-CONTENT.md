@@ -28,6 +28,7 @@ All player-facing text (patient speech, findings, options, teaching notes) is in
     name, age: '4 meses', sex: 'F' | 'M',
     look: { skin, hair, shirt, build: 'adult' | 'elder' | 'child' | 'infant', inBed? },
     companion?: { name, look },
+    speaker?: 'patient' | 'companion', // who answers on stage; default: the companion for an infant, a child or a PICU patient in bed
   },
   triage: { complaint, priority: 'red' | 'orange' | 'yellow' | 'green' | 'blue', vitals: {…}, note },
   previousNote?: { title, text },      // handoff note / previous visit

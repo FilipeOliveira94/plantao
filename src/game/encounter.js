@@ -24,6 +24,14 @@ export class Encounter {
     }
   }
 
+  /** Who answers for the patient: `patient.speaker` when the case sets it, else the companion for an infant, a child or a PICU patient in bed. */
+  get speaker() {
+    const p = this.c.patient;
+    const byRule = p.companion && (p.look.build === 'infant' || p.look.build === 'child' || (p.look.inBed && this.unitType === 'picu')) ? 'companion' : 'patient';
+    const role = p.companion ? (p.speaker ?? byRule) : 'patient';
+    return { role, name: role === 'companion' ? p.companion.name : p.name };
+  }
+
   get availableQuestions() {
     return this.c.questions.filter((q) => !q.requires || this.asked.has(q.requires));
   }

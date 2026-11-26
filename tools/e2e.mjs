@@ -124,6 +124,7 @@ try {
   let reportChecked = false;
   let tabsChecked = false;
   let menuChecked = false;
+  let talkChecked = false;
   let musicChecked = false;
   let shuffledSeen = 0;
   for (let u = 0; u < units; u++) {
@@ -166,6 +167,22 @@ try {
         for (let i = 0; i < 4; i++) {
           const opt = page.locator('.pane .opt').first();
           if (await opt.count()) await opt.click();
+          if (!talkChecked && i === 0) {
+            // dialogue on the stage: the question in the doctor's balloon, the answer in the patient side's, no transcript in the chart
+            talkChecked = true;
+            const exp = await page.evaluate(() => { const e = window.__plantao.shift.current; const l = e.log.filter((x) => x.kind === 'q').at(-1); return { q: l.q, a: l.a, who: e.speaker.name }; });
+            const got = await page.evaluate(() => {
+              const b = (w) => document.querySelector(`.talk .balloon[data-who=${w}]`);
+              const stage = document.querySelector('.talk').getBoundingClientRect();
+              const inside = (el) => { const r = el.getBoundingClientRect(); return r.left >= stage.left && r.right <= stage.right && r.top >= stage.top && r.bottom <= stage.bottom; };
+              return { q: b('doctor').querySelector('.text').textContent, a: b('pt').querySelector('.text').textContent, who: b('pt').querySelector('.who').textContent, dim: b('doctor').classList.contains('old'), inside: inside(b('doctor')) && inside(b('pt')) };
+            });
+            if (got.q !== exp.q || got.a !== exp.a || got.who !== exp.who) throw new Error(`stage dialogue ${JSON.stringify(got)} != ${JSON.stringify(exp)}`);
+            if (!got.dim) throw new Error('the question balloon should be dimmed once the answer arrives');
+            if (!got.inside) throw new Error('a balloon is outside the stage');
+            if (await page.locator('.pane .chat, .pane .msg').count()) throw new Error('the chart still shows a transcript');
+            if (!/Já perguntado \(1\)/.test(await page.locator('.pane details.asked summary').textContent())) throw new Error('missing "Já perguntado (1)"');
+          }
         }
         await page.getByRole('tab', { name: /Exame físico/ }).click();
         const p = page.locator('.pane .opt').first();

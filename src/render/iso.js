@@ -20,6 +20,8 @@ export class IsoScene {
     this.time = 0;
     this.onStep = null;
     this.onMonitor = null;
+    this.onFrame = null; // (anchors) after each frame: screen points (CSS px) above each speaker's head
+    this.anchors = { doctor: null, patient: null, companion: null };
     this._lastStep = 0;
     this._lastBeep = 0;
     this.resize();
@@ -81,6 +83,7 @@ export class IsoScene {
     this.time = t;
     const g = this.g;
     g.clearRect(0, 0, this.w, this.h);
+    this.anchors = { doctor: null, patient: null, companion: null };
     if (!this.unit) return;
     const pal = this.unit.palette;
     const isUti = this.unit.type === 'picu';
@@ -122,6 +125,7 @@ export class IsoScene {
     if (this.patient) this.stagePatient(add, dt, isUti);
 
     items.sort((a, b) => a.depth - b.depth).forEach((i) => i.fn());
+    this.onFrame?.(this.anchors);
   }
 
   sceneOffice(add) {
@@ -135,7 +139,7 @@ export class IsoScene {
     // exam table step
     add(1.8 + 3.4, () => this.box(1.4, 3.0, 0, 0.4, 0.35, 0.25, '#c9ced4'));
     // doctor behind the desk
-    add(4.3 + 0.9, () => this.person(4.3, 0.75, { skin: '#d7a27a', hair: '#3a2a1e', shirt: '#ffffff', build: 'adult', coat: true }, 0));
+    add(4.3 + 0.9, () => this.anchors.doctor = this.person(4.3, 0.75, { skin: '#d7a27a', hair: '#3a2a1e', shirt: '#ffffff', build: 'adult', coat: true }, 0));
     // doctor chair
     add(4.3 + 0.4, () => this.box(4.0, 0.2, 0.35, 0.6, 0.5, 0.9, '#2f3640'));
     // desk
@@ -200,7 +204,7 @@ export class IsoScene {
       this.box(5.0, 1.8, 0.55, 0.06, 2.8, 0.35, '#8e99a4');
     });
     // standing doctor
-    add(5.9 + 5.0, () => this.person(5.9, 4.9, { skin: '#d7a27a', hair: '#3a2a1e', shirt: '#ffffff', build: 'adult', coat: true }, 0));
+    add(5.9 + 5.0, () => this.anchors.doctor = this.person(5.9, 4.9, { skin: '#d7a27a', hair: '#3a2a1e', shirt: '#ffffff', build: 'adult', coat: true }, 0));
     // crash cart
     add(7.2 + 4.3, () => {
       this.box(7.0, 4.0, 0, 0.8, 0.6, 1.0, '#d64545');
@@ -221,8 +225,9 @@ export class IsoScene {
         this.box(3.6, 2.6, 0.73, 0.8 * s + 0.1, 1.6 * s, 0.22, '#9fc6e8'); // sheet
         this.box(3.7, 2.05, 0.73, 0.55 * s + 0.05, 0.5 * s, 0.4 * s, look.skin); // head
         this.box(3.68, 2.0, 0.73 + 0.4 * s, 0.6 * s + 0.05, 0.3 * s, 0.1, look.hair);
+        this.anchors.patient = this.P(3.7 + 0.3 * s, 2.05 + 0.25 * s, 0.83 + 0.4 * s);
       });
-      if (p.companion) add(1.8 + 3.8, () => this.person(1.8, 3.8, p.companion.look, Math.sin(this.time * 2) * 0.01));
+      if (p.companion) add(1.8 + 3.8, () => { this.anchors.companion = this.person(1.8, 3.8, p.companion.look, Math.sin(this.time * 2) * 0.01); });
       return;
     }
 
@@ -246,14 +251,17 @@ export class IsoScene {
 
     if (p.companion) {
       const cx = x - 0.7, cy = y + 0.6;
-      add(cx + cy + 0.5, () => this.person(cx, cy, p.companion.look, bob, look.build === 'infant' ? look : null));
-      if (look.build !== 'infant') add(x + y + 0.4, () => this.person(x, y, look, bob));
+      add(cx + cy + 0.5, () => {
+        this.anchors.companion = this.person(cx, cy, p.companion.look, bob, look.build === 'infant' ? look : null);
+        if (look.build === 'infant') this.anchors.patient = this.anchors.companion; // carried in arms
+      });
+      if (look.build !== 'infant') add(x + y + 0.4, () => { this.anchors.patient = this.person(x, y, look, bob); });
     } else {
-      add(x + y + 0.5, () => this.person(x, y, look, bob));
+      add(x + y + 0.5, () => { this.anchors.patient = this.person(x, y, look, bob); });
     }
   }
 
-  /** Blocky character. `carry` = infant held in arms. */
+  /** Blocky character. `carry` = infant held in arms. Returns the screen point just above the head. */
   person(x, y, look, bob = 0, carry = null) {
     const s = { adult: 1, elder: 0.95, child: 0.68, infant: 0.4 }[look.build] ?? 1;
     const w = 0.42 * s, d = 0.3 * s;
@@ -292,5 +300,6 @@ export class IsoScene {
     g.fillStyle = '#1c1c1c';
     g.fillRect(ex - 1, ey - 1, 2.2 * this.scale, 2.2 * this.scale);
     g.fillRect(fx - 1, fy - 1, 2.2 * this.scale, 2.2 * this.scale);
+    return this.P(hx + 0.15 * s, hy + 0.14 * s, z0 + legH + torsoH + headH + 0.07 * s);
   }
 }
