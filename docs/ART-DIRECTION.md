@@ -2,6 +2,8 @@
 
 How the game looks and sounds, and where its art and sound may come from. P4 issues (unit cards, scene backdrops, small-town units, ambient sound) follow this file. The decision behind it is "Art for places" in `docs/ROADMAP.md`.
 
+**Status: first draft, not a closed decision.** It is enough to start P4, but it is still basic. Later issues (P4-02, P4-03, P4-04 and any art work after them) should revisit and extend it, and may change it with Filipe's approval.
+
 ## Style
 
 - **Flat low-poly isometric, drawn in code.** The scene is Canvas 2D in `src/render/iso.js`: boxes and polygons on a 64×32 tile grid, no textures, no bitmaps. New scene art uses the same `box()`/`poly()` primitives.
