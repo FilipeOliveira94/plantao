@@ -1,0 +1,14 @@
+{
+  "name": "plantao",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plantão: a browser game for physicians, set in Brazilian primary care, urgent care, hospitals and pediatric ICUs (game text in pt-BR).",
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "validate": "node tools/validate-cases.mjs",
+    "serve": "python3 -m http.server 8080",
+    "test:e2e": "node tools/e2e.mjs",
+    "test": "npm run validate && npm run test:e2e"
+  }
+}

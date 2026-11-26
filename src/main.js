@@ -1,0 +1,479 @@
+// Plantão — main controller (menu, shift, encounter, feedback). UI text is pt-BR by design.
+import { UNITS, SPECIALTIES, TRIAGE, EXAMS, UNIT_TYPES, ACTION_COST } from './data/catalog.js';
+import { Shift } from './game/shift.js';
+import { load, save, reset, levelOf, applyCase, applyShift, BADGES } from './game/progress.js';
+import { IsoScene } from './render/iso.js';
+import { sfx } from './audio/sfx.js';
+import { h, mount, toast, modal } from './ui/dom.js';
+
+const app = document.getElementById('app');
+let state = load();
+sfx.setMuted(state.settings.muted);
+
+let shift = null;
+let scene = null;
+let ui = {};
+let tab = 'triage';
+let decision = { dx: null, cd: null };
+
+const CAT_ORDER = ['HDA', 'Sinais de alarme', 'Antecedentes', 'Medicações', 'Hábitos', 'Epidemiologia'];
+const firstName = (enc) => enc.c.patient.companion ? enc.c.patient.companion.name.split(' ')[0] : enc.c.patient.name.split(' ')[0];
+
+// ======================================================================
+// MENU
+// ======================================================================
+let menuSel = { unit: null, spec: null };
+
+function renderMenu() {
+  scene = null;
+  const lvl = levelOf(state.xp);
+  const unitCards = UNITS.map((u) => {
+    const locked = lvl.number < u.unlockLevel;
+    return h('button', {
+      class: `unit ${locked ? 'locked' : ''} ${menuSel.unit?.id === u.id ? 'selected' : ''}`,
+      disabled: locked,
+      onclick: () => { sfx.unlock(); sfx.click(); menuSel = { unit: u, spec: u.specialties[0] }; renderMenu(); },
+    },
+    h('div', { class: 'band', style: { background: `linear-gradient(135deg, ${u.palette.accent}, ${u.palette.wall})` } }, `${UNIT_TYPES[u.type].label} · ${u.city}/${u.uf}`),
+    h('div', { class: 'body' },
+      h('h3', {}, u.name),
+      h('p', { class: 'small muted', style: { margin: '6px 0' } }, u.flavor),
+      h('div', {}, u.specialties.map((s) => h('span', { class: 'chip', style: { marginRight: '4px' } }, SPECIALTIES[s].icon, ' ', SPECIALTIES[s].label))),
+      locked ? h('p', { class: 'small', style: { marginBottom: 0 } }, `🔒 Desbloqueia no nível ${u.unlockLevel} (${levelTitle(u.unlockLevel)})`) : null,
+    ));
+  });
+
+  const specs = menuSel.unit ? h('div', {},
+    h('p', { class: 'section-title' }, 'Especialidade'),
+    h('div', { class: 'specs' }, menuSel.unit.specialties.map((s) => h('button', {
+      class: `spec ${menuSel.spec === s ? 'selected' : ''}`,
+      onclick: () => { sfx.click(); menuSel.spec = s; renderMenu(); },
+    }, SPECIALTIES[s].icon, ' ', SPECIALTIES[s].label))),
+  ) : null;
+
+  mount(app, h('div', { class: 'menu' },
+    h('div', { class: 'brand' }, h('div', { class: 'logo' }, '🩺'), h('h1', {}, 'Plantão')),
+    h('p', { class: 'tagline' }, 'Atenda, investigue, decida. Um plantão por vez, pelo Brasil afora.'),
+    h('div', { class: 'player' },
+      h('div', {},
+        h('div', { style: { fontWeight: 800, fontSize: '18px' } }, `Nível ${lvl.number} · ${lvl.title}`),
+        h('div', { class: 'small muted' }, `${state.xp} XP · ${state.shifts} plantões · ${state.badges.length}/${Object.keys(BADGES).length} conquistas`),
+        h('div', { class: 'xpbar' }, h('i', { style: { width: `${Math.round(lvl.progress * 100)}%` } })),
+        lvl.nextXp ? h('div', { class: 'small muted', style: { marginTop: '4px' } }, `Próximo nível em ${lvl.nextXp - state.xp} XP`) : null,
+      ),
+      h('div', { class: 'menu-actions' },
+        h('button', { class: 'btn', onclick: showBadges }, '🏅 Conquistas'),
+        h('button', { class: 'btn', onclick: showHelp }, '❓ Como jogar'),
+        h('button', { class: 'btn ghost', onclick: toggleMute, title: 'Som' }, state.settings.muted ? '🔇' : '🔊'),
+      ),
+    ),
+    h('p', { class: 'section-title' }, 'Escolha a unidade'),
+    h('div', { class: 'units' }, unitCards),
+    specs,
+    h('div', { class: 'menu-actions' },
+      h('button', { class: 'btn primary', disabled: !menuSel.unit, onclick: () => startShift(menuSel.unit, menuSel.spec) }, 'Começar plantão ▶'),
+      h('button', { class: 'btn ghost small', onclick: confirmReset }, 'Zerar progresso'),
+    ),
+    h('p', { class: 'disclaimer' },
+      'Jogo educativo. Casos fictícios baseados em diretrizes clínicas citadas em cada atendimento. Não substitui julgamento clínico, protocolos institucionais nem a bula/prescrição. Doses e condutas podem mudar com atualizações das diretrizes.'),
+  ));
+}
+
+const levelTitle = (n) => ['Interno(a)', 'Residente R1', 'Residente R2', 'Residente R3', 'Plantonista'][n - 1] || '';
+
+function toggleMute() {
+  state.settings.muted = !state.settings.muted;
+  sfx.setMuted(state.settings.muted);
+  save(state);
+  if (shift) renderTop(); else renderMenu();
+}
+
+function confirmReset() {
+  const m = modal(h('div', {},
+    h('h2', {}, 'Zerar progresso?'),
+    h('p', {}, 'XP, conquistas e histórico de casos serão apagados deste navegador.'),
+    h('div', { class: 'menu-actions' },
+      h('button', { class: 'btn warn', onclick: () => { state = reset(); m.close(); renderMenu(); } }, 'Zerar'),
+      h('button', { class: 'btn', onclick: () => m.close() }, 'Cancelar')),
+  ));
+}
+
+function showBadges(newOnes = []) {
+  const list = Array.isArray(newOnes) ? newOnes : [];
+  modal(h('div', {},
+    h('h2', { style: { marginBottom: '12px' } }, '🏅 Conquistas'),
+    h('div', { class: 'badges' }, Object.entries(BADGES).map(([id, b]) => h('div', {
+      class: `badge ${state.badges.includes(id) ? '' : 'locked'} ${list.includes(id) ? 'new' : ''}`,
+    }, h('span', { class: 'ic' }, b.icon), h('div', {}, h('b', {}, b.name), h('div', { class: 'small muted' }, b.desc))))),
+  ));
+}
+
+function showHelp() {
+  modal(h('div', {},
+    h('h2', {}, 'Como jogar'),
+    h('ol', {},
+      h('li', {}, 'Escolha uma unidade e uma especialidade. Cada plantão traz pacientes de forma escalonada, com classificação de risco (Manchester).'),
+      h('li', {}, 'Chame o paciente da fila. Comece pela triagem e pelos documentos (passagem de caso, contrarreferência).'),
+      h('li', {}, 'Pergunte, examine e peça exames. Cada ação consome minutos do plantão; enquanto isso, a fila espera.'),
+      h('li', {}, 'Exames de laboratório e imagem demoram: mande o paciente aguardar e atenda o próximo. Ele volta quando o resultado sair.'),
+      h('li', {}, 'Os pacientes nem sempre sabem contar a história nem o nome dos remédios. Pergunte de novo, peça a receita, a caixinha.'),
+      h('li', {}, 'Feche com diagnóstico e conduta. A nota considera acerto, itens-chave, exames desnecessários (Choosing Wisely), tempo de espera e janelas críticas.'),
+    ),
+    h('p', { class: 'small muted' }, 'Dica: em casos graves, o relógio conta. Decida rápido, mas não às cegas.'),
+  ));
+}
+
+// ======================================================================
+// SHIFT
+// ======================================================================
+function startShift(unit, specialty) {
+  sfx.unlock();
+  shift = new Shift({ unit, specialty, completedCases: state.cases });
+  if (!shift.encounters.length) { toast('Ainda não há casos para essa combinação.'); return; }
+  renderGame();
+  toast(`Plantão iniciado: ${unit.name} (${unit.city}/${unit.uf}). ${unit.flavor}`, 6000);
+}
+
+function renderGame() {
+  ui = {};
+  ui.top = h('div', { class: 'topbar' });
+  ui.canvas = h('canvas', { 'aria-label': 'Sala de atendimento' });
+  ui.bubble = h('div', { class: 'bubble' });
+  ui.queue = h('div', { class: 'queue' });
+  ui.chart = h('div', { class: 'chart' });
+  mount(app, h('div', { class: 'game' },
+    ui.top,
+    h('div', { class: 'main' },
+      h('div', { class: 'stage' }, h('div', { style: { position: 'relative', minHeight: 0 } }, ui.canvas, ui.bubble), ui.queue),
+      ui.chart,
+    ),
+  ));
+  scene = new IsoScene(ui.canvas);
+  scene.setUnit(shift.unit);
+  scene.onStep = () => sfx.step();
+  scene.onMonitor = () => { if (shift?.unit.type === 'picu' && shift.current) sfx.monitor(); };
+  renderAll();
+}
+
+function renderAll() { renderTop(); renderQueue(); renderChart(); }
+
+function renderTop() {
+  const lvl = levelOf(state.xp);
+  mount(ui.top,
+    h('button', { class: 'btn ghost', onclick: confirmLeave, title: 'Sair do plantão' }, '←'),
+    h('span', { class: 'unitname' }, shift.unit.name),
+    h('span', { class: 'chip' }, `${shift.unit.city}/${shift.unit.uf}`),
+    h('span', { class: 'chip' }, SPECIALTIES[shift.specialty].icon, ' ', SPECIALTIES[shift.specialty].label),
+    h('span', { class: 'spacer' }),
+    h('span', { class: 'small muted' }, `${shift.results.length}/${shift.encounters.length} atendidos`),
+    h('span', { class: 'small' }, `Nv ${lvl.number} · ${state.xp} XP`),
+    h('span', { class: 'clock', title: 'Relógio do plantão' }, shift.clockLabel),
+    h('button', { class: 'btn ghost', onclick: toggleMute }, state.settings.muted ? '🔇' : '🔊'),
+  );
+}
+
+function confirmLeave() {
+  const m = modal(h('div', {},
+    h('h2', {}, 'Sair do plantão?'),
+    h('p', {}, 'Os atendimentos já concluídos ficam salvos; o restante do plantão será perdido.'),
+    h('div', { class: 'menu-actions' },
+      h('button', { class: 'btn warn', onclick: () => { m.close(); shift = null; renderMenu(); } }, 'Sair'),
+      h('button', { class: 'btn', onclick: () => m.close() }, 'Continuar')),
+  ));
+}
+
+function statusOf(enc) {
+  if (enc.status === 'awaiting_results') {
+    const pend = enc.pendingExams(shift.clock);
+    if (!pend.length) return { text: '✅ Resultados prontos', ready: true };
+    const t = Math.max(...pend.map(([, r]) => r.readyAt));
+    return { text: `🧪 Exames até ${clockAt(t)}` };
+  }
+  const wait = shift.clock - enc.arrivedAt;
+  return { text: `⏳ Esperando há ${wait} min` };
+}
+
+const clockAt = (m) => { const t = 7 * 60 + m; return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+
+function renderQueue() {
+  const q = shift.queue();
+  const cards = q.map((enc) => {
+    const tri = TRIAGE[enc.c.triage.priority];
+    const st = statusOf(enc);
+    const canCall = !shift.current && (enc.status !== 'awaiting_results' || st.ready);
+    return h('div', { class: `qcard ${st.ready ? 'ready' : ''}`, style: { borderLeftColor: tri.color } },
+      h('div', { class: 'nm' }, enc.c.patient.name),
+      h('div', { class: 'small muted' }, `${enc.c.patient.age} · ${tri.label}${enc.c.type === 'follow_up' ? ' · Retorno' : ''}`),
+      h('div', { class: 'small' }, st.text),
+      h('button', { class: 'btn small', disabled: !canCall, onclick: () => callPatient(enc) }, 'Chamar'),
+    );
+  });
+  const upcoming = shift.upcoming().length;
+  const children = cards.length ? cards : [h('div', { class: 'empty' }, upcoming ? 'Ninguém na fila agora.' : shift.current ? 'Último paciente em atendimento.' : 'Fila vazia.')];
+  const waitingExams = shift.encounters.some((e) => e.status === 'awaiting_results' && e.pendingExams(shift.clock).length);
+  if (!shift.current && (upcoming || waitingExams) && !q.some((e) => statusOf(e).ready || e.status === 'waiting')) {
+    children.push(h('button', { class: 'btn', style: { alignSelf: 'center' }, onclick: () => { handleEvents(shift.waitForNext()); renderAll(); } }, '☕ Aguardar próximo'));
+  }
+  mount(ui.queue, children);
+}
+
+function handleEvents(fired) {
+  for (const ev of fired || []) toast(ev.text, 6500);
+  // newly available results for waiting patients
+  for (const e of shift.encounters) {
+    if (e.status === 'awaiting_results' && !e._notified && e.pendingExams(shift.clock).length === 0) {
+      e._notified = true; sfx.result(); toast(`Resultados de ${e.c.patient.name} disponíveis.`);
+    }
+  }
+  // new high-priority arrivals
+  for (const e of shift.encounters) {
+    if (!e._arrivalNotified && e.arrivedAt <= shift.clock) {
+      e._arrivalNotified = true;
+      if (e.arrivedAt > 0 && (e.c.triage.priority === 'red' || e.c.triage.priority === 'orange')) { sfx.alarm(); toast(`🚨 Chegou paciente ${TRIAGE[e.c.triage.priority].label.toLowerCase()}: ${e.c.patient.name}.`); }
+    }
+  }
+}
+
+function callPatient(enc) {
+  const returning = enc.status === 'awaiting_results';
+  shift.call(enc);
+  enc._notified = true;
+  sfx.call();
+  scene.enter(enc.c.patient.look, enc.c.patient.companion);
+  tab = returning ? 'tests' : 'triage';
+  decision = { dx: null, cd: null };
+  if (enc.c.patient.look.inBed && shift.unit.type === 'picu') sfx.alarm();
+  say(enc, returning ? 'Voltei, doutor(a). Os resultados saíram?' : enc.c.opening);
+  renderAll();
+}
+
+function say(enc, text) {
+  const who = enc.c.patient.companion ? `${enc.c.patient.name} e ${enc.c.patient.companion.name}` : enc.c.patient.name;
+  mount(ui.bubble, h('div', { class: 'who' }, who), h('div', {}, text));
+}
+
+// ----------------------------------------------------------------------
+// Patient chart
+// ----------------------------------------------------------------------
+function renderChart() {
+  const enc = shift.current;
+  if (!enc) {
+    ui.bubble.replaceChildren();
+    const next = shift.queue()[0];
+    mount(ui.chart, h('div', { class: 'pane', style: { gridRow: '1 / -1', display: 'grid', placeItems: 'center', textAlign: 'center' } },
+      h('div', {},
+        h('div', { style: { fontSize: '46px' } }, shift.unit.type === 'picu' ? '🛏️' : '🚪'),
+        h('h2', {}, shift.done ? 'Plantão encerrado' : 'Consultório livre'),
+        h('p', { class: 'muted' }, next ? `Próximo da fila: ${next.c.patient.name} (${TRIAGE[next.c.triage.priority].label}).` : 'Aguardando pacientes.'),
+        next ? h('button', { class: 'btn primary', onclick: () => callPatient(next), disabled: next.status === 'awaiting_results' && !statusOf(next).ready }, 'Chamar próximo') : null,
+      )));
+    return;
+  }
+  const c = enc.c;
+  const tri = TRIAGE[c.triage.priority];
+  const readyCount = enc.readyExams(shift.clock).length;
+  const tc = c.timeCritical ? h('span', { class: 'chip', style: { background: enc.minutesSpent > c.timeCritical.minutes ? '#f6c1b8' : '#fde9b5' } }, `⏱ ${enc.minutesSpent}/${c.timeCritical.minutes} min`) : null;
+
+  const tabs = [
+    ['triage', 'Triagem'],
+    ['history', 'Anamnese', enc.asked.size],
+    ['physical', 'Exame físico', enc.examined.size],
+    ['tests', 'Exames', readyCount],
+    ['decision', 'Decisão'],
+  ];
+  const pane = h('div', { class: 'pane' }, paneFor(enc));
+  mount(ui.chart,
+    h('div', { class: 'chart-head' },
+      h('span', { class: 'triage-dot', style: { background: tri.color }, title: tri.label }),
+      h('div', { style: { flex: 1 } },
+        h('div', { style: { fontWeight: 800, fontSize: '17px' } }, c.patient.name, ' ', h('span', { class: 'muted small' }, `· ${c.patient.age} · ${c.patient.sex === 'F' ? 'Fem.' : 'Masc.'}`)),
+        h('div', { class: 'small muted' }, c.patient.companion ? `Acompanhante: ${c.patient.companion.name}` : 'Desacompanhado(a)', c.type === 'follow_up' ? ' · Consulta de retorno' : ''),
+      ),
+      tc,
+      h('span', { class: 'chip' }, `${enc.minutesSpent} min no atendimento`),
+    ),
+    h('div', { class: 'tabs', role: 'tablist' }, tabs.map(([id, label, n]) => h('button', {
+      class: `tab ${tab === id ? 'active' : ''}`, role: 'tab',
+      onclick: () => { sfx.page(); tab = id; renderChart(); },
+    }, label, n ? h('span', { class: 'count' }, n) : null))),
+    pane,
+    footerFor(enc),
+  );
+  pane.scrollTop = tab === 'history' ? pane.scrollHeight : 0;
+}
+
+function footerFor(enc) {
+  const pend = enc.pendingExams(shift.clock).length;
+  return h('div', { class: 'footer-actions' },
+    pend ? h('button', { class: 'btn', onclick: () => sendToWait(enc) }, `🪑 Aguardar resultados na recepção (${pend})`) : null,
+    h('span', { class: 'spacer', style: { flex: 1 } }),
+    h('button', { class: 'btn primary', onclick: () => { tab = 'decision'; renderChart(); } }, 'Diagnóstico e conduta →'),
+  );
+}
+
+function paneFor(enc) {
+  const c = enc.c;
+  if (tab === 'triage') {
+    return [
+      h('div', { class: 'small muted' }, 'Queixa na triagem'),
+      h('div', { style: { fontWeight: 700, fontSize: '16px' } }, c.triage.complaint),
+      h('div', { class: 'vitals' }, Object.entries(c.triage.vitals).map(([k, v]) => h('div', { class: 'vital' }, h('span', {}, k), h('b', {}, v)))),
+      c.triage.note ? h('p', { class: 'small' }, '📝 ', c.triage.note) : null,
+      c.previousNote ? h('div', { class: 'doc' }, h('h4', {}, '📄 ', c.previousNote.title), c.previousNote.text) : null,
+      c.counterReference ? h('div', { class: 'doc' }, h('h4', {}, '📨 ', c.counterReference.title), c.counterReference.text) : null,
+    ];
+  }
+  if (tab === 'history') {
+    const avail = enc.availableQuestions.filter((q) => !enc.asked.has(q.id));
+    const groups = CAT_ORDER.map((cat) => [cat, avail.filter((q) => q.cat === cat)]).filter(([, qs]) => qs.length);
+    return [
+      h('div', { class: 'chat' }, enc.log.filter((l) => l.kind === 'q').flatMap((l) => [h('div', { class: 'msg me' }, l.q), h('div', { class: 'msg pt' }, l.a)])),
+      groups.length ? groups.map(([cat, qs]) => h('div', { class: 'opt-group' }, h('h5', {}, cat), h('div', { class: 'opts' }, qs.map((q) => h('button', { class: 'opt', onclick: () => doAsk(enc, q.id) }, q.q, h('span', { class: 'muted small' }, ` · ${ACTION_COST.question} min`)))))) : h('p', { class: 'muted' }, 'Sem mais perguntas relevantes.'),
+    ];
+  }
+  if (tab === 'physical') {
+    return [
+      ...c.physical.filter((p) => enc.examined.has(p.id)).map((p) => h('div', { class: 'finding' }, h('b', {}, p.label), p.finding)),
+      h('div', { class: 'opts', style: { marginTop: '8px' } }, c.physical.filter((p) => !enc.examined.has(p.id)).map((p) => h('button', { class: 'opt', onclick: () => doExamine(enc, p.id) }, '🩺 ', p.label, h('span', { class: 'muted small' }, ` · ${ACTION_COST.physical} min`)))),
+    ];
+  }
+  if (tab === 'tests') {
+    const avail = UNIT_TYPES[shift.unit.type].exams;
+    const groups = ['Beira-leito', 'Laboratório', 'Imagem'];
+    const reqRows = [...enc.requested.entries()].map(([id, r]) => {
+      const ready = r.readyAt <= shift.clock;
+      return h('div', { class: 'exam-row' },
+        h('b', {}, EXAMS[id].label, r.brought ? ' (trazido pelo paciente)' : ''),
+        h('span', { class: 'small muted' }, ready ? 'Liberado' : `Previsto ${clockAt(r.readyAt)}`),
+        h('div', { class: `res ${ready ? '' : 'pending'}` }, ready ? r.result : 'Aguardando resultado… Atenda outro paciente enquanto isso.'),
+        ready && r.note ? h('div', { class: 'small muted', style: { gridColumn: '1 / -1' } }, 'ℹ️ ', r.note) : null,
+      );
+    });
+    return [
+      reqRows.length ? h('div', { style: { marginBottom: '14px' } }, h('h5', { class: 'section-title' }, 'Solicitados'), reqRows) : null,
+      groups.map((gname) => {
+        const list = avail.filter((id) => EXAMS[id].group === gname && !enc.requested.has(id));
+        if (!list.length) return null;
+        return h('div', { class: 'opt-group' }, h('h5', {}, gname), h('div', { class: 'opts' }, list.map((id) => h('button', { class: 'opt', onclick: () => doRequest(enc, id) },
+          EXAMS[id].label, h('span', { class: 'muted small' }, EXAMS[id].poc ? ` · ${EXAMS[id].minutes} min, na hora` : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ' · resultado em dias' : ` · ~${EXAMS[id].minutes} min`))))));
+      }),
+      h('p', { class: 'small muted' }, 'Peça só o que muda a conduta. Exames desnecessários tiram pontos.'),
+    ];
+  }
+  if (tab === 'decision') {
+    return [
+      h('h5', { class: 'section-title' }, 'Hipótese diagnóstica principal'),
+      c.diagnosis.options.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'dx', checked: decision.dx === o.id, onchange: () => { decision.dx = o.id; } }), h('span', {}, o.label))),
+      h('h5', { class: 'section-title', style: { marginTop: '16px' } }, 'Conduta'),
+      c.conduct.options.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'cd', checked: decision.cd === o.id, onchange: () => { decision.cd = o.id; } }), h('span', {}, o.label))),
+      h('div', { style: { marginTop: '14px' } }, h('button', { class: 'btn primary', onclick: () => finishEncounter(enc) }, '✔ Finalizar atendimento')),
+    ];
+  }
+  return null;
+}
+
+function doAsk(enc, id) {
+  const q = enc.ask(id);
+  if (!q) return;
+  sfx.click();
+  handleEvents(shift.spend(ACTION_COST.question));
+  say(enc, q.a);
+  renderAll();
+}
+
+function doExamine(enc, id) {
+  const p = enc.examine(id);
+  if (!p) return;
+  sfx.click();
+  handleEvents(shift.spend(ACTION_COST.physical));
+  renderAll();
+}
+
+function doRequest(enc, id) {
+  const { rec, fired } = shift.requestExam(id);
+  sfx.click();
+  if (rec.readyAt <= shift.clock) sfx.result();
+  else toast(`${EXAMS[id].label} solicitado. Previsão: ${clockAt(rec.readyAt)}.`);
+  handleEvents(fired);
+  renderAll();
+}
+
+function sendToWait(enc) {
+  sfx.click();
+  say(enc, 'Tá bom, vou aguardar lá fora.');
+  scene.exit();
+  shift.sendToWait();
+  setTimeout(() => ui.bubble.replaceChildren(), 1200);
+  renderAll();
+}
+
+function finishEncounter(enc) {
+  if (!decision.dx || !decision.cd) { toast('Escolha a hipótese diagnóstica e a conduta.'); return; }
+  const prevLevel = levelOf(state.xp).number;
+  const result = enc.score({ diagnosisId: decision.dx, conductId: decision.cd, now: shift.clock });
+  shift.finish(enc, result);
+  const earned = applyCase(state, enc.c, result);
+  save(state);
+  const leveled = levelOf(state.xp).number > prevLevel;
+  (result.dxOk && result.cdOk ? sfx.good : sfx.bad)();
+  if (earned.length) setTimeout(() => sfx.badge(), 700);
+  if (leveled) setTimeout(() => sfx.levelUp(), 1300);
+  showFeedback(enc, result, earned, leveled);
+}
+
+function showFeedback(enc, r, earned, leveled) {
+  const c = enc.c;
+  const dxLabel = c.diagnosis.options.find((o) => o.id === c.diagnosis.correct).label;
+  const cdLabel = c.conduct.options.find((o) => o.id === c.conduct.correct).label;
+  const m = modal(h('div', {},
+    h('div', { class: 'stars', 'aria-label': `${r.stars} de 3 estrelas` }, [1, 2, 3].map((i) => h('span', { class: i <= r.stars ? '' : 'off' }, '⭐'))),
+    h('h2', {}, r.dxOk && r.cdOk ? 'Muito bem!' : r.harmful ? 'Atenção: conduta com risco ao paciente' : 'Reveja este caso'),
+    h('p', { class: 'muted' }, `${c.patient.name} · +${r.points} XP`),
+    h('ul', { class: 'score-lines' }, r.lines.map((l) => h('li', {}, h('span', {}, l.label), h('span', { class: l.v > 0 ? 'pos' : l.v < 0 ? 'neg' : 'muted' }, l.v > 0 ? `+${l.v}` : String(l.v))))),
+    h('p', {}, h('b', {}, 'Diagnóstico: '), dxLabel),
+    h('p', {}, h('b', {}, 'Conduta esperada: '), cdLabel),
+    c.timeCritical ? h('p', { class: 'small' }, '⏱ ', c.timeCritical.reason) : null,
+    h('div', { class: 'teach' }, c.teaching),
+    h('details', {}, h('summary', { class: 'small' }, 'Referências'), h('ol', { class: 'refs' }, c.references.map((ref) => h('li', {}, ref)))),
+    earned.length ? h('div', { style: { marginTop: '12px' } }, h('h3', { style: { marginBottom: '8px' } }, 'Nova conquista!'), h('div', { class: 'badges' }, earned.map((id) => h('div', { class: 'badge new' }, h('span', { class: 'ic' }, BADGES[id].icon), h('div', {}, h('b', {}, BADGES[id].name), h('div', { class: 'small muted' }, BADGES[id].desc)))))) : null,
+    leveled ? h('p', { style: { fontWeight: 800, marginTop: '12px' } }, `🎉 Subiu para o nível ${levelOf(state.xp).number}: ${levelOf(state.xp).title}!`) : null,
+    h('div', { class: 'menu-actions', style: { marginTop: '16px' } }, h('button', { class: 'btn primary', onclick: () => m.close() }, shift.done ? 'Encerrar plantão' : 'Próximo paciente')),
+  ), {
+    onClose: () => {
+      scene.exit();
+      ui.bubble.replaceChildren();
+      renderAll();
+      if (shift.done) setTimeout(showShiftSummary, 400);
+    },
+  });
+}
+
+function showShiftSummary() {
+  const prev = levelOf(state.xp).number;
+  const { earned, bonus } = applyShift(state, shift);
+  save(state);
+  const leveled = levelOf(state.xp).number > prev;
+  if (earned.length) sfx.badge();
+  const total = shift.results.reduce((s, r) => s + r.result.points, 0) + bonus;
+  const finished = shift;
+  modal(h('div', {},
+    h('h2', {}, '🏁 Fim de plantão'),
+    h('p', { class: 'muted' }, `${finished.unit.name} · ${finished.unit.city}/${finished.unit.uf} · encerrado às ${finished.clockLabel}`),
+    h('ul', { class: 'score-lines' },
+      finished.results.map(({ enc, result }) => h('li', {}, h('span', {}, enc.c.patient.name), h('span', {}, '⭐'.repeat(result.stars) || '—', ` · +${result.points}`))),
+      h('li', {}, h('span', {}, 'Bônus de fechamento de plantão'), h('span', { class: 'pos' }, `+${bonus}`)),
+      h('li', {}, h('b', {}, 'Total'), h('b', {}, `+${total} XP`)),
+    ),
+    earned.length ? h('div', {}, h('h3', { style: { marginBottom: '8px' } }, 'Conquistas'), h('div', { class: 'badges' }, earned.map((id) => h('div', { class: 'badge new' }, h('span', { class: 'ic' }, BADGES[id].icon), h('div', {}, h('b', {}, BADGES[id].name)))))) : null,
+    leveled ? h('p', { style: { fontWeight: 800 } }, `🎉 Nível ${levelOf(state.xp).number}: ${levelOf(state.xp).title}! Novas unidades podem ter sido desbloqueadas.`) : null,
+    h('div', { class: 'menu-actions', style: { marginTop: '14px' } },
+      h('button', { class: 'btn primary', onclick: () => { document.querySelector('.modal-back')?.remove(); shift = null; renderMenu(); } }, 'Voltar ao menu'),
+      h('button', { class: 'btn', onclick: () => { document.querySelector('.modal-back')?.remove(); startShift(finished.unit, finished.specialty); } }, 'Novo plantão aqui'),
+    ),
+  ), { closable: false });
+}
+
+renderMenu();
+
+// exposed for automated tests
+window.__plantao = { get shift() { return shift; }, get state() { return state; } };

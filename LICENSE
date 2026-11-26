@@ -1,0 +1,48 @@
+VIEW-ONLY SOURCE-AVAILABLE LICENSE (ALL RIGHTS RESERVED)
+
+Copyright (c) 2026 Filipe Oliveira. All rights reserved.
+
+Project: "Plantão", a browser-based medical encounter simulator
+(source code, clinical case data, text, art and sound, together "the Software").
+
+1. PERMISSION GRANTED
+   Free of charge, you may only:
+   a) view and read the source code and content of the Software in the public
+      repository where it is hosted;
+   b) run the Software locally, for personal and non-commercial purposes, solely
+      to evaluate or study it.
+
+2. RESTRICTIONS
+   Unless you have prior written permission from the copyright holder, you may NOT:
+   a) copy, reproduce or redistribute the Software, in whole or in part,
+      including the clinical cases and educational text;
+   b) modify, adapt, translate or create derivative works;
+   c) publish, host or otherwise make the Software or derivative works
+      available to third parties by any means;
+   d) use the Software, or any part of it, for commercial purposes;
+   e) use the Software or its data to train, fine-tune or evaluate machine
+      learning models;
+   f) remove or alter this copyright notice.
+
+3. HOSTING PLATFORM
+   Because the repository is public on GitHub, platform users have the minimum
+   rights granted by the GitHub Terms of Service (section D.5), such as viewing
+   the repository and forking it within the platform. Those rights do not
+   authorize any use beyond what this license allows.
+
+4. CONTRIBUTIONS
+   Contributions (issues, pull requests) are accepted only on the condition that
+   the copyright holder may use them freely in the Software, under this or any
+   other license.
+
+5. MEDICAL DISCLAIMER
+   The Software is an educational game. Its cases are fictional and do not
+   constitute medical advice, a clinical protocol or a substitute for clinical
+   judgment.
+
+6. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT
+   SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY DAMAGES ARISING FROM THE USE OF
+   THE SOFTWARE.
+
+For licensing requests, open an issue in the repository.
