@@ -53,22 +53,24 @@ export default [
       correct: 'choque_meningo',
       options: [
         { id: 'choque_meningo', label: 'Choque séptico — provável doença meningocócica (púrpura fulminante)' },
-        { id: 'hsp', label: 'Púrpura de Henoch-Schönlein' },
-        { id: 'pti', label: 'Púrpura trombocitopênica imune' },
-        { id: 'dengue', label: 'Dengue grave' },
-        { id: 'hipovol', label: 'Choque hipovolêmico por gastroenterite' },
+        { id: 'hsp', label: 'Púrpura de Henoch-Schönlein (vasculite por IgA com púrpura palpável)' },
+        { id: 'pti', label: 'Púrpura trombocitopênica imune aguda (pós-viral, com plaquetopenia)' },
+        { id: 'dengue', label: 'Dengue grave — choque por extravasamento plasmático na fase crítica' },
+        { id: 'hipovol', label: 'Choque hipovolêmico por gastroenterite aguda com desidratação grave' },
       ],
     },
     conduct: {
       correct: 'ssc',
       options: [
         { id: 'ssc', label: 'O2, 2º acesso (IO se necessário), bolus de cristaloide 10–20 mL/kg com reavaliação a cada bolus, corrigir glicemia, ceftriaxona EV na 1ª hora; epinefrina ou norepinefrina se refratário a volume. Precaução para gotículas.' },
-        { id: 'aguarda_lcr', label: 'Punção lombar antes do antibiótico para não negativar a cultura.', harmful: true },
-        { id: 'so_atb', label: 'Ceftriaxona e aguardar evolução, sem expansão.', harmful: true },
-        { id: 'cortic_isolado', label: 'Dexametasona isolada e observar.', harmful: true },
-        { id: 'plaq', label: 'Transfusão de plaquetas como prioridade inicial.' },
+        { id: 'aguarda_lcr', label: 'Hemocultura e punção lombar antes do antibiótico, para não negativar a cultura; ceftriaxona EV logo após a coleta do líquor; bolus de cristaloide 10–20 mL/kg com reavaliação a cada bolus e precaução para gotículas.', harmful: true },
+        { id: 'so_atb', label: 'Ceftriaxona EV na 1ª hora e precaução para gotículas; sem bolus de volume pelo risco de sobrecarga, só soro de manutenção; observar a diurese e reavaliar a perfusão depois do antibiótico.', harmful: true },
+        { id: 'cortic_isolado', label: 'Dexametasona EV isolada pela suspeita de meningite e observação na UTI, sem expansão volêmica nem vasopressor; antibiótico só depois da tomografia de crânio e da punção lombar.', harmful: true },
+        { id: 'plaq', label: 'Transfusão de plaquetas e plasma fresco congelado como prioridade inicial, pela púrpura extensa e plaquetopenia; coagulograma, fibrinogênio e D-dímero seriados para acompanhar a CIVD.' },
       ],
     },
+    // TODO(medical review): 'plaq' is not flagged harmful, yet it puts transfusion before antibiotic and fluids in a
+    // time-critical case; consider harmful: true (P1-03).
     teaching: 'Febre com púrpura que progride rápido, má perfusão (TEC > 3 s, extremidades frias, pulsos finos), hipotensão e rebaixamento definem choque séptico — a meningococcemia é a principal hipótese. Primeira hora: oxigênio, acesso vascular (IO se preciso), bolus de cristaloide de 10–20 mL/kg titulados por reavaliação (atenção a sinais de sobrecarga), hemocultura sem atrasar o antibiótico e cefalosporina de 3ª geração. Epinefrina ou norepinefrina se o choque persiste após volume. Punção lombar está contraindicada na instabilidade hemodinâmica e na coagulopatia. Hipoglicemia deve ser corrigida. Notificação compulsória e quimioprofilaxia dos contactantes.',
     references: [
       'Weiss SL, et al. Surviving Sepsis Campaign International Guidelines for the Management of Septic Shock and Sepsis-Associated Organ Dysfunction in Children. Pediatr Crit Care Med. 2020;21(2):e52–e106.',
@@ -125,20 +127,20 @@ export default [
       correct: 'cad_grave',
       options: [
         { id: 'cad_grave', label: 'Cetoacidose diabética grave — abertura de DM1' },
-        { id: 'cad_leve', label: 'Cetoacidose diabética leve' },
-        { id: 'ehh', label: 'Estado hiperglicêmico hiperosmolar' },
-        { id: 'gea', label: 'Gastroenterite aguda com desidratação' },
-        { id: 'apendicite', label: 'Apendicite aguda' },
+        { id: 'cad_leve', label: 'Cetoacidose diabética leve — abertura de DM1' },
+        { id: 'ehh', label: 'Estado hiperglicêmico hiperosmolar — abertura de DM2' },
+        { id: 'gea', label: 'Gastroenterite aguda com desidratação moderada' },
+        { id: 'apendicite', label: 'Apendicite aguda com hiperglicemia de estresse' },
       ],
     },
     conduct: {
       correct: 'ispad',
       options: [
         { id: 'ispad', label: 'Completar expansão (SF 0,9% 10–20 mL/kg), repor déficit em 24–48 h; insulina regular EV 0,05–0,1 U/kg/h após a expansão inicial, sem bolus; potássio no soro conforme K e diurese; glicemia horária e vigilância de edema cerebral.' },
-        { id: 'bic', label: 'Bicarbonato de sódio EV para corrigir o pH.', harmful: true },
-        { id: 'bolus_insulina', label: 'Bolus de insulina EV antes da hidratação.', harmful: true },
-        { id: 'sc_alta', label: 'Insulina subcutânea e transferência para enfermaria.', harmful: true },
-        { id: 'restricao', label: 'Restrição hídrica para prevenir edema cerebral.', harmful: true },
+        { id: 'bic', label: 'Bicarbonato de sódio EV para corrigir o pH abaixo de 7,1, junto com a expansão de SF 0,9% 10–20 mL/kg e a insulina regular EV contínua; potássio no soro conforme K e diurese; glicemia horária.', harmful: true },
+        { id: 'bolus_insulina', label: 'Bolus de insulina regular EV antes da hidratação, para baixar a glicemia rapidamente, seguido de infusão contínua; soro de manutenção sem expansão; potássio só quando o K sérico cair; controle de glicemia capilar.', harmful: true },
+        { id: 'sc_alta', label: 'Insulina regular subcutânea conforme a glicemia capilar e transferência para a enfermaria, com hidratação oral livre, dieta para diabético, controle de cetonúria e glicemia antes das refeições.', harmful: true },
+        { id: 'restricao', label: 'Restrição hídrica a 2/3 da manutenção para prevenir edema cerebral, sem completar a expansão; insulina regular EV contínua após a primeira hora, potássio no soro conforme K e diurese.', harmful: true },
       ],
     },
     teaching: 'Hiperglicemia, cetonemia e acidose (pH < 7,1 ou HCO3 < 5 = CAD grave) em criança com poliúria, polidipsia e emagrecimento: abertura de DM1. Pela ISPAD 2022, a expansão inicial é de 10–20 mL/kg de cristaloide e o déficit restante é reposto em 24–48 h. A insulina regular EV contínua (0,05–0,1 U/kg/h) começa após a expansão inicial, sem bolus. O potássio entra no soro precocemente, porque a insulina o desloca para dentro das células. Bicarbonato não é recomendado de rotina e está associado a edema cerebral. Cefaleia, rebaixamento, bradicardia e hipertensão sugerem edema cerebral: manitol ou salina hipertônica sem esperar a TC.',
@@ -196,22 +198,24 @@ export default [
       correct: 'bva_grave',
       options: [
         { id: 'bva_grave', label: 'Bronquiolite viral aguda grave com insuficiência respiratória e apneia' },
-        { id: 'coqueluche', label: 'Coqueluche' },
-        { id: 'pneumonia', label: 'Pneumonia bacteriana' },
-        { id: 'cardiopatia', label: 'Cardiopatia congênita com IC' },
-        { id: 'sepse_neo', label: 'Sepse neonatal tardia' },
+        { id: 'coqueluche', label: 'Coqueluche grave do lactente jovem com apneia e hipoxemia' },
+        { id: 'pneumonia', label: 'Pneumonia bacteriana com insuficiência respiratória aguda' },
+        { id: 'cardiopatia', label: 'Cardiopatia congênita com hiperfluxo pulmonar e insuficiência cardíaca' },
+        { id: 'sepse_neo', label: 'Sepse neonatal tardia com apneia e desconforto respiratório' },
       ],
     },
     conduct: {
       correct: 'vni',
       options: [
         { id: 'vni', label: 'Suporte não invasivo (cânula nasal de alto fluxo ou CPAP), O2 para SpO2 ≥ 90–92%, aspiração de VAS, hidratação por SNG/EV, monitorização de apneia; IOT se falha.' },
-        { id: 'nebs', label: 'Adrenalina e salbutamol nebulizados de horário + corticoide.' },
-        { id: 'atb', label: 'Antibiótico de amplo espectro como tratamento principal.' },
-        { id: 'fisio', label: 'Fisioterapia respiratória com vibrocompressão de rotina.' },
-        { id: 'enfermaria', label: 'Manter em enfermaria com cateter nasal.', harmful: true },
+        { id: 'nebs', label: 'Adrenalina e salbutamol nebulizados de horário, corticoide sistêmico (prednisolona VO ou metilprednisolona EV) e reavaliação do esforço respiratório após cada nebulização; hidratação EV.' },
+        { id: 'atb', label: 'Antibiótico de amplo espectro (ampicilina e gentamicina ou cefalosporina de 3ª geração) como tratamento principal, após hemocultura, PCR e radiografia de tórax.' },
+        { id: 'fisio', label: 'Fisioterapia respiratória de rotina com vibrocompressão e drenagem postural várias vezes ao dia para mobilizar secreções, com oximetria contínua e reavaliação após cada sessão.' },
+        { id: 'enfermaria', label: 'Manter na enfermaria com cateter nasal até 2 L/min, aspiração de VAS, dieta por SNG e oximetria contínua; transferir para a UTI só se houver nova apneia.', harmful: true },
       ],
     },
+    // TODO(medical review): the 'sepse_neo' option says "Sepse neonatal tardia" for a 6-week-old, past the neonatal
+    // period; confirm whether to reword it (e.g. "sepse bacteriana grave do lactente jovem") (P1-03).
     teaching: 'Lactente pequeno, ex-prematuro, com apneia, hipoxemia, esforço importante e hipercapnia tem bronquiolite grave com indicação de UTI. Suporte ventilatório não invasivo (CNAF ou CPAP) é a primeira escolha; intubação se falha, apneias recorrentes ou exaustão. Broncodilatadores, corticoides, antibióticos e fisioterapia de rotina não têm benefício. Coqueluche é diagnóstico diferencial importante em menores de 3 meses com apneia.',
     references: [
       'Ralston SL, et al. Clinical Practice Guideline: Bronchiolitis. Pediatrics. 2014;134(5):e1474–e1502.',
@@ -269,22 +273,25 @@ export default [
       correct: 'eme',
       options: [
         { id: 'eme', label: 'Estado de mal epiléptico convulsivo (provável status febril)' },
-        { id: 'cf_simples', label: 'Crise febril simples' },
-        { id: 'meningite', label: 'Meningite bacteriana' },
-        { id: 'hipoglicemia', label: 'Crise por hipoglicemia' },
-        { id: 'perda_folego', label: 'Perda de fôlego' },
+        { id: 'cf_simples', label: 'Crise febril simples (generalizada, em criança de 6 meses a 5 anos)' },
+        { id: 'meningite', label: 'Meningoencefalite bacteriana aguda com hipertensão intracraniana' },
+        { id: 'hipoglicemia', label: 'Crise convulsiva sintomática aguda por hipoglicemia' },
+        { id: 'perda_folego', label: 'Crise de perda de fôlego cianótica com hipóxia prolongada' },
       ],
     },
     conduct: {
       correct: 'benzo',
       options: [
         { id: 'benzo', label: 'ABC, O2, glicemia; benzodiazepínico já (midazolam IM/IN/bucal ou diazepam/lorazepam EV), repetir uma vez em 5 min; se persistir, 2ª linha EV: fosfenitoína/fenitoína, levetiracetam ou valproato.' },
-        { id: 'esperar', label: 'Aguardar a crise ceder espontaneamente.', harmful: true },
-        { id: 'tc_antes', label: 'Tomografia de crânio antes de qualquer medicação.', harmful: true },
-        { id: 'fenobarb', label: 'Fenobarbital como primeira droga, sem benzodiazepínico.' },
-        { id: 'antitermico', label: 'Só antitérmico e compressa fria.', harmful: true },
+        { id: 'esperar', label: 'Proteger a via aérea, O2, glicemia e decúbito lateral; aguardar a crise ceder espontaneamente e só medicar se passar de 30 min, quando se define o estado de mal.', harmful: true },
+        { id: 'tc_antes', label: 'ABC, O2 e glicemia; tomografia de crânio antes de qualquer medicação, para excluir lesão estrutural pela crise prolongada; depois, benzodiazepínico EV e, se a crise persistir, fenitoína ou levetiracetam EV.', harmful: true },
+        { id: 'fenobarb', label: 'ABC, O2 e glicemia; fenobarbital EV como primeira droga, sem benzodiazepínico; se a crise persistir após a dose, fenitoína EV e, depois, midazolam em infusão contínua.' },
+        { id: 'antitermico', label: 'Antitérmico, compressa fria e decúbito lateral, tratando a febre como causa da crise; observar a evolução e só então considerar anticonvulsivante se não ceder.', harmful: true },
       ],
     },
+    // TODO(medical review): the AES guideline (Glauser 2016) lists IV phenobarbital as an alternative initial therapy
+    // when none of the recommended benzodiazepines is available. Here IM/IN/buccal midazolam is available, so
+    // 'fenobarb' ("without a benzodiazepine") stays a wrong, non-harmful option; confirm (P1-03).
     teaching: 'Crise convulsiva por ≥ 5 min já é tratada como estado de mal epiléptico (t1 da ILAE). Não espere a crise passar: estabilização (via aérea, O2, glicemia) e benzodiazepínico imediato, por via IM, intranasal ou bucal se não houver acesso. Repita uma vez se a crise persistir após 5 min. Depois, droga de 2ª linha EV: fosfenitoína, levetiracetam ou valproato têm eficácia semelhante (estudo ESETT). Não é crise febril simples (> 15 min). Infecção do SNC deve ser considerada após a estabilização.',
     references: [
       'Glauser T, et al. Evidence-Based Guideline: Treatment of Convulsive Status Epilepticus in Children and Adults (American Epilepsy Society). Epilepsy Curr. 2016;16(1):48–61.',
@@ -352,25 +359,28 @@ export default [
       correct: 'cc_sistemico',
       options: [
         { id: 'cc_sistemico', label: 'Cardiopatia congênita crítica com fluxo sistêmico dependente do canal arterial (coarctação crítica/interrupção do arco aórtico ou hipoplasia do coração esquerdo)' },
-        { id: 'sepse', label: 'Sepse neonatal tardia com choque séptico' },
-        { id: 'eim', label: 'Erro inato do metabolismo descompensado' },
-        { id: 'hac', label: 'Hiperplasia adrenal congênita (crise perdedora de sal)' },
-        { id: 'pneumonia', label: 'Pneumonia neonatal com insuficiência respiratória' },
+        { id: 'sepse', label: 'Sepse neonatal tardia com choque séptico refratário a fluidos, disfunção miocárdica séptica e acidose metabólica grave, ainda sem foco definido' },
+        { id: 'eim', label: 'Erro inato do metabolismo descompensado após o início da alimentação (acidemia orgânica ou distúrbio do ciclo da ureia), com acidose e choque' },
+        { id: 'hac', label: 'Hiperplasia adrenal congênita por deficiência de 21-hidroxilase, em crise adrenal perdedora de sal com desidratação e choque hipovolêmico' },
+        { id: 'pneumonia', label: 'Pneumonia neonatal tardia com insuficiência respiratória aguda e acidose metabólica, evoluindo para choque séptico secundário' },
       ],
     },
     conduct: {
       correct: 'pge1',
       options: [
         { id: 'pge1', label: 'Prostaglandina E1 EV contínua já, sem aguardar o ecocardiograma (0,01 mcg/kg/min, aumentando até 0,05 conforme a resposta), por acesso venoso profundo; evitar oxigênio suplementar (alvo de SpO2 85–95%); suporte ventilatório, vigiando apneia e hipotensão; ecocardiograma e contato com centro de cardiologia neonatal para transferência.' },
-        { id: 'o2_volume', label: 'Aumentar o oxigênio para 100% e repetir expansões de 20 mL/kg até normalizar a perfusão.', harmful: true },
-        { id: 'aguardar_eco', label: 'Manter o suporte atual e só iniciar prostaglandina depois do ecocardiograma, disponível amanhã cedo.', harmful: true },
-        { id: 'escalonar_atb', label: 'Ampliar o esquema antibiótico e manter a hipótese de sepse.' },
-        { id: 'furosemida', label: 'Furosemida e restrição hídrica para insuficiência cardíaca, e reavaliar em 6 h.' },
+        { id: 'o2_volume', label: 'Aumentar o oxigênio para 100% no capacete, para corrigir a saturação pós-ductal; repetir expansões de SF 0,9% 20 mL/kg até normalizar a perfusão e a diurese; manter ampicilina e gentamicina, monitorizar pressão arterial e lactato, e pedir o ecocardiograma quando disponível.', harmful: true },
+        { id: 'aguardar_eco', label: 'Manter o suporte atual (capacete de O2, antibióticos e acesso periférico), monitorizar pressão, diurese e lactato, e só iniciar a prostaglandina E1 depois que o ecocardiograma, disponível amanhã cedo, confirmar a lesão dependente do canal; contato com o centro de cardiologia neonatal após o laudo, para discutir a transferência.', harmful: true },
+        { id: 'escalonar_atb', label: 'Ampliar o esquema antibiótico (cefalosporina de 3ª geração associada a vancomicina) e manter a hipótese de sepse neonatal tardia; colher nova hemocultura, urocultura e PCR seriada, e monitorizar pressão arterial, diurese, glicemia e lactato na UTI, com reavaliação clínica frequente.' },
+        { id: 'furosemida', label: 'Tratar como insuficiência cardíaca congestiva, pela hepatomegalia e pela congestão na radiografia: furosemida EV e restrição hídrica, com balanço hídrico rigoroso e controle de diurese, peso e eletrólitos; manter os antibióticos e reavaliar perfusão, lactato e gasometria em 6 h.' },
       ],
     },
     // TODO(medical review): the SBP manual names sepsis as the main differential but does not say what to do with
     // antibiotics already started, so the correct option leaves them out. Confirm whether to state "keep antibiotics
     // until sepsis is excluded" and under which reference. The pre/post-ductal saturation values are illustrative.
+    // The distractors 'o2_volume' and 'furosemida' keep the antibiotics on purpose; that is not a hint about the
+    // correct option. 'escalonar_atb' and 'furosemida' are not flagged harmful, yet both leave out PGE1 in a case
+    // whose time-critical lesson is to start it at once: consider harmful: true (P1-03).
     teaching: 'Recém-nascido que nasce bem e, com o fechamento do canal arterial, evolui com taquipneia progressiva, cansaço às mamadas, palidez, pulsos reduzidos e acidose metabólica tem cardiopatia com fluxo sistêmico dependente do canal até prova em contrário. O principal diagnóstico diferencial é a sepse neonatal, de quadro muito parecido; aqui faltam sinais de infecção e os pulsos femorais ausentes, o precórdio hiperdinâmico e a cardiomegalia com congestão apontam para o coração. Um teste do coraçãozinho negativo não exclui cardiopatia congênita. A prostaglandina E1 é iniciada imediatamente, sem esperar o ecocardiograma: 0,01 mcg/kg/min em infusão contínua, até 0,05 mcg/kg/min conforme a resposta, de preferência por acesso profundo, porque a interrupção da infusão fecha o canal em minutos. Apneia e hipotensão são os efeitos colaterais mais frequentes, sobretudo acima de 0,03 mcg/kg/min. Neste grupo o oxigênio deve ser evitado: a vasodilatação pulmonar aumenta ainda mais o fluxo pulmonar e piora o débito sistêmico. A ventilação mecânica costuma ajudar no baixo débito. Estabilizado, o RN segue para um centro de cardiologia neonatal.',
     references: [
       'Sociedade Brasileira de Pediatria. Departamentos Científicos de Cardiologia e Neonatologia. Sistematização do atendimento ao recém-nascido com suspeita ou diagnóstico de cardiopatia congênita. Manual de Orientação nº 4, 11 de agosto de 2022.',
@@ -434,27 +444,28 @@ export default [
       correct: 'colinergica',
       options: [
         { id: 'colinergica', label: 'Síndrome colinérgica aguda grave por inibidor de colinesterase (organofosforado ou carbamato — “chumbinho”)' },
-        { id: 'opioide', label: 'Intoxicação por opioide' },
-        { id: 'convulsao', label: 'Estado de mal epiléptico' },
-        { id: 'cumarinico', label: 'Intoxicação por raticida anticoagulante (cumarínico)' },
-        { id: 'aspiracao', label: 'Pneumonia aspirativa com sepse' },
+        { id: 'opioide', label: 'Intoxicação por opioide com depressão respiratória e miose (ingestão acidental de medicamento)' },
+        { id: 'convulsao', label: 'Estado de mal epiléptico convulsivo com rebaixamento pós-ictal e broncoaspiração de vômito' },
+        { id: 'cumarinico', label: 'Intoxicação por raticida anticoagulante (cumarínico ou superwarfarínico) com coagulopatia' },
+        { id: 'aspiracao', label: 'Pneumonia aspirativa com sepse e insuficiência respiratória após vômitos repetidos' },
       ],
     },
     conduct: {
       correct: 'atropina',
       options: [
         { id: 'atropina', label: 'Proteger a via aérea e ventilar, aspirar secreções; dois acessos venosos (um exclusivo para atropina); atropina EV 0,01–0,06 mg/kg/dose já, repetida a cada 5–15 min até a atropinização (ausculta limpa, FC e PA adequadas), seguida de infusão contínua; reposição de fluidos; sem oximas e sem lavagem gástrica de rotina; ligar para o CIATox (0800 722 6001) e notificar no Sinan.' },
-        { id: 'aguardar_colinesterase', label: 'Colher colinesterase e aguardar o resultado para confirmar antes de iniciar a atropina.', harmful: true },
-        { id: 'lavagem', label: 'Lavagem gástrica e carvão ativado de imediato, antes de qualquer outra medida, com a criança sonolenta e sem via aérea protegida.', harmful: true },
-        { id: 'vomito', label: 'Induzir o vômito e dar catártico para eliminar o veneno.', harmful: true },
-        { id: 'oxima', label: 'Pralidoxima como antídoto principal, deixando a atropina para se a bradicardia piorar.', harmful: true },
-        { id: 'naloxona', label: 'Naloxona EV pela miose e depressão respiratória, e observar a resposta.' },
+        { id: 'aguardar_colinesterase', label: 'Proteger a via aérea e aspirar secreções; colher colinesterase plasmática e eritrocitária e aguardar o resultado para confirmar a intoxicação antes de iniciar a atropina; enquanto isso, oxigênio, dois acessos venosos, reposição de fluidos e monitorização contínua; ligar para o CIATox (0800 722 6001) e notificar no Sinan.', harmful: true },
+        { id: 'lavagem', label: 'Lavagem gástrica com SF 0,9% e carvão ativado de imediato, antes de qualquer outra medida, com a criança sonolenta e sem via aérea protegida, para reduzir a absorção dos grânulos; depois, atropina EV se a bradicardia persistir; ligar para o CIATox e notificar no Sinan.', harmful: true },
+        { id: 'vomito', label: 'Induzir o vômito por estímulo da orofaringe e dar catártico (sorbitol ou sulfato de magnésio) para eliminar o veneno ainda no trato digestivo; oxigênio por máscara e soro de manutenção; atropina só se surgirem sinais de gravidade; ligar para o CIATox e notificar no Sinan.', harmful: true },
+        { id: 'oxima', label: 'Pralidoxima EV como antídoto principal, em bolus seguido de infusão contínua, para reativar a colinesterase antes do envelhecimento da enzima; atropina reservada para se a bradicardia piorar; proteger a via aérea e aspirar secreções; dois acessos venosos e reposição de fluidos; ligar para o CIATox (0800 722 6001) e notificar no Sinan.', harmful: true },
+        { id: 'naloxona', label: 'Naloxona EV pela miose, rebaixamento e depressão respiratória, repetindo a dose se a resposta for parcial; ventilar com bolsa-valva-máscara e aspirar secreções, e observar a resposta; reposição de fluidos pela hipotensão; ligar para o CIATox e notificar no Sinan.' },
       ],
     },
     // TODO(medical review): the guideline covers organophosphates and carbamates; it does not mention "chumbinho" or its
     // composition. The case assumes a clandestine cholinesterase-inhibitor rodenticide from the toxidrome alone.
     // The atropinization endpoints (clear chest, HR > 80 bpm, SBP > 80 mmHg) come from the guideline's Figure 2,
     // which gives adult bolus doses; confirm the pediatric targets. Text read: the CONITEC summary of chapter 2.
+    // P1-03: 'naloxona' is not flagged harmful, yet it leaves out atropine in a time-critical case; consider harmful: true.
     teaching: 'Miose, bradicardia, sialorreia, lacrimejamento, broncorreia, vômitos e diarreia (efeitos muscarínicos) somados a fasciculações e fraqueza (nicotínicos) e rebaixamento do nível de consciência formam a síndrome colinérgica: o diagnóstico é clínico e a história de raticida clandestino fecha o quadro. Glasgow ≤ 13, alteração respiratória, fasciculações, FC abaixo de 60 bpm e hipotensão definem intoxicação moderada ou grave, com indicação de terapia intensiva. A atropina é dada rapidamente após o diagnóstico clínico, em doses repetidas até a atropinização: na criança, 0,01–0,06 mg/kg/dose a cada 5–15 minutos, seguida de infusão contínua. O alvo é a ausculta limpa, com frequência cardíaca e pressão adequadas; taquicardia isolada não é motivo para suspender. A dosagem de colinesterase ajuda no diagnóstico e no seguimento, mas não deve atrasar o tratamento. A diretriz brasileira não recomenda indução de vômito, catárticos, oximas, nem lavagem gástrica ou carvão ativado de rotina; se considerados, só com via aérea protegida. Ligue para o CIATox e notifique todo caso no Sinan. Entre 24 e 96 horas depois pode surgir a síndrome intermediária, com fraqueza da musculatura respiratória.',
     references: [
       'Brasil. Ministério da Saúde. Diretrizes Brasileiras para Diagnóstico e Tratamento de Intoxicações por Agrotóxicos. Capítulo 2: Inibidores de colinesterase. Portaria nº 79, de 14 de dezembro de 2018.',
@@ -517,20 +528,20 @@ export default [
       acceptable: ['asma_grave'],
       options: [
         { id: 'asma_risco_vida', label: 'Exacerbação de asma com risco de vida (sonolência, tórax silencioso): insuficiência respiratória iminente' },
-        { id: 'asma_grave', label: 'Exacerbação grave de asma, sem critérios de risco de vida' },
-        { id: 'pneumonia', label: 'Pneumonia bacteriana com broncoespasmo' },
-        { id: 'pneumotorax', label: 'Pneumotórax hipertensivo' },
-        { id: 'anafilaxia', label: 'Anafilaxia' },
+        { id: 'asma_grave', label: 'Exacerbação grave de asma, sem critérios de risco de vida (fala em palavras, sentada inclinada para a frente)' },
+        { id: 'pneumonia', label: 'Pneumonia bacteriana com broncoespasmo e insuficiência respiratória (falha do tratamento da crise)' },
+        { id: 'pneumotorax', label: 'Pneumotórax hipertensivo como complicação da crise de asma (murmúrio abolido de um lado, desvio da traqueia)' },
+        { id: 'anafilaxia', label: 'Anafilaxia com broncoespasmo grave (reação a alimento, medicamento ou picada de inseto)' },
       ],
     },
     conduct: {
       correct: 'intensivo',
       options: [
         { id: 'intensivo', label: 'Oxigênio titulado para SpO2 de 94–98%; salbutamol inalatório repetido com ipratrópio; corticosteroide EV; sulfato de magnésio EV em dose única, infundido em 20 min; nenhum sedativo; reavaliação clínica e gasométrica frequente, com material de via aérea avançada pronto.' },
-        { id: 'sedar', label: 'Nova dose de benzodiazepínico para mantê-la calma e adaptada à máscara.', harmful: true },
-        { id: 'aminofilina', label: 'Aminofilina EV em infusão contínua.', harmful: true },
-        { id: 'antibiotico', label: 'Antibiótico de amplo espectro e nebulização de 4/4 h, aguardando a resposta ao corticoide oral.' },
-        { id: 'adrenalina', label: 'Adrenalina IM, tratando como anafilaxia.' },
+        { id: 'sedar', label: 'Nova dose de benzodiazepínico EV para mantê-la calma e adaptada à máscara; salbutamol inalatório com ipratrópio de 20/20 min, corticosteroide EV e oxigênio titulado para SpO2 de 94–98%; reavaliação clínica e gasométrica frequente, com material de via aérea avançada pronto.', harmful: true },
+        { id: 'aminofilina', label: 'Aminofilina EV em dose de ataque seguida de infusão contínua, em vez do sulfato de magnésio, com salbutamol inalatório e corticosteroide EV; oxigênio titulado para SpO2 de 94–98%; nível sérico de teofilina e reavaliação clínica e gasométrica seriada.', harmful: true },
+        { id: 'antibiotico', label: 'Antibiótico de amplo espectro EV após hemocultura e PCR, nebulização com salbutamol de 4/4 h e nova dose de prednisolona oral, aguardando a resposta ao corticoide; radiografia de tórax e reavaliação clínica depois das nebulizações.' },
+        { id: 'adrenalina', label: 'Adrenalina IM na face anterolateral da coxa, tratando como anafilaxia, associada a anti-histamínico EV e corticosteroide EV; oxigênio por máscara, salbutamol inalatório se persistir o broncoespasmo e observação prolongada pelo risco de reação bifásica.' },
       ],
     },
     // TODO(medical review): GINA 2024 gives IV magnesium sulfate as "a single 2 g infusion over 20 minutes" for adults and
@@ -539,6 +550,9 @@ export default [
     // GINA reports fewer admissions with SABA plus ipratropium in the emergency department, and no benefit from adding
     // ipratropium once children are hospitalised; confirm whether to keep it in the PICU conduct.
     // No Brazilian guideline on acute severe asthma in children was confirmed; add one (SBP/SBPT or MS) if available.
+    // P1-03: 'antibiotico' (salbutamol every 4 h and oral steroid in a life-threatening exacerbation) is not flagged
+    // harmful; consider harmful: true. The acceptable 'asma_grave' label now quotes severe-exacerbation signs that this
+    // patient also has, and 'pneumotorax' quotes unilateral signs she lacks; confirm both still read as fair distractors.
     teaching: 'A criança que “acalmou” no meio de uma crise grave não melhorou: sonolência, confusão e tórax silencioso indicam risco de vida e necessidade de terapia intensiva. Na exacerbação a pCO2 costuma estar abaixo do normal; fadiga e sonolência sugerem que ela está subindo, e pO2 abaixo de 60 mmHg com pCO2 normal ou aumentada (sobretudo acima de 45 mmHg) define insuficiência respiratória. Sedativos devem ser estritamente evitados nas exacerbações, pelo efeito depressor respiratório, e seu uso está associado a mortes evitáveis por asma. O tratamento é simultâneo: oxigênio titulado para SpO2 de 94–98% na criança de 6 a 11 anos, beta-2 agonista de curta ação repetido, ipratrópio (associado ao beta-2 nas exacerbações moderadas a graves) e corticosteroide sistêmico, por via EV quando a criança vomita ou está dispneica demais para engolir. O sulfato de magnésio EV, em dose única infundida em 20 minutos, é considerado em quem não responde ao tratamento inicial e mantém hipoxemia. Aminofilina não deve ser usada, pela baixa eficácia e pelo perfil de segurança. Antibiótico e radiografia não são rotina. Internação prévia em UTI por asma, uso excessivo de broncodilatador de alívio e ausência de corticoide inalatório são fatores de risco para desfecho fatal.',
     references: [
       'Global Initiative for Asthma (GINA). Global Strategy for Asthma Management and Prevention, 2024 update.',
