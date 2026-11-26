@@ -32,7 +32,7 @@ Other things found while reading: `AGENTS.md` said 14 cases, but there are 23 (8
 
 | ID | Issue | Scope | Expected/Seen Risk | Expected/Seen Size | Depends on |
 | --- | --- | --- | --- | --- | --- |
-| [P0-01](https://github.com/FilipeOliveira94/plantao/issues/8) | CI on every PR | GitHub Actions runs `npm run validate` and `npm run test:e2e`. | Med/- | Md/- | none |
+| [P0-01](https://github.com/FilipeOliveira94/plantao/issues/8) | CI on every PR | GitHub Actions runs `npm run validate` and `npm run test:e2e`. | Med/Med | Md/Md | none |
 | [P0-02](https://github.com/FilipeOliveira94/plantao/issues/9) | Sync `AGENTS.md` with reality | Fix the case count, point the roadmap section to this file. | Lo/Lo | Sm/Sm | none |
 
 ## P1: A fair core loop with consequences

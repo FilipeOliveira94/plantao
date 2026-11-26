@@ -35,7 +35,7 @@ The tests need Node 22 or later. Set up the end-to-end test once with:
 
 ```bash
 npm ci                            # installs Playwright (dev only; the game has no runtime dependencies)
-npx playwright install chromium   # downloads the headless browser
+npx playwright install chromium   # downloads the headless browser (on a fresh Linux box add --with-deps)
 ```
 
 Then:
