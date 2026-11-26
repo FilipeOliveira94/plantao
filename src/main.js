@@ -342,7 +342,8 @@ const TAB_STATE_LABEL = { unopened: 'não aberta', done: 'já vista' };
 function footerFor(enc) {
   const pend = enc.pendingExams(shift.clock).length;
   return h('div', { class: 'footer-actions' },
-    pend ? h('button', { class: 'btn', onclick: () => sendToWait(enc) }, `🪑 Aguardar resultados na recepção (${pend})`) : null,
+    // after the end of the shift a patient sent out could not be called back, so they stay in the room
+    pend && !shift.over ? h('button', { class: 'btn', onclick: () => sendToWait(enc) }, `🪑 Aguardar resultados na recepção (${pend})`) : null,
     h('span', { class: 'spacer', style: { flex: 1 } }),
     h('button', { class: 'btn primary', onclick: () => { tab = 'decision'; renderChart(); } }, 'Diagnóstico e conduta →'),
   );
