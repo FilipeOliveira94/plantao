@@ -27,6 +27,9 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
 try {
   await page.goto(`http://localhost:${PORT}/index.html`);
+  // the menu states that the cases are AI-generated and links to the references table
+  const refs = page.locator('.ai-notice a');
+  if (!/docs\/REFERENCES\.md$/.test(await refs.getAttribute('href'))) throw new Error('menu notice does not link to docs/REFERENCES.md');
   // unlock every unit for the test
   await page.evaluate(() => { localStorage.setItem('plantao.save.v1', JSON.stringify({ xp: 2000 })); });
   await page.reload();
