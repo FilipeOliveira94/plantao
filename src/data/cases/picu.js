@@ -460,4 +460,86 @@ export default [
       'Brasil. Ministério da Saúde. Diretrizes Brasileiras para Diagnóstico e Tratamento de Intoxicações por Agrotóxicos. Capítulo 2: Inibidores de colinesterase. Portaria nº 79, de 14 de dezembro de 2018.',
     ],
   },
+
+  {
+    id: 'picu-severe-asthma',
+    specialty: 'picu',
+    type: 'new',
+    settings: ['picu'],
+    difficulty: 3,
+    patient: {
+      name: 'Larissa Gomes', age: '9 anos', sex: 'F',
+      look: { skin: '#c98e66', hair: '#2b1b12', shirt: '#cdd5df', build: 'child', inBed: true },
+      companion: { name: 'Simone (mãe)', look: { skin: '#c98e66', hair: '#2b1b12', shirt: '#d9536f', build: 'adult' } },
+    },
+    triage: {
+      complaint: 'Admissão: crise de asma sem melhora após 3 horas de tratamento na UPA.',
+      priority: 'red',
+      vitals: { FC: '148 bpm', FR: '44 irpm', PA: '104/62 mmHg', Tax: '37,1 °C', SpO2: '88% (máscara de O2)', Peso: '30 kg' },
+      note: 'Sentada, inclinada para a frente, fala palavras soltas. Sonolenta.',
+    },
+    previousNote: {
+      title: 'Passagem de caso — UPA (Dr. Vinícius)',
+      text: 'Escolar asmática, crise há 2 dias. Na UPA: salbutamol com ipratrópio, 3 ciclos na primeira hora, e prednisolona VO (vomitou em seguida). Sem melhora. Estava muito agitada, arrancando a máscara: “fiz diazepam EV para acalmar e conseguir nebulizar”. Depois disso ficou mais quieta. Não colhi gasometria.',
+    },
+    opening: '(mãe) Ela tava agitada, pedindo ar, e agora tá assim, quietinha… Isso é bom, né, doutor(a)? Ela tá descansando?',
+    questions: [
+      { id: 'inicio', cat: 'HDA', q: 'Como começou essa crise?', a: '(mãe) Pegou um resfriado da irmã, anteontem. Ontem começou o chiado e hoje de manhã não conseguia nem falar direito.' },
+      { id: 'resgate', cat: 'Medicações', q: 'O que ela usou em casa para a crise?', a: '(mãe) A bombinha azul.' },
+      { id: 'resgate_quanto', cat: 'Medicações', q: 'Quantos jatos, de quanto em quanto tempo? Usou o espaçador?', a: '(mãe) Perdi a conta… de hora em hora desde ontem, direto na boca, que o espaçador quebrou. Acabou um frasco inteiro essa semana.', requires: 'resgate', key: true },
+      { id: 'controle', cat: 'Medicações', q: 'Ela usa algum remédio todos os dias para a asma?', a: '(mãe) Tinha a bombinha laranja, mas acabou faz uns dois meses. Como ela tava bem, eu não fui pegar outra no posto.', key: true },
+      { id: 'uti', cat: 'Antecedentes', q: 'Ela já foi internada por asma? Já precisou de UTI ou de aparelho para respirar?', a: '(mãe) Internou três vezes. Ano passado ficou na UTI, entubada, quatro dias.', key: true },
+      { id: 'infeccao', cat: 'HDA', q: 'Teve febre? Catarro amarelado ou esverdeado?', a: '(mãe) Febre não teve. Só coriza clarinha e essa tosse seca.', key: true },
+      { id: 'alergia', cat: 'HDA', q: 'Comeu algo diferente, tomou remédio novo ou foi picada por inseto antes de piorar? Empolou?', a: '(mãe) Não, nada. Não empolou nem inchou.' },
+      { id: 'engasgo', cat: 'HDA', q: 'Engasgou com alguma coisa?', a: '(mãe) Não.' },
+      { id: 'gatilhos', cat: 'Hábitos', q: 'Alguém fuma em casa? Tem mofo, bicho de pelúcia, animal?', a: '(mãe) O pai fuma, mas é na área. A casa tem umidade no quarto dela.' },
+    ],
+    physical: [
+      { id: 'resp', label: 'Aparelho respiratório', finding: 'Tiragem intercostal, subcostal e de fúrcula. Murmúrio vesicular muito reduzido bilateralmente, quase sem sibilos (“tórax silencioso”). Expansibilidade simétrica, sem enfisema subcutâneo.', key: true },
+      { id: 'neuro', label: 'Nível de consciência', finding: 'Sonolenta, confusa, abre os olhos ao chamado e volta a fechar. Não completa frases.', key: true },
+      { id: 'cardio', label: 'Cardiovascular', finding: 'Taquicárdica, pulsos cheios, TEC 2 s.' },
+      { id: 'pele', label: 'Pele e mucosas', finding: 'Sudoreica. Sem urticária, sem angioedema.' },
+      { id: 'orofaringe', label: 'Orofaringe', finding: 'Sem edema de úvula, sem estridor.' },
+    ],
+    exams: {
+      blood_gas: { result: 'Gasometria arterial: pH 7,29 · pO2 58 mmHg · pCO2 48 mmHg · HCO3 22 mEq/L.', relevance: 'key', note: 'Na crise de asma a pCO2 costuma estar baixa. pCO2 normal ou alta com pO2 abaixo de 60 mmHg indica insuficiência respiratória.' },
+      chest_xray: { result: 'Hiperinsuflação pulmonar bilateral. Sem pneumotórax, sem consolidação.', relevance: 'useful', note: 'Não é exame de rotina na crise de asma; aqui se justifica pela falta de resposta, para excluir pneumotórax.' },
+      electrolytes: { result: 'Na 138 mEq/L · K 3,4 mEq/L · Cl 101 mEq/L.', relevance: 'neutral' },
+      capillary_glucose: { result: '168 mg/dL.', relevance: 'neutral' },
+      cbc: { result: 'Hb 12,9 g/dL · Leucócitos 13.800/mm³ · Plaquetas 330.000/mm³.', relevance: 'neutral' },
+      crp: { result: '6 mg/L.', relevance: 'unnecessary' },
+      blood_culture: { result: 'Coletada. Resultado em 24–72 h.', relevance: 'unnecessary', note: 'Sem febre nem sinais de infecção bacteriana, não há indicação de cultura ou antibiótico.' },
+      head_ct: { result: 'Transporte para tomografia em paciente instável — exame adiado pela equipe.', relevance: 'unnecessary', harmful: true },
+      csf: { result: 'Punção não realizada: sem indicação, paciente em insuficiência respiratória.', relevance: 'unnecessary', harmful: true },
+    },
+    diagnosis: {
+      correct: 'asma_risco_vida',
+      acceptable: ['asma_grave'],
+      options: [
+        { id: 'asma_risco_vida', label: 'Exacerbação de asma com risco de vida: insuficiência respiratória (sonolência, tórax silencioso, hipercapnia)' },
+        { id: 'asma_grave', label: 'Exacerbação grave de asma, em melhora após a sedação' },
+        { id: 'pneumonia', label: 'Pneumonia bacteriana com broncoespasmo' },
+        { id: 'pneumotorax', label: 'Pneumotórax hipertensivo' },
+        { id: 'anafilaxia', label: 'Anafilaxia' },
+      ],
+    },
+    conduct: {
+      correct: 'intensivo',
+      options: [
+        { id: 'intensivo', label: 'Oxigênio titulado para SpO2 de 94–98%; salbutamol inalatório repetido com ipratrópio; corticosteroide EV; sulfato de magnésio EV em dose única, infundido em 20 min; nenhum sedativo; reavaliação clínica e gasométrica frequente, com material de via aérea avançada pronto.' },
+        { id: 'sedar', label: 'Nova dose de benzodiazepínico para mantê-la calma e adaptada à máscara.', harmful: true },
+        { id: 'aminofilina', label: 'Aminofilina EV em infusão contínua.', harmful: true },
+        { id: 'antibiotico', label: 'Antibiótico de amplo espectro e nebulização de 4/4 h, aguardando a resposta ao corticoide oral.' },
+        { id: 'adrenalina', label: 'Adrenalina IM, tratando como anafilaxia.' },
+      ],
+    },
+    // TODO(medical review): GINA 2024 gives IV magnesium sulfate as "a single 2 g infusion over 20 minutes" for adults and
+    // children who fail initial treatment and have persistent hypoxemia; the mg/kg dose (40–50 mg/kg, max 2 g) appears
+    // only in its section on children 5 years and younger, so no mg/kg dose is stated for this 9-year-old.
+    // No Brazilian guideline on acute severe asthma in children was confirmed; add one (SBP/SBPT or MS) if available.
+    teaching: 'A criança que “acalmou” no meio de uma crise grave não melhorou: sonolência, confusão e tórax silencioso indicam risco de vida e necessidade de terapia intensiva. Na exacerbação a pCO2 costuma estar abaixo do normal; fadiga e sonolência sugerem que ela está subindo, e pO2 abaixo de 60 mmHg com pCO2 normal ou aumentada (sobretudo acima de 45 mmHg) define insuficiência respiratória. Sedativos devem ser estritamente evitados nas exacerbações, pelo efeito depressor respiratório, e seu uso está associado a mortes evitáveis por asma. O tratamento é simultâneo: oxigênio titulado para SpO2 de 94–98% na criança de 6 a 11 anos, beta-2 agonista de curta ação repetido, ipratrópio (indicado nas exacerbações graves) e corticosteroide sistêmico, por via EV quando a criança vomita ou está dispneica demais para engolir. O sulfato de magnésio EV, em dose única infundida em 20 minutos, é considerado em quem não responde ao tratamento inicial e mantém hipoxemia. Aminofilina não deve ser usada, pela baixa eficácia e pelo perfil de segurança. Antibiótico e radiografia não são rotina. Internação prévia em UTI por asma, uso excessivo de broncodilatador de alívio e ausência de corticoide inalatório são fatores de risco para desfecho fatal.',
+    references: [
+      'Global Initiative for Asthma (GINA). Global Strategy for Asthma Management and Prevention, 2024 update.',
+    ],
+  },
 ];
