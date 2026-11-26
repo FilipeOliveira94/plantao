@@ -42,3 +42,14 @@ npm run test:e2e                 # Playwright: plays every shift
 - One topic per PR; new cases in separate PRs from engine changes.
 - Conventional, English commit messages (`feat:`, `fix:`, `content:`, `docs:`…).
 - When a PR adds or changes medical content, list the references used in the PR description.
+
+## Agent workflow
+
+Language, size and risk, review gates and model policy: `~/.agents/claude/workflow.md` (repo `FilipeOliveira94/agent-config`).
+
+- **Profile:** reviewed
+- **Language:** English for everything; game content (player-facing strings in `src/data` and the UI) in pt-BR
+- **Hi risk here:** any medical content: adding or changing a case in `src/data` (findings, test results, diagnosis, management, doses, `harmful` flags, references) and the rules in `docs/MEDICAL-CONTENT.md`
+- **Extra reviewers:** none
+- **Skip review:** none (docs-only changes always skip `code-reviewer`)
+- **Model exceptions:** none
