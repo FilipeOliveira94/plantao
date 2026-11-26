@@ -113,7 +113,7 @@ Each note was checked against the open issues. Where an issue already covered it
 
 | ID | Issue | Scope | Expected/Seen Risk | Expected/Seen Size | Depends on |
 | --- | --- | --- | --- | --- | --- |
-| [P4-01](https://github.com/FilipeOliveira94/plantao/issues/37) | Art direction and asset sources | A short doc: style for backdrops, building scale per unit type (a small health post is not a tower block), license rules, `CREDITS.md` created. | Lo/- | Sm/- | none |
+| [P4-01](https://github.com/FilipeOliveira94/plantao/issues/37) | Art direction and asset sources | A short doc: style for backdrops, building scale per unit type (a small health post is not a tower block), license rules, `CREDITS.md` created. | Lo/Lo | Sm/Sm | none |
 | [P4-02](https://github.com/FilipeOliveira94/plantao/issues/38) | Unit cards with the place | Each menu card shows its city: landmark, landscape, building at the right scale. | Lo/- | Sm/- | P4-01, P4-06 |
 | [P4-03](https://github.com/FilipeOliveira94/plantao/issues/39) | Scene backdrop per unit | The room shows where it is: view through the window, weather and light (rain in Belém, cold light in Curitiba), furniture and wear matching the unit type. | Lo/- | Md/- | P4-01 |
 | [P4-04](https://github.com/FilipeOliveira94/plantao/issues/40) | Small-town units | Add units outside state capitals (a rural health post, a small-town hospital) with the resources they would really have. | Med/- | Sm/- | P4-03 |
