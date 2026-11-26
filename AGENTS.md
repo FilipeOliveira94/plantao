@@ -18,6 +18,7 @@
 ```bash
 python3 -m http.server 8080      # run
 npm run validate                 # validate cases (run after every change in src/data)
+npm run references               # rebuild docs/REFERENCES.md (validate fails when it is out of date)
 npm run test:e2e                 # Playwright: plays every shift
 ```
 

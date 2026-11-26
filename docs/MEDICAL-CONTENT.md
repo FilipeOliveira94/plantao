@@ -59,6 +59,7 @@ All player-facing text (patient speech, findings, options, teaching notes) is in
 
 ## Checklist before opening a case PR
 
+- [ ] `npm run references` was run and `docs/REFERENCES.md` is committed
 - [ ] `npm run validate` passes
 - [ ] References include year and source
 - [ ] Correct management checked line by line against the reference

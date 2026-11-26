@@ -53,6 +53,9 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .spec.selected { background: var(--ink); color: #fff; }
 .menu-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .disclaimer { margin-top: 30px; font-size: 12px; color: var(--muted); max-width: 760px; }
+.disclaimer.ai-notice { font-size: 13px; }
+.disclaimer.ai-notice + .disclaimer { margin-top: 8px; }
+.disclaimer a { color: inherit; text-decoration: underline; }
 
 /* ---------- jogo ---------- */
 .game { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; }
