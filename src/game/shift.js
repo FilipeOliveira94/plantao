@@ -50,10 +50,14 @@ export class Shift {
     const n = unit.type === 'picu' ? 3 : 4;
     const picked = [...fresh, ...seen].slice(0, Math.min(n, eligible.length));
 
+    // a separate stream, so shuffling options does not change arrivals or events for a given seed
+    const optionRnd = mulberry32(seed ^ 0x5bd1e995);
     let t = 0;
     this.encounters = picked.map((c, i) => {
       const e = new Encounter(c, unit.type);
       e.arrivedAt = i === 0 ? 0 : (t += 8 + Math.floor(this.rnd() * 25));
+      e.dxOptions = shuffle(c.diagnosis.options, optionRnd);
+      e.cdOptions = shuffle(c.conduct.options, optionRnd);
       return e;
     });
 

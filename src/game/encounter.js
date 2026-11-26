@@ -15,6 +15,9 @@ export class Encounter {
     this.firstSeenAt = null;
     this.status = 'waiting'; // waiting | in_progress | awaiting_results | done
     this.log = [];
+    // display order of the answer options; Shift shuffles them once per encounter
+    this.dxOptions = caseData.diagnosis.options;
+    this.cdOptions = caseData.conduct.options;
     // tests the patient brought from outside are available right away
     for (const [id, ex] of Object.entries(this.c.exams || {})) {
       if (ex.brought) this.requested.set(id, { readyAt: 0, ...ex, brought: true });
