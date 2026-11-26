@@ -30,6 +30,7 @@ try {
   // the menu states that the cases are AI-generated and links to the references table
   const refs = page.locator('.ai-notice a');
   if (!/docs\/REFERENCES\.md$/.test(await refs.getAttribute('href'))) throw new Error('menu notice does not link to docs/REFERENCES.md');
+  if (await refs.getAttribute('target') !== '_blank' || !/noopener/.test(await refs.getAttribute('rel') || '')) throw new Error('references link must open in a new tab with rel=noopener');
   // unlock every unit for the test
   await page.evaluate(() => { localStorage.setItem('plantao.save.v1', JSON.stringify({ xp: 2000 })); });
   await page.reload();

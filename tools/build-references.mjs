@@ -8,7 +8,7 @@ import { SPECIALTIES } from '../src/data/catalog.js';
 
 const OUT = fileURLToPath(new URL('../docs/REFERENCES.md', import.meta.url));
 const SPECIALTY_EN = { 'internal-medicine': 'Internal medicine', pediatrics: 'Pediatrics', picu: 'Pediatric ICU' };
-const cell = (s) => String(s).replace(/\|/g, '\\|').replace(/\s*\n\s*/g, ' ');
+const cell = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\|/g, '\\|').replace(/\s*\n\s*/g, ' ');
 
 const lines = [
   '# References used by each case',
@@ -33,7 +33,7 @@ const text = lines.join('\n') + '\n';
 
 if (process.argv.includes('--check')) {
   let current = '';
-  try { current = readFileSync(OUT, 'utf8'); } catch { /* missing file counts as out of date */ }
+  try { current = readFileSync(OUT, 'utf8').replace(/\r\n/g, '\n'); } catch { /* missing file counts as out of date */ }
   if (current !== text) {
     console.error('docs/REFERENCES.md is out of date. Run `npm run references` and commit the result.');
     process.exit(1);
