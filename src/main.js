@@ -284,13 +284,12 @@ function renderChart() {
   const readyCount = enc.readyExams(shift.clock).length;
   const tc = c.timeCritical ? h('span', { class: 'chip', style: { background: enc.minutesSpent > c.timeCritical.minutes ? '#f6c1b8' : '#fde9b5' } }, `⏱ ${enc.minutesSpent}/${c.timeCritical.minutes} min`) : null;
 
-  const tabs = [
-    ['triage', 'Triagem'],
-    ['history', 'Anamnese', enc.asked.size],
-    ['physical', 'Exame físico', enc.examined.size],
-    ['tests', 'Exames', readyCount],
-    ['decision', 'Decisão'],
-  ];
+  // which tabs this patient's chart has shown, and how many results were ready the last time Exames was open
+  const seen = enc._tabs ||= { opened: new Set(), readySeen: 0 };
+  seen.opened.add(tab);
+  const newResults = Math.max(0, readyCount - seen.readySeen);
+  if (tab === 'tests') seen.readySeen = readyCount;
+  const counts = { history: enc.asked.size, physical: enc.examined.size };
   const pane = h('div', { class: 'pane' }, paneFor(enc));
   mount(ui.chart,
     h('div', { class: 'chart-head' },
@@ -302,15 +301,34 @@ function renderChart() {
       tc,
       h('span', { class: 'chip' }, `${enc.minutesSpent} min no atendimento`),
     ),
-    h('div', { class: 'tabs', role: 'tablist' }, tabs.map(([id, label, n]) => h('button', {
-      class: `tab ${tab === id ? 'active' : ''}`, role: 'tab',
-      onclick: () => { sfx.page(); tab = id; renderChart(); },
-    }, label, n ? h('span', { class: 'count' }, n) : null))),
+    h('div', { class: 'tabs', role: 'tablist' }, CHART_TABS.map((t) => {
+      const state = t.id === 'tests' && newResults && tab !== 'tests' ? 'new' : seen.opened.has(t.id) ? 'done' : 'unopened';
+      return h('button', {
+        class: `tab ${state} ${tab === t.id ? 'active' : ''}`, role: 'tab', 'aria-selected': String(tab === t.id),
+        'aria-label': [t.label, counts[t.id] ? `${counts[t.id]} ${COUNT_LABEL[t.id]}` : null, state === 'new' ? `${newResults} resultado${newResults > 1 ? 's' : ''} novo${newResults > 1 ? 's' : ''}` : TAB_STATE_LABEL[state]].filter(Boolean).join(', '), style: `--tab: ${t.color}`,
+        onclick: () => { sfx.page(); tab = t.id; renderChart(); },
+      },
+      h('span', { class: 'ic', 'aria-hidden': 'true' }, t.icon), t.label,
+      counts[t.id] ? h('span', { class: 'count' }, counts[t.id]) : null,
+      state === 'new' ? h('span', { class: 'mark new', title: 'Resultados novos' }, `+${newResults}`)
+        : state === 'unopened' ? h('span', { class: 'mark', 'aria-hidden': 'true' }, '●') : null);
+    })),
     pane,
     footerFor(enc),
   );
   pane.scrollTop = tab === 'history' ? pane.scrollHeight : 0;
 }
+
+// Chart tabs: each has its own color and icon. State: unopened (faded stripe and a dot), new (unseen results, a +N pill) or done (opened, solid stripe).
+const CHART_TABS = [
+  { id: 'triage', label: 'Triagem', icon: '📋', color: '#d98b2b' },
+  { id: 'history', label: 'Anamnese', icon: '💬', color: '#3b7dd8' },
+  { id: 'physical', label: 'Exame físico', icon: '🩺', color: '#2f9e5b' },
+  { id: 'tests', label: 'Exames', icon: '🧪', color: '#8a5cc7' },
+  { id: 'decision', label: 'Decisão', icon: '⚖️', color: '#1f7a6b' },
+];
+const COUNT_LABEL = { history: 'perguntas feitas', physical: 'itens examinados' };
+const TAB_STATE_LABEL = { unopened: 'não aberta', done: 'já vista' };
 
 function footerFor(enc) {
   const pend = enc.pendingExams(shift.clock).length;
