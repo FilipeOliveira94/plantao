@@ -383,7 +383,7 @@ export default [
     type: 'new',
     settings: ['picu'],
     difficulty: 3,
-    timeCritical: { minutes: 12, reason: 'Na síndrome colinérgica, a atropina deve ser administrada rapidamente após o diagnóstico clínico: a broncorreia e o broncoespasmo levam à insuficiência respiratória.' },
+    timeCritical: { minutes: 15, reason: 'Na síndrome colinérgica, a atropina deve ser administrada rapidamente após o diagnóstico clínico: a broncorreia e o broncoespasmo levam à insuficiência respiratória.' },
     patient: {
       name: 'Kauã Oliveira', age: '2 anos e 6 meses', sex: 'M',
       look: { skin: '#8d5a3b', hair: '#1d1410', shirt: '#cdd5df', build: 'child', inBed: true },
@@ -406,7 +406,7 @@ export default [
       { id: 'embalagem', cat: 'HDA', q: 'Qual veneno? Trouxe a embalagem?', a: '(avó, tira um saquinho plástico do bolso) É o chumbinho, comprei na feira. Não tem rótulo, não tem nome, nada. O moço disse que era “o forte”.', requires: 'produto', key: true },
       { id: 'tempo', cat: 'HDA', q: 'Há quanto tempo foi isso? Sabe quanto ele engoliu?', a: '(avó) Faz umas duas horas, por aí. Quanto eu não sei, tinha uns grãos espalhados.' },
       { id: 'sintomas', cat: 'Sinais de alarme', q: 'O que apareceu primeiro? Teve diarreia, urinou na roupa?', a: '(avó) Primeiro vomitou e começou a babar e chorar muita lágrima. Fez cocô mole e xixi na roupa. Depois ficou tremendo os musculinhos e amoleceu.', key: true },
-      { id: 'outros', cat: 'Epidemiologia', q: 'Tem outra criança em casa que possa ter mexido no veneno?', a: '(avó) A irmã de cinco anos tava na escola. Mas o saquinho ainda tá lá no quintal, meu Deus…' },
+      { id: 'outros', cat: 'Epidemiologia', q: 'Tem outra criança em casa que possa ter mexido no veneno?', a: '(avó) A irmã de cinco anos tava na escola. Mas ainda tem grão espalhado lá no quintal, meu Deus…' },
       { id: 'antecedentes', cat: 'Antecedentes', q: 'Ele tem alguma doença, convulsão, usa remédio?', a: '(avó) Nada. Nunca teve convulsão.' },
       { id: 'remedios', cat: 'Medicações', q: 'Deram alguma coisa pra ele em casa? Leite, remédio, provocaram vômito?', a: '(avó) A vizinha mandou dar leite, ele tomou dois goles e vomitou. Mais nada.' },
     ],
@@ -455,7 +455,7 @@ export default [
     // composition. The case assumes a clandestine cholinesterase-inhibitor rodenticide from the toxidrome alone.
     // The atropinization endpoints (clear chest, HR > 80 bpm, SBP > 80 mmHg) come from the guideline's Figure 2,
     // which gives adult bolus doses; confirm the pediatric targets. Text read: the CONITEC summary of chapter 2.
-    teaching: 'Miose, bradicardia, sialorreia, lacrimejamento, broncorreia, vômitos e diarreia (efeitos muscarínicos) somados a fasciculações e fraqueza (nicotínicos) e rebaixamento do nível de consciência formam a toxíndrome colinérgica: o diagnóstico é clínico e a história de raticida clandestino fecha o quadro. Glasgow ≤ 13, alteração respiratória, fasciculações, FC abaixo de 60 bpm e hipotensão definem intoxicação moderada ou grave, com indicação de terapia intensiva. A atropina é dada rapidamente após o diagnóstico clínico, em doses repetidas até a atropinização: na criança, 0,01–0,06 mg/kg/dose a cada 5–15 minutos, seguida de infusão contínua. O alvo é a ausculta limpa, com frequência cardíaca e pressão adequadas; taquicardia isolada não é motivo para suspender. A dosagem de colinesterase ajuda no diagnóstico e no seguimento, mas não deve atrasar o tratamento. A diretriz brasileira não recomenda indução de vômito, catárticos, oximas, nem lavagem gástrica ou carvão ativado de rotina; se considerados, só com via aérea protegida. Ligue para o CIATox e notifique todo caso no Sinan. Entre 24 e 96 horas depois pode surgir a síndrome intermediária, com fraqueza da musculatura respiratória.',
+    teaching: 'Miose, bradicardia, sialorreia, lacrimejamento, broncorreia, vômitos e diarreia (efeitos muscarínicos) somados a fasciculações e fraqueza (nicotínicos) e rebaixamento do nível de consciência formam a síndrome colinérgica: o diagnóstico é clínico e a história de raticida clandestino fecha o quadro. Glasgow ≤ 13, alteração respiratória, fasciculações, FC abaixo de 60 bpm e hipotensão definem intoxicação moderada ou grave, com indicação de terapia intensiva. A atropina é dada rapidamente após o diagnóstico clínico, em doses repetidas até a atropinização: na criança, 0,01–0,06 mg/kg/dose a cada 5–15 minutos, seguida de infusão contínua. O alvo é a ausculta limpa, com frequência cardíaca e pressão adequadas; taquicardia isolada não é motivo para suspender. A dosagem de colinesterase ajuda no diagnóstico e no seguimento, mas não deve atrasar o tratamento. A diretriz brasileira não recomenda indução de vômito, catárticos, oximas, nem lavagem gástrica ou carvão ativado de rotina; se considerados, só com via aérea protegida. Ligue para o CIATox e notifique todo caso no Sinan. Entre 24 e 96 horas depois pode surgir a síndrome intermediária, com fraqueza da musculatura respiratória.',
     references: [
       'Brasil. Ministério da Saúde. Diretrizes Brasileiras para Diagnóstico e Tratamento de Intoxicações por Agrotóxicos. Capítulo 2: Inibidores de colinesterase. Portaria nº 79, de 14 de dezembro de 2018.',
     ],
@@ -516,8 +516,8 @@ export default [
       correct: 'asma_risco_vida',
       acceptable: ['asma_grave'],
       options: [
-        { id: 'asma_risco_vida', label: 'Exacerbação de asma com risco de vida: insuficiência respiratória (sonolência, tórax silencioso, hipercapnia)' },
-        { id: 'asma_grave', label: 'Exacerbação grave de asma, em melhora após a sedação' },
+        { id: 'asma_risco_vida', label: 'Exacerbação de asma com risco de vida (sonolência, tórax silencioso): insuficiência respiratória iminente' },
+        { id: 'asma_grave', label: 'Exacerbação grave de asma, sem critérios de risco de vida' },
         { id: 'pneumonia', label: 'Pneumonia bacteriana com broncoespasmo' },
         { id: 'pneumotorax', label: 'Pneumotórax hipertensivo' },
         { id: 'anafilaxia', label: 'Anafilaxia' },
@@ -536,8 +536,10 @@ export default [
     // TODO(medical review): GINA 2024 gives IV magnesium sulfate as "a single 2 g infusion over 20 minutes" for adults and
     // children who fail initial treatment and have persistent hypoxemia; the mg/kg dose (40–50 mg/kg, max 2 g) appears
     // only in its section on children 5 years and younger, so no mg/kg dose is stated for this 9-year-old.
+    // GINA reports fewer admissions with SABA plus ipratropium in the emergency department, and no benefit from adding
+    // ipratropium once children are hospitalised; confirm whether to keep it in the PICU conduct.
     // No Brazilian guideline on acute severe asthma in children was confirmed; add one (SBP/SBPT or MS) if available.
-    teaching: 'A criança que “acalmou” no meio de uma crise grave não melhorou: sonolência, confusão e tórax silencioso indicam risco de vida e necessidade de terapia intensiva. Na exacerbação a pCO2 costuma estar abaixo do normal; fadiga e sonolência sugerem que ela está subindo, e pO2 abaixo de 60 mmHg com pCO2 normal ou aumentada (sobretudo acima de 45 mmHg) define insuficiência respiratória. Sedativos devem ser estritamente evitados nas exacerbações, pelo efeito depressor respiratório, e seu uso está associado a mortes evitáveis por asma. O tratamento é simultâneo: oxigênio titulado para SpO2 de 94–98% na criança de 6 a 11 anos, beta-2 agonista de curta ação repetido, ipratrópio (indicado nas exacerbações graves) e corticosteroide sistêmico, por via EV quando a criança vomita ou está dispneica demais para engolir. O sulfato de magnésio EV, em dose única infundida em 20 minutos, é considerado em quem não responde ao tratamento inicial e mantém hipoxemia. Aminofilina não deve ser usada, pela baixa eficácia e pelo perfil de segurança. Antibiótico e radiografia não são rotina. Internação prévia em UTI por asma, uso excessivo de broncodilatador de alívio e ausência de corticoide inalatório são fatores de risco para desfecho fatal.',
+    teaching: 'A criança que “acalmou” no meio de uma crise grave não melhorou: sonolência, confusão e tórax silencioso indicam risco de vida e necessidade de terapia intensiva. Na exacerbação a pCO2 costuma estar abaixo do normal; fadiga e sonolência sugerem que ela está subindo, e pO2 abaixo de 60 mmHg com pCO2 normal ou aumentada (sobretudo acima de 45 mmHg) define insuficiência respiratória. Sedativos devem ser estritamente evitados nas exacerbações, pelo efeito depressor respiratório, e seu uso está associado a mortes evitáveis por asma. O tratamento é simultâneo: oxigênio titulado para SpO2 de 94–98% na criança de 6 a 11 anos, beta-2 agonista de curta ação repetido, ipratrópio (associado ao beta-2 nas exacerbações moderadas a graves) e corticosteroide sistêmico, por via EV quando a criança vomita ou está dispneica demais para engolir. O sulfato de magnésio EV, em dose única infundida em 20 minutos, é considerado em quem não responde ao tratamento inicial e mantém hipoxemia. Aminofilina não deve ser usada, pela baixa eficácia e pelo perfil de segurança. Antibiótico e radiografia não são rotina. Internação prévia em UTI por asma, uso excessivo de broncodilatador de alívio e ausência de corticoide inalatório são fatores de risco para desfecho fatal.',
     references: [
       'Global Initiative for Asthma (GINA). Global Strategy for Asthma Management and Prevention, 2024 update.',
     ],
