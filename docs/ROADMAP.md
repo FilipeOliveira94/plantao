@@ -53,7 +53,7 @@ Each note was checked against the open issues. Where an issue already covered it
 
 | ID | Issue | Scope | Expected/Seen Risk | Expected/Seen Size | Depends on |
 | --- | --- | --- | --- | --- | --- |
-| [P0-01](https://github.com/FilipeOliveira94/plantao/issues/8) | CI on every PR | GitHub Actions runs `npm run validate` and `npm run test:e2e`. | Med/- | Md/- | none |
+| [P0-01](https://github.com/FilipeOliveira94/plantao/issues/8) | CI on every PR | GitHub Actions runs `npm run validate` and `npm run test:e2e`. | Med/Med | Md/Md | none |
 | [P0-02](https://github.com/FilipeOliveira94/plantao/issues/9) | Sync `AGENTS.md` with reality | Fix the case count, point the roadmap section to this file. | Lo/Lo | Sm/Sm | none |
 
 ## P1: A fair core loop with consequences
@@ -62,7 +62,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | --- | --- | --- | --- | --- | --- |
 | [P1-01](https://github.com/FilipeOliveira94/plantao/issues/10) | Shuffle answer options | Diagnosis and management options render in a random order, seeded per encounter so a re-render keeps the order. The E2E test picks by id, not by position. | Lo/Lo | Sm/Sm | none |
 | [P1-02](https://github.com/FilipeOliveira94/plantao/issues/47) | Validator rule for option balance | `validate-cases` reports cases where the correct option is the longest by a set margin, or where distractors are much shorter. Starts as a warning; becomes an error after P1-03. | Lo/Lo | Sm/Sm | none |
-| [P1-03](https://github.com/FilipeOliveira94/plantao/issues/11) | Rebalance distractors in the 23 cases | Rewrite wrong options to match the correct one in length and detail (a wrong plan is as specific as the right one). One PR per specialty. Cases stay "pending" in `REVIEW-STATUS.md`. | Hi/- | Md/- | P1-02 |
+| [P1-03](https://github.com/FilipeOliveira94/plantao/issues/11) | Rebalance distractors in the 23 cases | Rewrite wrong options to match the correct one in length and detail (a wrong plan is as specific as the right one). One PR per specialty. Cases stay "pending" in `REVIEW-STATUS.md`. | Hi/Hi | Md/Md | P1-02 |
 | [P1-04](https://github.com/FilipeOliveira94/plantao/issues/12) | The shift has an end | A fixed shift length with arrivals spread across it, so the queue builds. Patients not seen by the end count against the shift. A whole shift takes about 10 to 15 minutes of real play. The plan settles the game-clock length and what happens when the case pool is smaller than the shift. | Med/- | Md/- | none |
 | [P1-05](https://github.com/FilipeOliveira94/plantao/issues/13) | Consultation time budget | Each patient gets a target consultation time from their triage priority and case type. Going over costs points. Replaces the 15-point "efficient reasoning" bonus with a penalty that grows with unfocused questions and exams. | Med/- | Md/- | P1-04 |
 | [P1-06](https://github.com/FilipeOliveira94/plantao/issues/14) | Waiting has non-clinical consequences | Patients past their target get impatient: complaints, low-priority patients leaving without being seen, a shift satisfaction score. No vital sign changes here. | Med/- | Md/- | P1-04 |
@@ -93,7 +93,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | ID | Issue | Scope | Expected/Seen Risk | Expected/Seen Size | Depends on |
 | --- | --- | --- | --- | --- | --- |
 | [P3-01](https://github.com/FilipeOliveira94/plantao/issues/29) | Safer local save | Schema version with migration, autosave and resume of a shift in progress, export and import of the save as a file or code. A notice in the menu says progress is stored in this browser only. | Med/- | Md/- | none |
-| [P3-02](https://github.com/FilipeOliveira94/plantao/issues/30) | Career screen | A level track showing what each level unlocks and the XP still needed. Locked unit cards show progress and the requirement. One source for level titles. | Lo/- | Md/- | none |
+| [P3-02](https://github.com/FilipeOliveira94/plantao/issues/30) | Career screen | A level track showing what each level unlocks and the XP still needed. Locked unit cards show progress and the requirement. One source for level titles. | Lo/Lo | Md/Sm | none |
 | [P3-03](https://github.com/FilipeOliveira94/plantao/issues/31) | Unlocks for every level | Every level of the P3-12 ladder unlocks something (units, daily shift, hard mode, new specialties). Some unlocks ask for a goal, not only XP (for example "finish 3 shifts at the UPA"). | Lo/- | Md/- | P3-02, P3-12 |
 | [P3-04](https://github.com/FilipeOliveira94/plantao/issues/32) | Daily shift | One shift per day from a date seed, the same cases for every player, one scored attempt, a streak counter and a shareable text result. Works without a backend. | Med/- | Md/- | P1-01 |
 | [P3-05](https://github.com/FilipeOliveira94/plantao/issues/33) | Logbook | A list of cases seen with best result, teaching text and references to read again, and "retry" for the ones missed. | Lo/- | Md/- | none |
