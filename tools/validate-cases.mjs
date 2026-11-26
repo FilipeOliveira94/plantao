@@ -73,6 +73,7 @@ for (const c of CASES) {
     if (!oids.includes(block.correct)) err(id, `${k}.correct (${block.correct}) is not among the options`);
     for (const a of block.acceptable || []) if (!oids.includes(a)) err(id, `${k}.acceptable ${a} does not exist`);
     if (block.options.length < 4) warn.push(`[${id}] ${k} has fewer than 4 options`);
+    if (block.options.some((o) => typeof o.label !== 'string' || !o.label)) { err(id, `${k}: option without a label`); continue; }
     const unbalanced = optionBalance(block);
     if (unbalanced.length) { balanced.off++; balance(id, `${k} unbalanced: ${unbalanced.join('; ')}`); }
     balanced.total++;
