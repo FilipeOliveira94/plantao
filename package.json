@@ -12,8 +12,9 @@
     "validate": "node tools/validate-cases.mjs && node tools/build-references.mjs --check",
     "references": "node tools/build-references.mjs",
     "serve": "python3 -m http.server 8080",
+    "test:unit": "node --test tools/test-save.mjs",
     "test:e2e": "node tools/e2e.mjs",
-    "test": "npm run validate && npm run test:e2e"
+    "test": "npm run validate && npm run test:unit && npm run test:e2e"
   },
   "devDependencies": {
     "playwright": "1.65.1"

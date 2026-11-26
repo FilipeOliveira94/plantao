@@ -164,3 +164,9 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 }
 .music-vol { display: inline-flex; align-items: center; gap: 4px; }
 .music-vol input { width: 80px; }
+
+/* Save export / import */
+.save-notice { margin: 10px 0 0; }
+.modal .save-code + .menu-actions, .modal .menu-actions + .section-title { margin-top: 14px; }
+.save-code { width: 100%; box-sizing: border-box; font: 12px/1.4 ui-monospace, monospace; padding: 8px; border: 2px solid var(--ink); border-radius: 10px; background: var(--bg, #fff); color: var(--ink); resize: vertical; word-break: break-all; }
+.import-error { color: var(--accent-2); min-height: 1em; margin: 8px 0 0; }

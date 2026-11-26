@@ -95,7 +95,7 @@ Each note was checked against the open issues. Where an issue already covered it
 
 | ID | Issue | Scope | Expected/Seen Risk | Expected/Seen Size | Depends on |
 | --- | --- | --- | --- | --- | --- |
-| [P3-01](https://github.com/FilipeOliveira94/plantao/issues/29) | Safer local save | Schema version with migration, autosave and resume of a shift in progress, export and import of the save as a file or code. A notice in the menu says progress is stored in this browser only. | Med/- | Md/- | none |
+| [P3-01](https://github.com/FilipeOliveira94/plantao/issues/29) | Safer local save | Schema version with migration, export and import of the save as a file or code (validated as untrusted input). A notice in the menu says progress is stored in this browser only. Resume of a shift in progress moved to P3-14. | Med/Med | Md/Md | none |
 | [P3-02](https://github.com/FilipeOliveira94/plantao/issues/30) | Career screen | A level track showing what each level unlocks and the XP still needed. Locked unit cards show progress and the requirement. One source for level titles. | Lo/Lo | Md/Sm | none |
 | [P3-03](https://github.com/FilipeOliveira94/plantao/issues/31) | Unlocks for every level | Every level of the P3-12 ladder unlocks something (units, daily shift, hard mode, new specialties). Some unlocks ask for a goal, not only XP (for example "finish 3 shifts at the UPA"). | Lo/- | Md/- | P3-02, P3-12 |
 | [P3-04](https://github.com/FilipeOliveira94/plantao/issues/32) | Daily shift | One shift per day from a date seed, the same cases for every player, one scored attempt, a streak counter and a shareable text result. Works without a backend. | Med/- | Md/- | P1-01 |
@@ -108,6 +108,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P3-11](https://github.com/FilipeOliveira94/plantao/issues/64) | Progress after the top level | Level 8 is reached at 9,000 XP and nothing follows; after P3-12 the top title is Professor(a). After the top level, XP keeps counting toward something visible: per-specialty mastery or repeatable ranks, shown on the career screen. | Lo/- | Sm/- | P3-02, P3-03, P3-12 |
 | [P3-12](https://github.com/FilipeOliveira94/plantao/issues/74) | Career ladder from Acadêmico to Professor | Ten titles with wider XP gaps: Acadêmico(a), Interno(a), Residente R1 to R5, Assistente, Preceptor(a), Professor(a). Saves keep their XP and the level is recomputed. Unlocks and post-top progress move to the new ladder. | Lo/- | Sm/- | P3-02 |
 | [P3-13](https://github.com/FilipeOliveira94/plantao/issues/82) | Career stats (after the MVP) | Not needed in the MVP (v0.x). The career screen gains stats from the local save: average shift length (real time and game clock), shifts started and finished, success rate (correct diagnosis, correct management, share of 3-star cases), unnecessary tests per case, cases seen out of the total per specialty, days played and total time played, broken down per specialty and unit. The save keeps a short per-shift history for this. | Lo/- | Md/- | P3-02, P3-01 |
+| [P3-14](https://github.com/FilipeOliveira94/plantao/issues/83) | Resume a shift in progress | Autosave a shift in progress (shift, encounters, clock, pending tests, seed state) and offer to resume it after a reload. Split from P3-01 because the `Shift` shape is still changing in P1-04 to P1-06. | Med/- | Md/- | P3-01, P1-06 |
 
 ## P4: A sense of place
 
@@ -156,7 +157,7 @@ Each note was checked against the open issues. Where an issue already covered it
 1. Quick wins that fix what the playtest noticed first: P1-01, P1-02, P2-05, P2-06, P3-02, P0-01, P0-02, P4-06.
 2. Make time matter: P1-04, P1-05, P1-06, then P2-02, P2-03 and P2-12 to show it.
 3. Make the screen lead the player: P2-01, P2-07, P2-04, then P2-08.
-4. Keep the player: P3-12, P3-01, P3-04, P3-09, P3-03, P3-05, P3-10, P3-11. P3-13 comes after the MVP.
+4. Keep the player: P3-12, P3-01, P3-04, P3-14, P3-09, P3-03, P3-05, P3-10, P3-11. P3-13 comes after the MVP.
 5. Content fairness, in parallel as review capacity allows: P1-03, P1-10, P3-06, P6-01.
 6. Place and polish: P4, P2-09 to P2-11.
 7. Online: P5, starting with the ADR (P5-01).
