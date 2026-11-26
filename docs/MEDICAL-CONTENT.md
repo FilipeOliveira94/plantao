@@ -8,7 +8,7 @@
 4. **Brazilian epidemiology:** arboviruses in the North/Northeast in the rainy season, respiratory viruses in the southern winter, and so on.
 5. **Real patients are messy.** Colloquial speech, vague symptoms, drugs called by nickname ("the little white one", "the blue inhaler"), self-medication, companions who don't know the history. Key information may require a follow-up question (`requires`).
 6. **Plausible wrong options:** real differentials and management choices that actually happen in practice. Mark `harmful: true` when a choice causes harm (e.g. NSAIDs in dengue, bicarbonate in DKA).
-7. **Review:** every new case must be reviewed by a physician of that specialty before it reaches `main`.
+7. **Review:** every case must be reviewed by a physician of that specialty before the first final release (v1.0). MVP releases (v0.x) may ship cases that are still pending review. A case may reach `main` unreviewed only if it is listed as pending in `docs/REVIEW-STATUS.md`.
 
 ## Language
 
@@ -64,4 +64,4 @@ All player-facing text (patient speech, findings, options, teaching notes) is in
 - [ ] Correct management checked line by line against the reference
 - [ ] At least one question with `requires` (information that only comes out if you insist)
 - [ ] At least two tempting "unnecessary" tests
-- [ ] Reviewed by a physician of the specialty
+- [ ] Reviewed by a physician of the specialty, or listed as pending in `docs/REVIEW-STATUS.md` (allowed until v1.0)

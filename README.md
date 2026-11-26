@@ -52,9 +52,12 @@ src/
   ui/dom.js             # DOM helpers
 tools/                  # case validator and E2E test
 docs/MEDICAL-CONTENT.md # schema and rules for writing cases
+docs/REVIEW-STATUS.md   # physician review status of each case
 AGENTS.md               # guide for coding agents, plus roadmap
 ```
 
 ## Disclaimer
 
 Educational game. Cases are fictional and do not replace clinical judgment, local protocols or up-to-date guidelines.
+
+The cases are written from published guidelines but have not yet been reviewed by a physician. That review is required before v1.0; see [docs/REVIEW-STATUS.md](docs/REVIEW-STATUS.md).
