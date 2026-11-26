@@ -499,4 +499,77 @@ export default [
       'Sociedade Brasileira de Pediatria. Departamento Científico de Alergia. Anafilaxia. Guia Prático de Atualização nº 1, outubro de 2016.',
     ],
   },
+
+  {
+    id: 'peds-minor-head-trauma-pecarn',
+    specialty: 'pediatrics',
+    type: 'new',
+    settings: ['upa', 'hospital'],
+    difficulty: 2,
+    patient: {
+      name: 'Pedro Henrique', age: '4 anos', sex: 'M',
+      look: { skin: '#e9c3a0', hair: '#7a4a24', shirt: '#3fa34d', build: 'child' },
+      companion: { name: 'Camila (mãe)', look: { skin: '#e9c3a0', hair: '#7a4a24', shirt: '#8d6cab', build: 'adult' } },
+    },
+    triage: {
+      complaint: 'Caiu no parquinho e bateu a cabeça há 1 hora. “Galo” na testa.',
+      priority: 'yellow',
+      vitals: { FC: '104 bpm', FR: '24 irpm', PA: '96/58 mmHg', Tax: '36,5 °C', SpO2: '99%', Glasgow: '15', Peso: '17 kg' },
+      note: 'Entrou andando, comendo biscoito. Mãe muito ansiosa, pede “uma tomografia”.',
+    },
+    opening: '(mãe) Doutor(a), ele bateu a cabeça com força, olha o tamanho desse galo! Eu quero fazer uma tomografia pra ter certeza de que não deu nada por dentro.',
+    questions: [
+      { id: 'mecanismo', cat: 'HDA', q: 'Como foi a queda? De que altura?', a: '(mãe) Caiu do escorregador da pracinha. Diz que foi lá de cima.', key: true },
+      { id: 'testemunha', cat: 'HDA', q: 'A senhora viu a queda? Quem estava com ele?', a: '(mãe) Eu não, tava no trabalho. Quem tava era minha mãe. (liga para a avó, no viva-voz) (avó) Ele escorregou do degrau do meio, minha filha, um metro do chão no máximo. Caiu na areia, bateu a testa na beirada de madeira.', requires: 'mecanismo', key: true },
+      { id: 'consciencia', cat: 'Sinais de alarme', q: 'Ele desmaiou? Chorou na hora?', a: '(avó, no viva-voz) Chorou na mesma hora, um berro. Não desmaiou, não ficou parado. Levantou sozinho.', key: true },
+      { id: 'vomitos', cat: 'Sinais de alarme', q: 'Vomitou depois da queda?', a: '(mãe) Não vomitou nenhuma vez. Comeu um biscoito no caminho.', key: true },
+      { id: 'cefaleia', cat: 'Sinais de alarme', q: 'Pedro, sua cabeça está doendo? Onde?', a: '(Pedro, aponta o galo) Só aqui, quando aperta.', key: true },
+      { id: 'comportamento', cat: 'Sinais de alarme', q: 'Ele está diferente do normal? Mais sonolento, confuso, irritado?', a: '(mãe) Tá normal. Veio o caminho todo perguntando se ia ganhar adesivo.', key: true },
+      { id: 'convulsao', cat: 'Sinais de alarme', q: 'Teve convulsão? Saiu sangue ou líquido claro pelo nariz ou pelo ouvido?', a: '(mãe) Não, nada disso.' },
+      { id: 'antecedentes', cat: 'Antecedentes', q: 'Ele tem alguma doença, problema de coagulação, usa algum remédio?', a: '(mãe) É saudável. Não toma nada.' },
+      { id: 'remedios', cat: 'Medicações', q: 'Deu algum remédio depois da queda?', a: '(mãe) A avó botou gelo e passou uma pomada. Remédio pela boca, não.' },
+    ],
+    physical: [
+      { id: 'neuro', label: 'Neurológico', finding: 'Glasgow 15. Alerta, conversa, obedece comandos, brinca com o estetoscópio. Pupilas isocóricas e fotorreagentes. Força simétrica, marcha normal.', key: true },
+      { id: 'cranio', label: 'Crânio e couro cabeludo', finding: 'Hematoma subgaleal frontal de 3 cm, doloroso. Sem afundamento, sem crepitação, sem degrau ósseo palpável.', key: true },
+      { id: 'base', label: 'Sinais de fratura de base de crânio', finding: 'Sem equimose periorbitária ou retroauricular. Sem saída de sangue ou líquor pelo nariz ou pelos ouvidos.', key: true },
+      { id: 'cervical', label: 'Coluna cervical', finding: 'Sem dor à palpação, mobilidade ativa completa e indolor.' },
+      { id: 'corpo', label: 'Tronco e membros', finding: 'Escoriação em joelho direito. Sem outras lesões. Sem marcas em estágios diferentes de evolução.' },
+    ],
+    exams: {
+      otoscopy: { result: 'Membranas timpânicas íntegras, sem hemotímpano.', relevance: 'useful' },
+      head_ct: { result: 'Sem fratura, sem sangramento intracraniano.', relevance: 'unnecessary', harmful: true, note: 'Criança sem nenhum preditor da regra PECARN: a TC expõe à radiação ionizante sem benefício.' },
+      cbc: { result: 'Hb 12,6 g/dL · Leucócitos 8.900/mm³ · Plaquetas 310.000/mm³.', relevance: 'unnecessary' },
+      electrolytes: { result: 'Na 138 mEq/L · K 4,3 mEq/L · Cl 103 mEq/L.', relevance: 'unnecessary' },
+      capillary_glucose: { result: '92 mg/dL.', relevance: 'unnecessary' },
+    },
+    diagnosis: {
+      correct: 'tce_baixo_risco',
+      options: [
+        { id: 'tce_baixo_risco', label: 'Traumatismo cranioencefálico leve, de muito baixo risco para lesão intracraniana clinicamente importante (regra PECARN)' },
+        { id: 'fratura_base', label: 'TCE leve com suspeita de fratura de base de crânio' },
+        { id: 'hematoma', label: 'Hematoma intracraniano' },
+        { id: 'tce_moderado', label: 'Traumatismo cranioencefálico moderado' },
+        { id: 'concussao_tc', label: 'TCE leve com indicação de tomografia' },
+      ],
+    },
+    conduct: {
+      correct: 'alta_orientada',
+      options: [
+        { id: 'alta_orientada', label: 'Não solicitar tomografia; analgésico simples e alta com um adulto responsável observando nas primeiras 24–48 h, com orientação por escrito dos sinais de retorno (vômitos repetidos, sonolência excessiva, confusão, convulsão, fraqueza, sangue ou líquido claro pelo nariz ou ouvido).' },
+        { id: 'tc', label: 'Tomografia de crânio para tranquilizar a família.', harmful: true },
+        { id: 'internar', label: 'Internar por 48 h para observação neurológica.' },
+        { id: 'alta_sem_orientacao', label: 'Alta imediata: “foi só um galo”, sem orientações de retorno.' },
+        { id: 'neurocirurgia', label: 'Solicitar avaliação da neurocirurgia e manter em jejum.' },
+      ],
+    },
+    // TODO(medical review): no Brazilian clinical guideline was confirmed for this case. The SBP page cited is family-facing
+    // guidance (it gives the 1.5 m fall threshold for children over 2 and the return signs). The PECARN predictors come from
+    // the abstract of the 2009 Lancet paper; the full paper's definition of "severe mechanism" was not read.
+    teaching: 'A regra PECARN identifica crianças com Glasgow 14–15 e risco muito baixo de lesão intracraniana clinicamente importante, nas quais a tomografia pode ser rotineiramente dispensada. A partir dos 2 anos, os seis preditores são: estado mental normal, sem perda de consciência, sem vômitos, mecanismo de trauma não grave, sem sinais de fratura de base de crânio e sem cefaleia intensa. Com todos presentes, o valor preditivo negativo foi de 99,95% na validação. Pedro preenche os seis: queda de cerca de 1 metro (a SBP considera mecanismo de risco a queda acima de 1,5 m nos maiores de 2 anos), chorou na hora, não vomitou, exame neurológico normal. A tomografia de crânio expõe a criança à radiação ionizante, com risco de malignidade induzida, e não deve ser pedida para tranquilizar a família. O hematoma frontal isolado não muda a decisão. As primeiras 24 a 48 horas são as mais críticas: a alta exige um adulto capaz de observar e orientação clara dos sinais de retorno.',
+    references: [
+      'Kuppermann N, Holmes JF, Dayan PS, et al. Identification of children at very low risk of clinically-important brain injuries after head trauma: a prospective cohort study. Lancet. 2009;374(9696):1160–1170.',
+      'Sociedade Brasileira de Pediatria. Departamento Científico de Emergência Pediátrica. Traumatismo cranioencefálico leve na infância. Pediatria para Famílias, atualizado em outubro de 2025.',
+    ],
+  },
 ];
