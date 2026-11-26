@@ -108,6 +108,11 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .msg.pt { align-self: flex-start; background: #f0ebe0; border-bottom-left-radius: 4px; }
 .opts { display: flex; flex-direction: column; gap: 6px; }
 .opt-group { margin-bottom: 10px; }
+.test-search { width: 100%; padding: 8px 10px; margin-bottom: 10px; border: 2px solid var(--line); border-radius: 10px; font: inherit; font-size: 14px; }
+.test-search:focus { outline: none; border-color: var(--accent); }
+.test-cat summary { cursor: pointer; margin: 6px 0; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.test-cat summary .count { margin-left: 6px; font-size: 11px; background: var(--line); color: var(--ink); border-radius: 999px; padding: 0 6px; letter-spacing: 0; }
+.test-cat[open] summary { color: var(--ink); }
 .opt-group h5 { margin: 6px 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
 .opt { text-align: left; border: 2px solid var(--line); background: #fff; border-radius: 10px; padding: 7px 10px; font-size: 14px; }
 .opt:hover { border-color: var(--ink); }

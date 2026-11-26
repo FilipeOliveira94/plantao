@@ -1,10 +1,32 @@
 // Validates clinical case integrity. Usage: node tools/validate-cases.mjs
 import { CASES } from '../src/data/cases/index.js';
-import { EXAMS, UNIT_TYPES, UNITS, SPECIALTIES, TRIAGE } from '../src/data/catalog.js';
+import { EXAMS, EXAM_CATS, UNIT_TYPES, UNITS, SPECIALTIES, TRIAGE } from '../src/data/catalog.js';
 
 const errors = [];
 const warn = [];
 const err = (id, msg) => errors.push(`[${id}] ${msg}`);
+
+for (const [ex, e] of Object.entries(EXAMS)) if (!EXAM_CATS.includes(e.cat)) err(ex, `test has no valid category: ${e.cat}`);
+// Option balance: the correct option should not stand out by length (P1-02).
+// Warnings until P1-03 rebalances the distractors; then set BALANCE_IS_ERROR to true.
+const BALANCE_IS_ERROR = false;
+const LONGEST_MARGIN = 1.2; // correct is the longest and at least 20% longer than every other option
+const SHORT_RATIO = 0.6; // the other options average less than 60% of the correct one's length
+const balanced = { off: 0, total: 0 };
+const balance = (id, msg) => (BALANCE_IS_ERROR ? err(id, msg) : warn.push(`[${id}] ${msg}`));
+
+function optionBalance(block) {
+  const correct = block.options.find((o) => o.id === block.correct);
+  const others = block.options.filter((o) => o !== correct);
+  if (!correct || !others.length) return [];
+  const len = correct.label.length;
+  const longestOther = Math.max(...others.map((o) => o.label.length));
+  const meanOther = others.reduce((s, o) => s + o.label.length, 0) / others.length;
+  const issues = [];
+  if (len >= longestOther * LONGEST_MARGIN) issues.push(`correct is the longest by ${Math.round((len / longestOther - 1) * 100)}% (${len} vs ${longestOther} chars)`);
+  if (meanOther < len * SHORT_RATIO) issues.push(`others average ${Math.round((meanOther / len) * 100)}% of its length`);
+  return issues;
+}
 
 const ids = new Set();
 for (const c of CASES) {
@@ -52,6 +74,10 @@ for (const c of CASES) {
     if (!oids.includes(block.correct)) err(id, `${k}.correct (${block.correct}) is not among the options`);
     for (const a of block.acceptable || []) if (!oids.includes(a)) err(id, `${k}.acceptable ${a} does not exist`);
     if (block.options.length < 4) warn.push(`[${id}] ${k} has fewer than 4 options`);
+    if (block.options.some((o) => typeof o.label !== 'string' || !o.label)) { err(id, `${k}: option without a label`); continue; }
+    const unbalanced = optionBalance(block);
+    if (unbalanced.length) { balanced.off++; balance(id, `${k} unbalanced: ${unbalanced.join('; ')}`); }
+    balanced.total++;
   }
   if (c.conduct?.options?.find((o) => o.id === c.conduct.correct)?.harmful) err(id, 'correct conduct is marked harmful');
 }
@@ -64,6 +90,7 @@ for (const u of UNITS) for (const s of u.specialties) {
 }
 
 console.log(`${CASES.length} cases checked.`);
+console.log(`Option balance: ${balanced.off} of ${balanced.total} option lists give the answer away by length.`);
 if (warn.length) console.log(`\nWarnings (${warn.length}):\n  ` + warn.join('\n  '));
 if (errors.length) { console.error(`\nErrors (${errors.length}):\n  ` + errors.join('\n  ')); process.exit(1); }
 console.log('\nOK, no errors.');
