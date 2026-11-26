@@ -120,7 +120,7 @@ function confirmReset() {
     h('h2', {}, 'Zerar progresso?'),
     h('p', {}, 'XP, conquistas e histórico de casos serão apagados deste navegador.'),
     h('div', { class: 'menu-actions' },
-      h('button', { class: 'btn warn', onclick: () => { state = reset(); m.close(); renderMenu(); } }, 'Zerar'),
+      h('button', { class: 'btn warn', onclick: () => { state = reset(); sfx.setMuted(false); ambient.setMuted(false); ambient.setVolume(0.5); m.close(); renderMenu(); } }, 'Zerar'),
       h('button', { class: 'btn', onclick: () => m.close() }, 'Cancelar')),
   ));
 }
