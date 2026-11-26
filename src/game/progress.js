@@ -79,6 +79,9 @@ export function applyCase(state, caseData, result) {
 }
 
 /** Applies the end-of-shift result. Returns newly earned badges. */
+// XP taken from the closing bonus for each patient not seen by the end of the shift.
+export const UNSEEN_PENALTY = 30;
+
 export function applyShift(state, shift) {
   const earned = [];
   const give = (id) => { if (!state.badges.includes(id)) { state.badges.push(id); earned.push(id); } };
@@ -86,11 +89,14 @@ export function applyShift(state, shift) {
   if (!state.states.includes(shift.unit.uf)) state.states.push(shift.unit.uf);
   give('first_shift');
   const rs = shift.results.map((r) => r.result);
-  if (rs.length && rs.every((r) => r.stars === 3)) give('perfect_shift');
+  const unseen = shift.unseen().length;
+  if (rs.length && !unseen && rs.every((r) => r.stars === 3)) give('perfect_shift');
   if (rs.length && rs.every((r) => !r.harmful)) give('primum_non_nocere');
   if (state.states.length >= 3) give('around_brazil');
   if (state.shifts >= 10) give('marathoner');
-  const bonus = 50 + 10 * rs.filter((r) => r.stars === 3).length;
+  // patients left unseen at the end cost XP from the closing bonus, never below zero
+  const unseenPenalty = UNSEEN_PENALTY * unseen;
+  const bonus = Math.max(0, 50 + 10 * rs.filter((r) => r.stars === 3).length - unseenPenalty);
   state.xp += bonus;
-  return { earned, bonus };
+  return { earned, bonus, unseen, unseenPenalty };
 }

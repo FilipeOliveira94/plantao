@@ -126,6 +126,7 @@ try {
         await page.waitForTimeout(150);
       }
       await page.waitForSelector('text=Fim de plantão', { timeout: 3000 });
+      if (await page.locator('.modal li.unseen').count()) throw new Error(`focused play left patients unseen in unit ${u} · specialty ${s}`);
       if (u === units - 1 && SHOTS) await page.screenshot({ path: `${SHOTS}/04-fim.png` });
       console.log(`✔ unit ${u} · specialty ${s}`);
       await page.getByRole('button', { name: /Voltar ao menu/ }).click();
@@ -145,6 +146,50 @@ try {
     return order() === order();
   });
   if (!sameSeed) throw new Error('option order is not deterministic for a fixed seed');
+  // arrivals: same seed, same schedule; 5 patients (PICU 4) or the whole pool, spread over the arrival window
+  const arrivals = await page.evaluate(async () => {
+    const { Shift, ARRIVAL_WINDOW, PATIENTS_PER_SHIFT } = await import('./src/game/shift.js');
+    const { UNITS } = await import('./src/data/catalog.js');
+    const { casesFor } = await import('./src/data/cases/index.js');
+    const bad = [];
+    for (const unit of UNITS) for (const specialty of unit.specialties) {
+      const times = (seed) => new Shift({ unit, specialty, seed, completedCases: { any: 1 } }).encounters.map((e) => e.arrivedAt);
+      const a = times(7), want = Math.min(PATIENTS_PER_SHIFT[unit.type] ?? PATIENTS_PER_SHIFT.default, casesFor(specialty, unit.type).length);
+      if (a.join() !== times(7).join()) bad.push(`${unit.id}/${specialty}: arrivals not deterministic`);
+      if (a.length !== want) bad.push(`${unit.id}/${specialty}: ${a.length} patients, expected ${want}`);
+      if (a[0] !== 0 || a.some((t, i) => i && (t <= a[i - 1] || t > ARRIVAL_WINDOW))) bad.push(`${unit.id}/${specialty}: arrivals ${a}`);
+    }
+    return bad;
+  });
+  if (arrivals.length) throw new Error(arrivals.join('\n'));
+  // the shift has an end: after 10:00 no one else is called, the patient in the room can be finished,
+  // and patients left unseen are listed in the summary and cost XP from the closing bonus
+  await page.locator('.unit').first().click();
+  await page.locator('.spec').first().click();
+  await page.getByRole('button', { name: /Começar plantão/ }).click();
+  await page.waitForSelector('.game');
+  if (!/fim 10:00/.test(await page.locator('.clock').textContent())) throw new Error('top bar does not show the end of the shift');
+  await page.locator('.qcard button:not([disabled])').first().click();
+  const xpBefore = await page.evaluate(() => { const s = window.__plantao.shift; s.advance(s.endsAt - s.clock); return window.__plantao.state.xp; });
+  await page.getByRole('tab', { name: /Anamnese/ }).click();
+  await page.locator('.pane .opt').first().click(); // any action re-renders and announces the end
+  await page.getByText(/fim do turno/).first().waitFor();
+  if (await page.locator('.qcard button:not([disabled])').count()) throw new Error('a patient can still be called after the end of the shift');
+  const endCase = await page.evaluate(() => { const s = window.__plantao.shift; return { dx: s.current.c.diagnosis.correct, cd: s.current.c.conduct.correct, unseen: s.encounters.length - 1 }; });
+  await page.getByRole('tab', { name: /Decisão/ }).click();
+  await page.locator(`input[name=dx][value="${endCase.dx}"]`).check();
+  await page.locator(`input[name=cd][value="${endCase.cd}"]`).check();
+  await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
+  await page.waitForSelector('.modal');
+  await page.locator('.modal .btn.primary').click();
+  await page.waitForSelector('text=Fim de plantão', { timeout: 3000 });
+  const listed = await page.locator('.modal li.unseen').count();
+  if (listed !== endCase.unseen) throw new Error(`summary lists ${listed} unseen patients, expected ${endCase.unseen}`);
+  if (!(await page.getByText(`Pacientes sem atendimento (${endCase.unseen})`).count())) throw new Error('summary has no unseen-patient penalty line');
+  if (await page.evaluate(() => window.__plantao.state.xp) < xpBefore) throw new Error('XP went down at the end of the shift');
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/06-fim-com-pendentes.png` });
+  console.log(`✔ shift end: ${endCase.unseen} unseen patients listed`);
+  await page.getByRole('button', { name: /Voltar ao menu/ }).click();
   // PICU scene
   if (SHOTS) {
     await page.locator('.unit').last().click();
