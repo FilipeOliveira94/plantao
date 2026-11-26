@@ -292,4 +292,256 @@ export default [
       'Trinka E, et al. A definition and classification of status epilepticus — ILAE Task Force. Epilepsia. 2015;56(10):1515–1523.',
     ],
   },
+
+  {
+    id: 'picu-ductal-dependent-chd',
+    specialty: 'picu',
+    type: 'new',
+    settings: ['picu'],
+    difficulty: 3,
+    timeCritical: { minutes: 15, reason: 'Na cardiopatia com fluxo sistêmico dependente do canal arterial, a prostaglandina E1 deve ser iniciada de imediato, sem aguardar o ecocardiograma, para evitar uma deterioração rápida e muitas vezes irreversível.' },
+    patient: {
+      name: 'RN de Jaqueline (Arthur)', age: '6 dias', sex: 'M',
+      look: { skin: '#e2b896', hair: '#4a3020', shirt: '#cdd5df', build: 'infant', inBed: true },
+      companion: { name: 'Jaqueline (mãe)', look: { skin: '#e2b896', hair: '#2b1b12', shirt: '#5aa9a3', build: 'adult' } },
+    },
+    triage: {
+      complaint: 'Admissão: recém-nascido “parou de mamar”, pálido e cansado. Transferido como sepse neonatal.',
+      priority: 'red',
+      vitals: { FC: '186 bpm', FR: '78 irpm', PA: '48/26 mmHg (braço direito)', Tax: '36,0 °C', SpO2: '96% (capacete de O2 a 60%)', TEC: '5 s', Peso: '3,1 kg' },
+      note: 'Chegou do interior em ambulância, com acesso periférico em mão esquerda.',
+    },
+    previousNote: {
+      title: 'Passagem de caso — Hospital Municipal (Dr. Edson)',
+      text: 'RN a termo, parto vaginal, Apgar 9/10, alta da maternidade com 48 h, “teste do coraçãozinho normal”. Voltou hoje, com 6 dias, por recusa das mamadas e gemência. Hipótese de sepse neonatal tardia: colhida hemocultura, iniciadas ampicilina e gentamicina, feitas duas expansões de SF 0,9% 10 mL/kg “sem resposta, ficou mais cansado”. Colocado em capacete de O2 a 60%. Não temos ecocardiograma aqui.',
+    },
+    opening: '(mãe) Ele nasceu tão bem, doutor(a)… mamava direitinho. De anteontem pra cá começou a cansar no peito, largava e suava. Hoje não quis mamar nada e ficou dessa cor.',
+    questions: [
+      { id: 'evolucao', cat: 'HDA', q: 'Quando ele começou a mudar? Como estava nos primeiros dias?', a: '(mãe) Os três primeiros dias foram normais. No quarto dia começou a respirar rapidinho. Ontem já cansava pra mamar, e hoje amanheceu pálido, gelado.', key: true },
+      { id: 'mamadas', cat: 'HDA', q: 'Como ele fica durante a mamada?', a: '(mãe) Pega o peito, dá umas sugadas e larga, ofegante. A cabecinha fica molhada de suor.', key: true },
+      { id: 'diurese', cat: 'Sinais de alarme', q: 'Quando trocou a última fralda molhada?', a: '(mãe) De madrugada. De lá pra cá tá sequinha.' },
+      { id: 'infeccao', cat: 'HDA', q: 'Ele teve febre? Na gravidez ou no parto houve infecção, bolsa rota por muito tempo?', a: '(mãe) Febre não, ele tá é frio. A bolsa estourou na hora do parto. Eu não tive infecção de urina nem nada, fiz os exames do pré-natal.', key: true },
+      { id: 'prenatal', cat: 'Antecedentes', q: 'Como foi o pré-natal? Quantos ultrassons fez?', a: '(mãe) Fiz sete consultas no posto. Ultrassom fiz dois, no começo.' },
+      { id: 'morfologico', cat: 'Antecedentes', q: 'Fez o ultrassom morfológico ou algum exame do coração do bebê na gravidez?', a: '(mãe) Esse morfológico não. Lá na minha cidade não tem pelo SUS e particular a gente não pôde pagar. Do coraçãozinho ninguém olhou.', requires: 'prenatal' },
+      { id: 'familia', cat: 'Antecedentes', q: 'Alguém na família nasceu com problema no coração?', a: '(mãe) Um sobrinho do meu marido operou o coração bebezinho, em Porto Alegre. Não sei dizer o que era.' },
+      { id: 'coracaozinho', cat: 'Antecedentes', q: 'Na maternidade fizeram o teste do coraçãozinho? O que disseram?', a: '(mãe) Botaram uma luzinha vermelha na mão e no pé dele, com um dia de vida. Disseram que tava normal.' },
+    ],
+    physical: [
+      { id: 'pulsos', label: 'Pulsos e perfusão', finding: 'Pulso braquial direito palpável, fino. Pulsos femorais não palpáveis bilateralmente. Extremidades frias, pele pálida e moteada, TEC 5 s.', key: true },
+      { id: 'cardio', label: 'Precórdio e ausculta cardíaca', finding: 'Precórdio hiperdinâmico, com impulsões palpáveis. 2ª bulha hiperfonética em foco pulmonar. Sem sopros.', key: true },
+      { id: 'spo2', label: 'Oximetria pré e pós-ductal', finding: 'Mão direita 96% · Pé direito 89% (em capacete de O2 a 60%).', key: true },
+      { id: 'resp', label: 'Aparelho respiratório', finding: 'Taquidispneico, gemente, tiragem subcostal. Estertores finos bilaterais.' },
+      { id: 'abdome', label: 'Abdome', finding: 'Fígado palpável a 4 cm do rebordo costal direito. Coto umbilical limpo, sem hiperemia.' },
+      { id: 'neuro', label: 'Neurológico', finding: 'Hipoativo, reativo ao manuseio. Fontanela anterior plana.' },
+    ],
+    exams: {
+      blood_gas: { result: 'pH 7,12 · pCO2 30 mmHg · HCO3 9 mEq/L · BE −18.', relevance: 'key' },
+      lactate: { result: 'Lactato 7,8 mmol/L.', relevance: 'useful' },
+      chest_xray: { result: 'Cardiomegalia discreta, com aumento importante da trama vascular pulmonar.', relevance: 'key', note: 'O padrão de congestão dificulta a distinção com doença pulmonar neonatal.' },
+      capillary_glucose: { result: '58 mg/dL.', relevance: 'useful' },
+      cbc: { result: 'Hb 15,8 g/dL · Leucócitos 11.200/mm³, sem desvio · Plaquetas 246.000/mm³.', relevance: 'useful' },
+      crp: { result: '4 mg/L.', relevance: 'useful' },
+      blood_culture: { result: 'Já colhida no hospital de origem, antes do antibiótico. Em andamento.', relevance: 'neutral' },
+      ecg: { result: 'Taquicardia sinusal.', relevance: 'neutral' },
+      electrolytes: { result: 'Na 136 mEq/L · K 4,8 mEq/L · Cl 104 mEq/L.', relevance: 'neutral' },
+      csf: { result: 'Punção não realizada: contraindicada no momento pela instabilidade hemodinâmica.', relevance: 'unnecessary', harmful: true },
+      head_ct: { result: 'Transporte para tomografia em paciente instável — exame adiado pela equipe.', relevance: 'unnecessary', harmful: true },
+      abdominal_us: { result: 'Hepatomegalia. Sem outras alterações.', relevance: 'unnecessary' },
+    },
+    diagnosis: {
+      correct: 'cc_sistemico',
+      options: [
+        { id: 'cc_sistemico', label: 'Cardiopatia congênita crítica com fluxo sistêmico dependente do canal arterial (coarctação crítica/interrupção do arco aórtico ou hipoplasia do coração esquerdo)' },
+        { id: 'sepse', label: 'Sepse neonatal tardia com choque séptico' },
+        { id: 'eim', label: 'Erro inato do metabolismo descompensado' },
+        { id: 'hac', label: 'Hiperplasia adrenal congênita (crise perdedora de sal)' },
+        { id: 'pneumonia', label: 'Pneumonia neonatal com insuficiência respiratória' },
+      ],
+    },
+    conduct: {
+      correct: 'pge1',
+      options: [
+        { id: 'pge1', label: 'Prostaglandina E1 EV contínua já, sem aguardar o ecocardiograma (0,01 mcg/kg/min, aumentando até 0,05 conforme a resposta), por acesso venoso profundo; evitar oxigênio suplementar (alvo de SpO2 85–95%); suporte ventilatório, vigiando apneia e hipotensão; ecocardiograma e contato com centro de cardiologia neonatal para transferência.' },
+        { id: 'o2_volume', label: 'Aumentar o oxigênio para 100% e repetir expansões de 20 mL/kg até normalizar a perfusão.', harmful: true },
+        { id: 'aguardar_eco', label: 'Manter o suporte atual e só iniciar prostaglandina depois do ecocardiograma, disponível amanhã cedo.', harmful: true },
+        { id: 'escalonar_atb', label: 'Ampliar o esquema antibiótico e manter a hipótese de sepse.' },
+        { id: 'furosemida', label: 'Furosemida e restrição hídrica para insuficiência cardíaca, e reavaliar em 6 h.' },
+      ],
+    },
+    // TODO(medical review): the SBP manual names sepsis as the main differential but does not say what to do with
+    // antibiotics already started, so the correct option leaves them out. Confirm whether to state "keep antibiotics
+    // until sepsis is excluded" and under which reference. The pre/post-ductal saturation values are illustrative.
+    teaching: 'Recém-nascido que nasce bem e, com o fechamento do canal arterial, evolui com taquipneia progressiva, cansaço às mamadas, palidez, pulsos reduzidos e acidose metabólica tem cardiopatia com fluxo sistêmico dependente do canal até prova em contrário. O principal diagnóstico diferencial é a sepse neonatal, de quadro muito parecido; aqui faltam sinais de infecção e os pulsos femorais ausentes, o precórdio hiperdinâmico e a cardiomegalia com congestão apontam para o coração. Um teste do coraçãozinho negativo não exclui cardiopatia congênita. A prostaglandina E1 é iniciada imediatamente, sem esperar o ecocardiograma: 0,01 mcg/kg/min em infusão contínua, até 0,05 mcg/kg/min conforme a resposta, de preferência por acesso profundo, porque a interrupção da infusão fecha o canal em minutos. Apneia e hipotensão são os efeitos colaterais mais frequentes, sobretudo acima de 0,03 mcg/kg/min. Neste grupo o oxigênio deve ser evitado: a vasodilatação pulmonar aumenta ainda mais o fluxo pulmonar e piora o débito sistêmico. A ventilação mecânica costuma ajudar no baixo débito. Estabilizado, o RN segue para um centro de cardiologia neonatal.',
+    references: [
+      'Sociedade Brasileira de Pediatria. Departamentos Científicos de Cardiologia e Neonatologia. Sistematização do atendimento ao recém-nascido com suspeita ou diagnóstico de cardiopatia congênita. Manual de Orientação nº 4, 11 de agosto de 2022.',
+    ],
+  },
+
+  {
+    id: 'picu-organophosphate-carbamate-poisoning',
+    specialty: 'picu',
+    type: 'new',
+    settings: ['picu'],
+    difficulty: 3,
+    timeCritical: { minutes: 15, reason: 'Na síndrome colinérgica, a atropina deve ser administrada rapidamente após o diagnóstico clínico: a broncorreia e o broncoespasmo levam à insuficiência respiratória.' },
+    patient: {
+      name: 'Kauã Oliveira', age: '2 anos e 6 meses', sex: 'M',
+      look: { skin: '#8d5a3b', hair: '#1d1410', shirt: '#cdd5df', build: 'child', inBed: true },
+      companion: { name: 'Dona Lurdes (avó)', look: { skin: '#8d5a3b', hair: '#cfcfcf', shirt: '#7a9e4f', build: 'elder' } },
+    },
+    triage: {
+      complaint: 'Admissão: vômitos, “babando muito”, sonolento e com falta de ar.',
+      priority: 'red',
+      vitals: { FC: '58 bpm', FR: '44 irpm', PA: '72/40 mmHg', Tax: '35,8 °C', SpO2: '86% (máscara de O2)', Glasgow: '10', Peso: '13 kg' },
+      note: 'Roupa molhada de suor e vômito. Um acesso periférico.',
+    },
+    previousNote: {
+      title: 'Passagem de caso — UPA (Dra. Yasmin)',
+      text: 'Pré-escolar previamente hígido, trazido pela avó após ser encontrado no quintal “com uma coisa preta na boca”. Vomitou várias vezes, muita secreção, “tremores” — pensei em crise convulsiva ou broncoaspiração. Fiz O2 e aspirei a boca. Não fiz lavagem nem medicação. Regulação liberou a vaga rápido.',
+    },
+    opening: '(avó) Doutor(a), ele tava brincando no quintal enquanto eu estendia roupa. Quando olhei, tava vomitando e todo mole. Isso foi rápido demais!',
+    questions: [
+      { id: 'achado', cat: 'HDA', q: 'O que a senhora viu na boca ou na mão dele?', a: '(avó) Uns grãozinhos pretos, parecendo chumbo de caça. Tinha no chão também, perto do muro.' },
+      { id: 'produto', cat: 'HDA', q: 'A senhora sabe o que eram esses grãozinhos? Tem veneno em casa?', a: '(avó, hesita) É… é veneno de rato. Eu botei ontem atrás do tanque, que tá dando muito rato.', key: true },
+      { id: 'embalagem', cat: 'HDA', q: 'Qual veneno? Trouxe a embalagem?', a: '(avó, tira um saquinho plástico do bolso) É o chumbinho, comprei na feira. Não tem rótulo, não tem nome, nada. O moço disse que era “o forte”.', requires: 'produto', key: true },
+      { id: 'tempo', cat: 'HDA', q: 'Há quanto tempo foi isso? Sabe quanto ele engoliu?', a: '(avó) Faz umas duas horas, por aí. Quanto eu não sei, tinha uns grãos espalhados.' },
+      { id: 'sintomas', cat: 'Sinais de alarme', q: 'O que apareceu primeiro? Teve diarreia, urinou na roupa?', a: '(avó) Primeiro vomitou e começou a babar e chorar muita lágrima. Fez cocô mole e xixi na roupa. Depois ficou tremendo os musculinhos e amoleceu.', key: true },
+      { id: 'outros', cat: 'Epidemiologia', q: 'Tem outra criança em casa que possa ter mexido no veneno?', a: '(avó) A irmã de cinco anos tava na escola. Mas ainda tem grão espalhado lá no quintal, meu Deus…' },
+      { id: 'antecedentes', cat: 'Antecedentes', q: 'Ele tem alguma doença, convulsão, usa remédio?', a: '(avó) Nada. Nunca teve convulsão.' },
+      { id: 'remedios', cat: 'Medicações', q: 'Deram alguma coisa pra ele em casa? Leite, remédio, provocaram vômito?', a: '(avó) A vizinha mandou dar leite, ele tomou dois goles e vomitou. Mais nada.' },
+    ],
+    physical: [
+      { id: 'pupilas', label: 'Pupilas', finding: 'Miose puntiforme bilateral, pouco reativa.', key: true },
+      { id: 'secrecoes', label: 'Secreções e aparelho respiratório', finding: 'Sialorreia e lacrimejamento intensos, sudorese profusa. Broncorreia: roncos, sibilos e estertores difusos. Respiração superficial.', key: true },
+      { id: 'neuromuscular', label: 'Neuromuscular', finding: 'Fasciculações em face e membros. Hipotonia e fraqueza generalizadas. Sonolento, desperta com estímulo doloroso (Glasgow 10).', key: true },
+      { id: 'cardio', label: 'Cardiovascular', finding: 'Bradicárdico (FC 58 bpm), pulsos finos, TEC 4 s.' },
+      { id: 'odor', label: 'Boca, pele e roupas', finding: 'Resíduos de grânulos escuros em mucosa oral. Roupas úmidas de vômito e suor.' },
+      { id: 'abdome', label: 'Abdome', finding: 'Ruídos hidroaéreos muito aumentados. Fralda com fezes líquidas e urina.' },
+    ],
+    exams: {
+      blood_gas: { result: 'pH 7,18 · pCO2 58 mmHg · pO2 52 mmHg · HCO3 20 mEq/L.', relevance: 'useful' },
+      capillary_glucose: { result: '142 mg/dL.', relevance: 'useful' },
+      ecg: { result: 'Bradicardia sinusal, 56 bpm.', relevance: 'useful' },
+      electrolytes: { result: 'Na 137 mEq/L · K 3,4 mEq/L · Cl 100 mEq/L.', relevance: 'useful' },
+      chest_xray: { result: 'Infiltrado peri-hilar bilateral.', relevance: 'neutral' },
+      cbc: { result: 'Hb 11,8 g/dL · Leucócitos 15.200/mm³ · Plaquetas 298.000/mm³.', relevance: 'neutral' },
+      liver_enzymes: { result: 'TGO 34 U/L · TGP 28 U/L.', relevance: 'neutral' },
+      head_ct: { result: 'Transporte para tomografia em paciente instável — exame adiado pela equipe.', relevance: 'unnecessary', harmful: true },
+      csf: { result: 'Punção não realizada: paciente instável e sem indicação.', relevance: 'unnecessary', harmful: true },
+      abdominal_xray: { result: 'Distribuição gasosa normal. Sem corpo estranho radiopaco.', relevance: 'unnecessary' },
+    },
+    diagnosis: {
+      correct: 'colinergica',
+      options: [
+        { id: 'colinergica', label: 'Síndrome colinérgica aguda grave por inibidor de colinesterase (organofosforado ou carbamato — “chumbinho”)' },
+        { id: 'opioide', label: 'Intoxicação por opioide' },
+        { id: 'convulsao', label: 'Estado de mal epiléptico' },
+        { id: 'cumarinico', label: 'Intoxicação por raticida anticoagulante (cumarínico)' },
+        { id: 'aspiracao', label: 'Pneumonia aspirativa com sepse' },
+      ],
+    },
+    conduct: {
+      correct: 'atropina',
+      options: [
+        { id: 'atropina', label: 'Proteger a via aérea e ventilar, aspirar secreções; dois acessos venosos (um exclusivo para atropina); atropina EV 0,01–0,06 mg/kg/dose já, repetida a cada 5–15 min até a atropinização (ausculta limpa, FC e PA adequadas), seguida de infusão contínua; reposição de fluidos; sem oximas e sem lavagem gástrica de rotina; ligar para o CIATox (0800 722 6001) e notificar no Sinan.' },
+        { id: 'aguardar_colinesterase', label: 'Colher colinesterase e aguardar o resultado para confirmar antes de iniciar a atropina.', harmful: true },
+        { id: 'lavagem', label: 'Lavagem gástrica e carvão ativado de imediato, antes de qualquer outra medida, com a criança sonolenta e sem via aérea protegida.', harmful: true },
+        { id: 'vomito', label: 'Induzir o vômito e dar catártico para eliminar o veneno.', harmful: true },
+        { id: 'oxima', label: 'Pralidoxima como antídoto principal, deixando a atropina para se a bradicardia piorar.', harmful: true },
+        { id: 'naloxona', label: 'Naloxona EV pela miose e depressão respiratória, e observar a resposta.' },
+      ],
+    },
+    // TODO(medical review): the guideline covers organophosphates and carbamates; it does not mention "chumbinho" or its
+    // composition. The case assumes a clandestine cholinesterase-inhibitor rodenticide from the toxidrome alone.
+    // The atropinization endpoints (clear chest, HR > 80 bpm, SBP > 80 mmHg) come from the guideline's Figure 2,
+    // which gives adult bolus doses; confirm the pediatric targets. Text read: the CONITEC summary of chapter 2.
+    teaching: 'Miose, bradicardia, sialorreia, lacrimejamento, broncorreia, vômitos e diarreia (efeitos muscarínicos) somados a fasciculações e fraqueza (nicotínicos) e rebaixamento do nível de consciência formam a síndrome colinérgica: o diagnóstico é clínico e a história de raticida clandestino fecha o quadro. Glasgow ≤ 13, alteração respiratória, fasciculações, FC abaixo de 60 bpm e hipotensão definem intoxicação moderada ou grave, com indicação de terapia intensiva. A atropina é dada rapidamente após o diagnóstico clínico, em doses repetidas até a atropinização: na criança, 0,01–0,06 mg/kg/dose a cada 5–15 minutos, seguida de infusão contínua. O alvo é a ausculta limpa, com frequência cardíaca e pressão adequadas; taquicardia isolada não é motivo para suspender. A dosagem de colinesterase ajuda no diagnóstico e no seguimento, mas não deve atrasar o tratamento. A diretriz brasileira não recomenda indução de vômito, catárticos, oximas, nem lavagem gástrica ou carvão ativado de rotina; se considerados, só com via aérea protegida. Ligue para o CIATox e notifique todo caso no Sinan. Entre 24 e 96 horas depois pode surgir a síndrome intermediária, com fraqueza da musculatura respiratória.',
+    references: [
+      'Brasil. Ministério da Saúde. Diretrizes Brasileiras para Diagnóstico e Tratamento de Intoxicações por Agrotóxicos. Capítulo 2: Inibidores de colinesterase. Portaria nº 79, de 14 de dezembro de 2018.',
+    ],
+  },
+
+  {
+    id: 'picu-severe-asthma',
+    specialty: 'picu',
+    type: 'new',
+    settings: ['picu'],
+    difficulty: 3,
+    patient: {
+      name: 'Larissa Gomes', age: '9 anos', sex: 'F',
+      look: { skin: '#c98e66', hair: '#2b1b12', shirt: '#cdd5df', build: 'child', inBed: true },
+      companion: { name: 'Simone (mãe)', look: { skin: '#c98e66', hair: '#2b1b12', shirt: '#d9536f', build: 'adult' } },
+    },
+    triage: {
+      complaint: 'Admissão: crise de asma sem melhora após 3 horas de tratamento na UPA.',
+      priority: 'red',
+      vitals: { FC: '148 bpm', FR: '44 irpm', PA: '104/62 mmHg', Tax: '37,1 °C', SpO2: '88% (máscara de O2)', Peso: '30 kg' },
+      note: 'Sentada, inclinada para a frente, fala palavras soltas. Sonolenta.',
+    },
+    previousNote: {
+      title: 'Passagem de caso — UPA (Dr. Vinícius)',
+      text: 'Escolar asmática, crise há 2 dias. Na UPA: salbutamol com ipratrópio, 3 ciclos na primeira hora, e prednisolona VO (vomitou em seguida). Sem melhora. Estava muito agitada, arrancando a máscara: “fiz diazepam EV para acalmar e conseguir nebulizar”. Depois disso ficou mais quieta. Não colhi gasometria.',
+    },
+    opening: '(mãe) Ela tava agitada, pedindo ar, e agora tá assim, quietinha… Isso é bom, né, doutor(a)? Ela tá descansando?',
+    questions: [
+      { id: 'inicio', cat: 'HDA', q: 'Como começou essa crise?', a: '(mãe) Pegou um resfriado da irmã, anteontem. Ontem começou o chiado e hoje de manhã não conseguia nem falar direito.' },
+      { id: 'resgate', cat: 'Medicações', q: 'O que ela usou em casa para a crise?', a: '(mãe) A bombinha azul.' },
+      { id: 'resgate_quanto', cat: 'Medicações', q: 'Quantos jatos, de quanto em quanto tempo? Usou o espaçador?', a: '(mãe) Perdi a conta… de hora em hora desde ontem, direto na boca, que o espaçador quebrou. Acabou um frasco inteiro essa semana.', requires: 'resgate', key: true },
+      { id: 'controle', cat: 'Medicações', q: 'Ela usa algum remédio todos os dias para a asma?', a: '(mãe) Tinha a bombinha laranja, mas acabou faz uns dois meses. Como ela tava bem, eu não fui pegar outra no posto.', key: true },
+      { id: 'uti', cat: 'Antecedentes', q: 'Ela já foi internada por asma? Já precisou de UTI ou de aparelho para respirar?', a: '(mãe) Internou três vezes. Ano passado ficou na UTI, entubada, quatro dias.', key: true },
+      { id: 'infeccao', cat: 'HDA', q: 'Teve febre? Catarro amarelado ou esverdeado?', a: '(mãe) Febre não teve. Só coriza clarinha e essa tosse seca.', key: true },
+      { id: 'alergia', cat: 'HDA', q: 'Comeu algo diferente, tomou remédio novo ou foi picada por inseto antes de piorar? Empolou?', a: '(mãe) Não, nada. Não empolou nem inchou.' },
+      { id: 'engasgo', cat: 'HDA', q: 'Engasgou com alguma coisa?', a: '(mãe) Não.' },
+      { id: 'gatilhos', cat: 'Hábitos', q: 'Alguém fuma em casa? Tem mofo, bicho de pelúcia, animal?', a: '(mãe) O pai fuma, mas é na área. A casa tem umidade no quarto dela.' },
+    ],
+    physical: [
+      { id: 'resp', label: 'Aparelho respiratório', finding: 'Tiragem intercostal, subcostal e de fúrcula. Murmúrio vesicular muito reduzido bilateralmente, quase sem sibilos (“tórax silencioso”). Expansibilidade simétrica, sem enfisema subcutâneo.', key: true },
+      { id: 'neuro', label: 'Nível de consciência', finding: 'Sonolenta, confusa, abre os olhos ao chamado e volta a fechar. Não completa frases.', key: true },
+      { id: 'cardio', label: 'Cardiovascular', finding: 'Taquicárdica, pulsos cheios, TEC 2 s.' },
+      { id: 'pele', label: 'Pele e mucosas', finding: 'Sudoreica. Sem urticária, sem angioedema.' },
+      { id: 'orofaringe', label: 'Orofaringe', finding: 'Sem edema de úvula, sem estridor.' },
+    ],
+    exams: {
+      blood_gas: { result: 'Gasometria arterial: pH 7,29 · pO2 58 mmHg · pCO2 48 mmHg · HCO3 22 mEq/L.', relevance: 'key', note: 'Na crise de asma a pCO2 costuma estar baixa. pCO2 normal ou alta com pO2 abaixo de 60 mmHg indica insuficiência respiratória.' },
+      chest_xray: { result: 'Hiperinsuflação pulmonar bilateral. Sem pneumotórax, sem consolidação.', relevance: 'useful', note: 'Não é exame de rotina na crise de asma; aqui se justifica pela falta de resposta, para excluir pneumotórax.' },
+      electrolytes: { result: 'Na 138 mEq/L · K 3,4 mEq/L · Cl 101 mEq/L.', relevance: 'neutral' },
+      capillary_glucose: { result: '168 mg/dL.', relevance: 'neutral' },
+      cbc: { result: 'Hb 12,9 g/dL · Leucócitos 13.800/mm³ · Plaquetas 330.000/mm³.', relevance: 'neutral' },
+      crp: { result: '6 mg/L.', relevance: 'unnecessary' },
+      blood_culture: { result: 'Coletada. Resultado em 24–72 h.', relevance: 'unnecessary', note: 'Sem febre nem sinais de infecção bacteriana, não há indicação de cultura ou antibiótico.' },
+      head_ct: { result: 'Transporte para tomografia em paciente instável — exame adiado pela equipe.', relevance: 'unnecessary', harmful: true },
+      csf: { result: 'Punção não realizada: sem indicação, paciente em insuficiência respiratória.', relevance: 'unnecessary', harmful: true },
+    },
+    diagnosis: {
+      correct: 'asma_risco_vida',
+      acceptable: ['asma_grave'],
+      options: [
+        { id: 'asma_risco_vida', label: 'Exacerbação de asma com risco de vida (sonolência, tórax silencioso): insuficiência respiratória iminente' },
+        { id: 'asma_grave', label: 'Exacerbação grave de asma, sem critérios de risco de vida' },
+        { id: 'pneumonia', label: 'Pneumonia bacteriana com broncoespasmo' },
+        { id: 'pneumotorax', label: 'Pneumotórax hipertensivo' },
+        { id: 'anafilaxia', label: 'Anafilaxia' },
+      ],
+    },
+    conduct: {
+      correct: 'intensivo',
+      options: [
+        { id: 'intensivo', label: 'Oxigênio titulado para SpO2 de 94–98%; salbutamol inalatório repetido com ipratrópio; corticosteroide EV; sulfato de magnésio EV em dose única, infundido em 20 min; nenhum sedativo; reavaliação clínica e gasométrica frequente, com material de via aérea avançada pronto.' },
+        { id: 'sedar', label: 'Nova dose de benzodiazepínico para mantê-la calma e adaptada à máscara.', harmful: true },
+        { id: 'aminofilina', label: 'Aminofilina EV em infusão contínua.', harmful: true },
+        { id: 'antibiotico', label: 'Antibiótico de amplo espectro e nebulização de 4/4 h, aguardando a resposta ao corticoide oral.' },
+        { id: 'adrenalina', label: 'Adrenalina IM, tratando como anafilaxia.' },
+      ],
+    },
+    // TODO(medical review): GINA 2024 gives IV magnesium sulfate as "a single 2 g infusion over 20 minutes" for adults and
+    // children who fail initial treatment and have persistent hypoxemia; the mg/kg dose (40–50 mg/kg, max 2 g) appears
+    // only in its section on children 5 years and younger, so no mg/kg dose is stated for this 9-year-old.
+    // GINA reports fewer admissions with SABA plus ipratropium in the emergency department, and no benefit from adding
+    // ipratropium once children are hospitalised; confirm whether to keep it in the PICU conduct.
+    // No Brazilian guideline on acute severe asthma in children was confirmed; add one (SBP/SBPT or MS) if available.
+    teaching: 'A criança que “acalmou” no meio de uma crise grave não melhorou: sonolência, confusão e tórax silencioso indicam risco de vida e necessidade de terapia intensiva. Na exacerbação a pCO2 costuma estar abaixo do normal; fadiga e sonolência sugerem que ela está subindo, e pO2 abaixo de 60 mmHg com pCO2 normal ou aumentada (sobretudo acima de 45 mmHg) define insuficiência respiratória. Sedativos devem ser estritamente evitados nas exacerbações, pelo efeito depressor respiratório, e seu uso está associado a mortes evitáveis por asma. O tratamento é simultâneo: oxigênio titulado para SpO2 de 94–98% na criança de 6 a 11 anos, beta-2 agonista de curta ação repetido, ipratrópio (associado ao beta-2 nas exacerbações moderadas a graves) e corticosteroide sistêmico, por via EV quando a criança vomita ou está dispneica demais para engolir. O sulfato de magnésio EV, em dose única infundida em 20 minutos, é considerado em quem não responde ao tratamento inicial e mantém hipoxemia. Aminofilina não deve ser usada, pela baixa eficácia e pelo perfil de segurança. Antibiótico e radiografia não são rotina. Internação prévia em UTI por asma, uso excessivo de broncodilatador de alívio e ausência de corticoide inalatório são fatores de risco para desfecho fatal.',
+    references: [
+      'Global Initiative for Asthma (GINA). Global Strategy for Asthma Management and Prevention, 2024 update.',
+    ],
+  },
 ];
