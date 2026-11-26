@@ -81,6 +81,37 @@ try {
   await page.reload();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/01-menu.png` });
 
+  // save: the menu says progress lives in this browser; the v1 seed above was migrated
+  if (!/só neste navegador/.test(await page.locator('.save-notice').textContent())) throw new Error('menu misses the browser-only save notice');
+  if (await page.evaluate(() => window.__plantao.state.version) !== 2) throw new Error('v1 save was not migrated to version 2');
+  // export as a code, reset, import the code back
+  await page.getByRole('button', { name: /Exportar progresso/ }).click();
+  const code = await page.locator('.modal .save-code').inputValue();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/01b-export.png` });
+  await page.getByRole('button', { name: 'Fechar' }).click();
+  await page.getByRole('button', { name: 'Zerar progresso' }).click();
+  await page.getByRole('button', { name: 'Zerar', exact: true }).click();
+  if (await page.evaluate(() => window.__plantao.state.xp) !== 0) throw new Error('reset did not clear XP');
+  // a bad code is rejected and changes nothing
+  await page.getByRole('button', { name: /Importar progresso/ }).click();
+  await page.locator('.modal .save-code').fill('bm90IGEgc2F2ZQ==');
+  await page.getByRole('button', { name: 'Ler código' }).click();
+  if (!/não é um progresso/.test(await page.locator('.modal .import-error').textContent())) throw new Error('bad import code shows no error');
+  if (await page.evaluate(() => window.__plantao.state.xp) !== 0) throw new Error('bad import changed the progress');
+  await page.locator('.modal .save-code').fill(code);
+  await page.getByRole('button', { name: 'Ler código' }).click();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/01c-import.png` });
+  await page.getByRole('button', { name: 'Substituir' }).click();
+  if (await page.evaluate(() => window.__plantao.state.xp) !== 2000) throw new Error('import did not restore XP');
+  await page.reload();
+  if (await page.evaluate(() => JSON.parse(localStorage.getItem('plantao.save.v1')).xp) !== 2000) throw new Error('imported progress was not saved');
+  // export as a file
+  await page.getByRole('button', { name: /Exportar progresso/ }).click();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Baixar plantao-progresso-/ }).click()]);
+  if (!/^plantao-progresso-\d{4}-\d{2}-\d{2}\.json$/.test(dl.suggestedFilename())) throw new Error(`export file name: ${dl.suggestedFilename()}`);
+  await page.getByRole('button', { name: 'Fechar' }).click();
+  console.log('✔ save: notice, migration, export (file, code), import, bad code');
+
   const units = await page.$$eval('.unit', (els) => els.length);
   let reportChecked = false;
   let tabsChecked = false;

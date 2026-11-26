@@ -1,7 +1,7 @@
 // Plantão — main controller (menu, shift, encounter, feedback). UI text is pt-BR by design.
 import { UNITS, SPECIALTIES, TRIAGE, EXAMS, EXAM_CATS, UNIT_TYPES, ACTION_COST } from './data/catalog.js';
 import { Shift } from './game/shift.js';
-import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS } from './game/progress.js';
+import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS, exportSave, encodeCode, parseImport, MAX_IMPORT_BYTES } from './game/progress.js';
 import { IsoScene } from './render/iso.js';
 import { sfx } from './audio/sfx.js';
 import { h, mount, toast, modal } from './ui/dom.js';
@@ -80,8 +80,11 @@ function renderMenu() {
     specs,
     h('div', { class: 'menu-actions' },
       h('button', { class: 'btn primary', disabled: !menuSel.unit, onclick: () => startShift(menuSel.unit, menuSel.spec) }, 'Começar plantão ▶'),
+      h('button', { class: 'btn ghost small', onclick: showExport }, '💾 Exportar progresso'),
+      h('button', { class: 'btn ghost small', onclick: showImport }, '📂 Importar progresso'),
       h('button', { class: 'btn ghost small', onclick: confirmReset }, 'Zerar progresso'),
     ),
+    h('p', { class: 'small muted save-notice' }, '💾 Seu progresso fica salvo só neste navegador. Exporte para não perder ou para continuar em outro aparelho.'),
     h('p', { class: 'disclaimer ai-notice' },
       '🤖 Os casos foram gerados por inteligência artificial com base em diretrizes e artigos publicados e ainda não passaram por revisão médica. ',
       h('a', { href: REFERENCES_URL, target: '_blank', rel: 'noopener noreferrer' }, 'Ver a tabela de referências usadas em cada caso'),
@@ -138,6 +141,80 @@ function confirmReset() {
     h('p', {}, 'XP, conquistas e histórico de casos serão apagados deste navegador.'),
     h('div', { class: 'menu-actions' },
       h('button', { class: 'btn warn', onclick: () => { state = reset(); m.close(); renderMenu(); } }, 'Zerar'),
+      h('button', { class: 'btn', onclick: () => m.close() }, 'Cancelar')),
+  ));
+}
+
+function showExport() {
+  const json = exportSave(state);
+  const code = encodeCode(json);
+  const file = `plantao-progresso-${new Date().toISOString().slice(0, 10)}.json`;
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a = h('a', { href: url, download: file });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const box = h('textarea', { class: 'save-code', readOnly: true, rows: 5, 'aria-label': 'Código do progresso' }, code);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(code); toast('Código copiado.'); } catch { box.select(); toast('Selecione e copie o código.'); }
+  };
+  const m = modal(h('div', {},
+    h('h2', {}, '💾 Exportar progresso'),
+    h('p', {}, 'Guarde o arquivo ou o código para recuperar seu progresso neste ou em outro navegador.'),
+    h('div', { class: 'menu-actions' }, h('button', { class: 'btn primary', onclick: download }, `Baixar ${file}`)),
+    h('p', { class: 'section-title' }, 'Ou copie o código'),
+    box,
+    h('div', { class: 'menu-actions', style: { marginTop: '10px' } },
+      h('button', { class: 'btn', onclick: copy }, 'Copiar código'),
+      h('button', { class: 'btn ghost', onclick: () => m.close() }, 'Fechar')),
+  ));
+}
+
+function showImport() {
+  const err = h('p', { class: 'small import-error', role: 'alert' });
+  const box = h('textarea', { class: 'save-code', rows: 5, placeholder: 'Cole aqui o código do progresso', 'aria-label': 'Código do progresso' });
+  const fileIn = h('input', { type: 'file', accept: '.json,application/json', 'aria-label': 'Arquivo de progresso' });
+  const m = modal(h('div', {},
+    h('h2', {}, '📂 Importar progresso'),
+    h('p', {}, 'Escolha o arquivo exportado ou cole o código. O progresso atual só é substituído depois da sua confirmação.'),
+    fileIn,
+    h('p', { class: 'section-title' }, 'Ou cole o código'),
+    box,
+    err,
+    h('div', { class: 'menu-actions', style: { marginTop: '10px' } },
+      h('button', { class: 'btn primary', onclick: () => check(box.value) }, 'Ler código'),
+      h('button', { class: 'btn ghost', onclick: () => m.close() }, 'Cancelar')),
+  ));
+  function check(text) {
+    const r = parseImport(text);
+    if (!r.ok) { err.textContent = r.error; return; }
+    m.close();
+    confirmImport(r.state);
+  }
+  fileIn.addEventListener('change', async () => {
+    const f = fileIn.files?.[0];
+    if (!f) return;
+    if (f.size > MAX_IMPORT_BYTES) { err.textContent = 'Arquivo grande demais para um progresso do Plantão.'; return; }
+    try { check(await f.text()); } catch { err.textContent = 'Não foi possível ler o arquivo.'; }
+  });
+}
+
+function confirmImport(next) {
+  const lvl = levelOf(next.xp);
+  const m = modal(h('div', {},
+    h('h2', {}, 'Substituir o progresso?'),
+    h('p', {}, 'O progresso importado tem:'),
+    h('ul', { class: 'score-lines import-summary' },
+      h('li', {}, h('span', {}, 'Nível'), h('span', {}, `${lvl.number} · ${lvl.title}`)),
+      h('li', {}, h('span', {}, 'XP'), h('span', {}, String(next.xp))),
+      h('li', {}, h('span', {}, 'Plantões'), h('span', {}, String(next.shifts))),
+      h('li', {}, h('span', {}, 'Conquistas'), h('span', {}, `${next.badges.length}/${Object.keys(BADGES).length}`))),
+    h('p', { class: 'small muted' }, 'O progresso atual deste navegador será apagado.'),
+    h('div', { class: 'menu-actions' },
+      h('button', { class: 'btn warn', onclick: () => {
+        state = next; save(state); sfx.setMuted(state.settings.muted); m.close(); renderMenu(); toast('Progresso importado.');
+      } }, 'Substituir'),
       h('button', { class: 'btn', onclick: () => m.close() }, 'Cancelar')),
   ));
 }
