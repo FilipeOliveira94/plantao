@@ -358,4 +358,81 @@ export default [
       'Brasil. Ministério da Saúde. Protocolo Clínico e Diretrizes Terapêuticas do Diabete Melito Tipo 2. 2024.',
     ],
   },
+
+  {
+    id: 'im-hypertensive-pseudocrisis',
+    specialty: 'internal-medicine',
+    type: 'new',
+    settings: ['upa', 'ubs', 'hospital'],
+    difficulty: 2,
+    patient: {
+      name: 'Maria do Socorro Lima', age: '58 anos', sex: 'F',
+      look: { skin: '#b9825c', hair: '#5a5a5a', shirt: '#7a9e4f', build: 'adult' },
+    },
+    triage: {
+      complaint: 'Dor de cabeça e “pressão nas alturas”.',
+      priority: 'yellow',
+      vitals: { PA: '196/112 mmHg', FC: '88 bpm', FR: '16 irpm', Tax: '36,4 °C', SpO2: '98%' },
+      note: 'Hipertensa. Mediu a pressão na farmácia e mandaram vir “correndo”. Chorosa.',
+    },
+    opening: 'Doutor(a), minha pressão tá 19 por 11! A moça da farmácia disse que eu ia ter um derrame. Não vai botar aquele comprimidinho embaixo da língua, não?',
+    questions: [
+      { id: 'cefaleia', cat: 'HDA', q: 'Como é essa dor de cabeça? Quando começou?', a: 'Começou ontem de noite, depois de uma briga feia com meu filho. Aperta a cabeça toda, parece uma faixa, e pega a nuca. Já tive igual outras vezes.', key: true },
+      { id: 'peito', cat: 'Sinais de alarme', q: 'Sente dor no peito, falta de ar ou dor nas costas?', a: 'Não, nada disso. Só a cabeça e esse nervoso.', key: true },
+      { id: 'neuro', cat: 'Sinais de alarme', q: 'Teve fraqueza em algum lado do corpo, fala enrolada, visão embaçada ou confusão?', a: 'Não. Tô enxergando bem, falando normal. Só chorei muito.', key: true },
+      { id: 'pior_dor', cat: 'Sinais de alarme', q: 'Foi a pior dor de cabeça da sua vida? Começou de repente? Vomitou?', a: 'Não, foi aumentando devagar. Vomitar não vomitei.' },
+      { id: 'remedios', cat: 'Medicações', q: 'Quais remédios a senhora usa para a pressão?', a: 'Tomo o da pressão, um branquinho, de manhã e de noite. E um outro que faz urinar.', key: true },
+      { id: 'adesao', cat: 'Medicações', q: 'Está tomando todos os dias? Faltou algum?', a: '(sem graça) O branquinho, a losartana, acabou no posto faz uns dez dias. Disseram pra voltar semana que vem e eu fui deixando… O de urinar eu tomo quando lembro.', requires: 'remedios', key: true },
+      { id: 'outros', cat: 'Medicações', q: 'Tomou algum outro remédio por conta própria esses dias?', a: 'Só um chá de camomila. Remédio pra dor não tomei, fiquei com medo de subir mais a pressão.' },
+      { id: 'antecedentes', cat: 'Antecedentes', q: 'Tem diabetes, problema no coração ou nos rins? Já teve derrame ou infarto?', a: 'Só a pressão, faz uns dez anos. Derrame e infarto nunca tive, graças a Deus.' },
+      { id: 'habitual', cat: 'Antecedentes', q: 'Quanto costuma dar a sua pressão em casa ou no posto?', a: 'Quando eu tomo o remédio direitinho fica 14 por 9. Sem ele vai lá pra cima.' },
+      { id: 'habitos', cat: 'Hábitos', q: 'Como está o sal, o café, o sono?', a: 'Dormir eu não dormi nada essa noite. Sal eu maneiro… mais ou menos.' },
+    ],
+    physical: [
+      { id: 'pa_repetida', label: 'PA repetida após repouso em ambiente calmo', finding: 'Após 30 min sentada em sala silenciosa: 176/102 mmHg no braço direito e 174/100 mmHg no esquerdo (três medidas, estáveis).', key: true },
+      { id: 'neuro', label: 'Neurológico', finding: 'Alerta, orientada, fala fluente. Força e sensibilidade simétricas, sem desvio de rima, sem rigidez de nuca. Musculatura cervical tensa e dolorosa à palpação.', key: true },
+      { id: 'cardio', label: 'Aparelho cardiovascular', finding: 'Ritmo regular em 2 tempos, sem sopros ou galope. Sem estase jugular. Pulsos palpáveis e simétricos nos quatro membros.', key: true },
+      { id: 'resp', label: 'Aparelho respiratório', finding: 'Murmúrio vesicular presente bilateralmente, sem estertores.' },
+      { id: 'edema', label: 'Extremidades', finding: 'Sem edema, boa perfusão periférica.' },
+    ],
+    exams: {
+      ecg: { result: 'Ritmo sinusal, FC 84 bpm. Sem alterações isquêmicas agudas.', relevance: 'useful' },
+      bun_creatinine: { result: 'Ureia 34 mg/dL · Creatinina 0,9 mg/dL.', relevance: 'useful' },
+      urine_dipstick: { result: 'Sem proteinúria, sem hematúria.', relevance: 'useful' },
+      urinalysis: { result: 'Sem proteinúria, sem hematúria.', relevance: 'neutral' },
+      capillary_glucose: { result: '104 mg/dL.', relevance: 'neutral' },
+      troponin: { result: 'Negativa.', relevance: 'unnecessary', note: 'Sem dor torácica, dispneia ou alteração no ECG, não há por que dosar marcadores de necrose miocárdica.' },
+      chest_xray: { result: 'Área cardíaca e campos pulmonares sem alterações.', relevance: 'unnecessary' },
+      head_ct: { result: 'Sem alterações.', relevance: 'unnecessary', note: 'Cefaleia tensional sem déficit focal nem sinais de alarme: imagem não muda a conduta.' },
+    },
+    diagnosis: {
+      correct: 'pseudocrise',
+      acceptable: ['urgencia'],
+      options: [
+        { id: 'pseudocrise', label: 'Pseudocrise hipertensiva (PA elevada por dor e estresse, sem lesão aguda de órgão-alvo, em hipertensa sem tratamento regular)' },
+        { id: 'urgencia', label: 'Urgência hipertensiva' },
+        { id: 'encefalopatia', label: 'Emergência hipertensiva: encefalopatia hipertensiva' },
+        { id: 'hsa', label: 'Hemorragia subaracnóidea' },
+        { id: 'sca', label: 'Síndrome coronariana aguda' },
+      ],
+    },
+    conduct: {
+      correct: 'calma_analgesia',
+      options: [
+        { id: 'calma_analgesia', label: 'Repouso em ambiente calmo, analgésico para a cefaleia e nova medida da PA; retomar o anti-hipertensivo oral de uso habitual, orientar adesão e garantir reavaliação precoce na UBS.' },
+        { id: 'nifedipina_sl', label: 'Nifedipina de liberação rápida (cápsula) sublingual para baixar a PA agora.', harmful: true },
+        { id: 'nitroprussiato', label: 'Nitroprussiato de sódio EV em sala de emergência até normalizar a PA.', harmful: true },
+        { id: 'internar_tc', label: 'Internar para tomografia de crânio e investigação de hipertensão secundária.' },
+        { id: 'alta_sem_seguimento', label: 'Liberar assim que a PA baixar, sem ajustar o tratamento nem marcar retorno.' },
+      ],
+    },
+    // TODO(medical review): the guideline gives "early outpatient follow-up (7 days)" for hypertensive urgency (Quadro 13.2);
+    // it gives no follow-up interval for pseudocrisis, so the case says only "reavaliação precoce". Chapter 13 describes
+    // pseudocrisis as managed with rest, analgesics or tranquilizers; resuming the usual oral drug is inferred from
+    // "hipertensos tratados e não controlados" and non-adherence, not stated as a step. Confirm the wording.
+    teaching: 'A gravidade não é dada pelo número da PA, e sim pela presença de lesão aguda e progressiva de órgão-alvo (LOA). Sem dor torácica, dispneia, déficit neurológico ou alteração visual, e com exame normal, não há emergência hipertensiva. A pseudocrise é a elevação da PA diante de dor, evento emocional ou desconforto, comum em hipertensos tratados e não controlados: conduz-se com repouso em ambiente calmo, analgésico ou tranquilizante, e medidas repetidas da PA. A nifedipina de liberação rápida é proscrita, porque provoca queda rápida e acentuada da PA e pode causar isquemia tecidual. O que muda o prognóstico aqui é retomar o tratamento regular: a losartana tinha acabado há dez dias.',
+    references: [
+      'Barroso WKS, Rodrigues CIS, Bortolotto LA, et al. Diretrizes Brasileiras de Hipertensão Arterial – 2020. Arq Bras Cardiol. 2021;116(3):516–658. Capítulo 13: Crise hipertensiva.',
+    ],
+  },
 ];
