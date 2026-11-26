@@ -292,4 +292,88 @@ export default [
       'Trinka E, et al. A definition and classification of status epilepticus — ILAE Task Force. Epilepsia. 2015;56(10):1515–1523.',
     ],
   },
+
+  {
+    id: 'picu-ductal-dependent-chd',
+    specialty: 'picu',
+    type: 'new',
+    settings: ['picu'],
+    difficulty: 3,
+    timeCritical: { minutes: 15, reason: 'Na cardiopatia com fluxo sistêmico dependente do canal arterial, a prostaglandina E1 deve ser iniciada de imediato, sem aguardar o ecocardiograma, para evitar uma deterioração rápida e muitas vezes irreversível.' },
+    patient: {
+      name: 'RN de Jaqueline (Arthur)', age: '6 dias', sex: 'M',
+      look: { skin: '#e2b896', hair: '#4a3020', shirt: '#cdd5df', build: 'infant', inBed: true },
+      companion: { name: 'Jaqueline (mãe)', look: { skin: '#e2b896', hair: '#2b1b12', shirt: '#5aa9a3', build: 'adult' } },
+    },
+    triage: {
+      complaint: 'Admissão: recém-nascido “parou de mamar”, pálido e cansado. Transferido como sepse neonatal.',
+      priority: 'red',
+      vitals: { FC: '186 bpm', FR: '78 irpm', PA: '48/26 mmHg (braço direito)', Tax: '36,0 °C', SpO2: '96% (capacete de O2 a 60%)', TEC: '5 s', Peso: '3,1 kg' },
+      note: 'Chegou do interior em ambulância, com acesso periférico em mão esquerda.',
+    },
+    previousNote: {
+      title: 'Passagem de caso — Hospital Municipal (Dr. Edson)',
+      text: 'RN a termo, parto vaginal, Apgar 9/10, alta da maternidade com 48 h, “teste do coraçãozinho normal”. Voltou hoje, com 6 dias, por recusa das mamadas e gemência. Hipótese de sepse neonatal tardia: colhida hemocultura, iniciadas ampicilina e gentamicina, feitas duas expansões de SF 0,9% 10 mL/kg “sem resposta, ficou mais cansado”. Colocado em capacete de O2 a 60%. Não temos ecocardiograma aqui.',
+    },
+    opening: '(mãe) Ele nasceu tão bem, doutor(a)… mamava direitinho. De anteontem pra cá começou a cansar no peito, largava e suava. Hoje não quis mamar nada e ficou dessa cor.',
+    questions: [
+      { id: 'evolucao', cat: 'HDA', q: 'Quando ele começou a mudar? Como estava nos primeiros dias?', a: '(mãe) Os três primeiros dias foram normais. No quarto dia começou a respirar rapidinho. Ontem já cansava pra mamar, e hoje amanheceu pálido, gelado.', key: true },
+      { id: 'mamadas', cat: 'HDA', q: 'Como ele fica durante a mamada?', a: '(mãe) Pega o peito, dá umas sugadas e larga, ofegante. A cabecinha fica molhada de suor.', key: true },
+      { id: 'diurese', cat: 'Sinais de alarme', q: 'Quando trocou a última fralda molhada?', a: '(mãe) De madrugada. De lá pra cá tá sequinha.' },
+      { id: 'infeccao', cat: 'HDA', q: 'Ele teve febre? Na gravidez ou no parto houve infecção, bolsa rota por muito tempo?', a: '(mãe) Febre não, ele tá é frio. A bolsa estourou na hora do parto. Eu não tive infecção de urina nem nada, fiz os exames do pré-natal.', key: true },
+      { id: 'prenatal', cat: 'Antecedentes', q: 'Como foi o pré-natal? Quantos ultrassons fez?', a: '(mãe) Fiz sete consultas no posto. Ultrassom fiz dois, no começo.' },
+      { id: 'morfologico', cat: 'Antecedentes', q: 'Fez o ultrassom morfológico ou algum exame do coração do bebê na gravidez?', a: '(mãe) Esse morfológico não. Lá na minha cidade não tem pelo SUS e particular a gente não pôde pagar. Do coraçãozinho ninguém olhou.', requires: 'prenatal' },
+      { id: 'familia', cat: 'Antecedentes', q: 'Alguém na família nasceu com problema no coração?', a: '(mãe) Um sobrinho do meu marido operou o coração bebezinho, em Porto Alegre. Não sei dizer o que era.' },
+      { id: 'coracaozinho', cat: 'Antecedentes', q: 'Na maternidade fizeram o teste do coraçãozinho? O que disseram?', a: '(mãe) Botaram uma luzinha vermelha na mão e no pé dele, com um dia de vida. Disseram que tava normal.' },
+    ],
+    physical: [
+      { id: 'pulsos', label: 'Pulsos e perfusão', finding: 'Pulso braquial direito palpável, fino. Pulsos femorais não palpáveis bilateralmente. Extremidades frias, pele pálida e moteada, TEC 5 s.', key: true },
+      { id: 'cardio', label: 'Precórdio e ausculta cardíaca', finding: 'Precórdio hiperdinâmico, com impulsões palpáveis. 2ª bulha hiperfonética em foco pulmonar. Sem sopros.', key: true },
+      { id: 'spo2', label: 'Oximetria pré e pós-ductal', finding: 'Mão direita 96% · Pé direito 89% (em capacete de O2 a 60%).', key: true },
+      { id: 'resp', label: 'Aparelho respiratório', finding: 'Taquidispneico, gemente, tiragem subcostal. Estertores finos bilaterais.' },
+      { id: 'abdome', label: 'Abdome', finding: 'Fígado palpável a 4 cm do rebordo costal direito. Coto umbilical limpo, sem hiperemia.' },
+      { id: 'neuro', label: 'Neurológico', finding: 'Hipoativo, reativo ao manuseio. Fontanela anterior plana.' },
+    ],
+    exams: {
+      blood_gas: { result: 'pH 7,12 · pCO2 30 mmHg · HCO3 9 mEq/L · BE −18.', relevance: 'key' },
+      lactate: { result: 'Lactato 7,8 mmol/L.', relevance: 'useful' },
+      chest_xray: { result: 'Cardiomegalia discreta, com aumento importante da trama vascular pulmonar.', relevance: 'key', note: 'O padrão de congestão dificulta a distinção com doença pulmonar neonatal.' },
+      capillary_glucose: { result: '58 mg/dL.', relevance: 'useful' },
+      cbc: { result: 'Hb 15,8 g/dL · Leucócitos 11.200/mm³, sem desvio · Plaquetas 246.000/mm³.', relevance: 'useful' },
+      crp: { result: '4 mg/L.', relevance: 'useful' },
+      blood_culture: { result: 'Já colhida no hospital de origem, antes do antibiótico. Em andamento.', relevance: 'neutral' },
+      ecg: { result: 'Taquicardia sinusal.', relevance: 'neutral' },
+      electrolytes: { result: 'Na 136 mEq/L · K 4,8 mEq/L · Cl 104 mEq/L.', relevance: 'neutral' },
+      csf: { result: 'Punção não realizada: contraindicada no momento pela instabilidade hemodinâmica.', relevance: 'unnecessary', harmful: true },
+      head_ct: { result: 'Transporte para tomografia em paciente instável — exame adiado pela equipe.', relevance: 'unnecessary', harmful: true },
+      abdominal_us: { result: 'Hepatomegalia. Sem outras alterações.', relevance: 'unnecessary' },
+    },
+    diagnosis: {
+      correct: 'cc_sistemico',
+      options: [
+        { id: 'cc_sistemico', label: 'Cardiopatia congênita crítica com fluxo sistêmico dependente do canal arterial (coarctação crítica/interrupção do arco aórtico ou hipoplasia do coração esquerdo)' },
+        { id: 'sepse', label: 'Sepse neonatal tardia com choque séptico' },
+        { id: 'eim', label: 'Erro inato do metabolismo descompensado' },
+        { id: 'hac', label: 'Hiperplasia adrenal congênita (crise perdedora de sal)' },
+        { id: 'pneumonia', label: 'Pneumonia neonatal com insuficiência respiratória' },
+      ],
+    },
+    conduct: {
+      correct: 'pge1',
+      options: [
+        { id: 'pge1', label: 'Prostaglandina E1 EV contínua já, sem aguardar o ecocardiograma (0,01 mcg/kg/min, aumentando até 0,05 conforme a resposta), por acesso venoso profundo; evitar oxigênio suplementar (alvo de SpO2 85–95%); suporte ventilatório, vigiando apneia e hipotensão; ecocardiograma e contato com centro de cardiologia neonatal para transferência.' },
+        { id: 'o2_volume', label: 'Aumentar o oxigênio para 100% e repetir expansões de 20 mL/kg até normalizar a perfusão.', harmful: true },
+        { id: 'aguardar_eco', label: 'Manter o suporte atual e só iniciar prostaglandina depois do ecocardiograma, disponível amanhã cedo.', harmful: true },
+        { id: 'escalonar_atb', label: 'Ampliar o esquema antibiótico e manter a hipótese de sepse.' },
+        { id: 'furosemida', label: 'Furosemida e restrição hídrica para insuficiência cardíaca, e reavaliar em 6 h.' },
+      ],
+    },
+    // TODO(medical review): the SBP manual names sepsis as the main differential but does not say what to do with
+    // antibiotics already started, so the correct option leaves them out. Confirm whether to state "keep antibiotics
+    // until sepsis is excluded" and under which reference. The pre/post-ductal saturation values are illustrative.
+    teaching: 'Recém-nascido que nasce bem e, com o fechamento do canal arterial, evolui com taquipneia progressiva, cansaço às mamadas, palidez, pulsos reduzidos e acidose metabólica tem cardiopatia com fluxo sistêmico dependente do canal até prova em contrário. O principal diagnóstico diferencial é a sepse neonatal, de quadro muito parecido; aqui faltam sinais de infecção e os pulsos femorais ausentes, o precórdio hiperdinâmico e a cardiomegalia com congestão apontam para o coração. Um teste do coraçãozinho negativo não exclui cardiopatia congênita. A prostaglandina E1 é iniciada imediatamente, sem esperar o ecocardiograma: 0,01 mcg/kg/min em infusão contínua, até 0,05 mcg/kg/min conforme a resposta, de preferência por acesso profundo, porque a interrupção da infusão fecha o canal em minutos. Apneia e hipotensão são os efeitos colaterais mais frequentes, sobretudo acima de 0,03 mcg/kg/min. Neste grupo o oxigênio deve ser evitado: a vasodilatação pulmonar aumenta ainda mais o fluxo pulmonar e piora o débito sistêmico. A ventilação mecânica costuma ajudar no baixo débito. Estabilizado, o RN segue para um centro de cardiologia neonatal.',
+    references: [
+      'Sociedade Brasileira de Pediatria. Departamentos Científicos de Cardiologia e Neonatologia. Sistematização do atendimento ao recém-nascido com suspeita ou diagnóstico de cardiopatia congênita. Manual de Orientação nº 4, 11 de agosto de 2022.',
+    ],
+  },
 ];
