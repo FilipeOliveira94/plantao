@@ -1,40 +1,43 @@
 // Test catalog and care units. Labels are player-facing and stay in pt-BR.
 // Times are in game minutes. "poc" = point-of-care (immediate result, patient stays in the room);
 // other tests send the patient to the waiting room until the result is ready.
+// "cat" groups tests the way a request form does; EXAM_CATS sets the menu order.
+
+export const EXAM_CATS = ['Testes rápidos', 'Hematologia', 'Bioquímica', 'Gasometria', 'Culturas', 'Urina', 'Cardiologia', 'Radiografia', 'Ultrassonografia', 'Tomografia', 'Procedimentos'];
 
 export const EXAMS = {
   // Point-of-care
-  capillary_glucose: { label: 'Glicemia capilar (HGT)', group: 'Beira-leito', minutes: 3, poc: true },
-  ecg: { label: 'Eletrocardiograma (ECG 12 derivações)', group: 'Beira-leito', minutes: 8, poc: true },
-  tourniquet_test: { label: 'Prova do laço', group: 'Beira-leito', minutes: 6, poc: true },
-  rapid_strep: { label: 'Teste rápido para estreptococo (antígeno)', group: 'Beira-leito', minutes: 10, poc: true },
-  rapid_dengue: { label: 'Teste rápido dengue (NS1/IgM)', group: 'Beira-leito', minutes: 20, poc: true },
-  rapid_covid: { label: 'Teste rápido antígeno SARS-CoV-2', group: 'Beira-leito', minutes: 15, poc: true },
-  urine_dipstick: { label: 'Fita reagente de urina', group: 'Beira-leito', minutes: 3, poc: true },
-  otoscopy: { label: 'Otoscopia', group: 'Beira-leito', minutes: 3, poc: true },
-  blood_ketones: { label: 'Cetonemia capilar', group: 'Beira-leito', minutes: 3, poc: true },
+  capillary_glucose: { label: 'Glicemia capilar (HGT)', cat: 'Testes rápidos', minutes: 3, poc: true },
+  ecg: { label: 'Eletrocardiograma (ECG 12 derivações)', cat: 'Cardiologia', minutes: 8, poc: true },
+  tourniquet_test: { label: 'Prova do laço', cat: 'Procedimentos', minutes: 6, poc: true },
+  rapid_strep: { label: 'Teste rápido para estreptococo (antígeno)', cat: 'Testes rápidos', minutes: 10, poc: true },
+  rapid_dengue: { label: 'Teste rápido dengue (NS1/IgM)', cat: 'Testes rápidos', minutes: 20, poc: true },
+  rapid_covid: { label: 'Teste rápido antígeno SARS-CoV-2', cat: 'Testes rápidos', minutes: 15, poc: true },
+  urine_dipstick: { label: 'Fita reagente de urina', cat: 'Urina', minutes: 3, poc: true },
+  otoscopy: { label: 'Otoscopia', cat: 'Procedimentos', minutes: 3, poc: true },
+  blood_ketones: { label: 'Cetonemia capilar', cat: 'Testes rápidos', minutes: 3, poc: true },
 
   // Laboratory
-  cbc: { label: 'Hemograma completo', group: 'Laboratório', minutes: 50 },
-  crp: { label: 'Proteína C reativa', group: 'Laboratório', minutes: 50 },
-  bun_creatinine: { label: 'Ureia e creatinina', group: 'Laboratório', minutes: 50 },
-  electrolytes: { label: 'Sódio, potássio, cloro', group: 'Laboratório', minutes: 50 },
-  troponin: { label: 'Troponina', group: 'Laboratório', minutes: 60 },
-  blood_gas: { label: 'Gasometria (venosa/arterial)', group: 'Laboratório', minutes: 15 },
-  lactate: { label: 'Lactato', group: 'Laboratório', minutes: 15 },
-  blood_culture: { label: 'Hemocultura', group: 'Laboratório', minutes: 10, note: 'Coleta. Resultado em 24–72 h.' },
-  urinalysis: { label: 'Urina tipo 1 (EAS)', group: 'Laboratório', minutes: 45 },
-  urine_culture: { label: 'Urocultura', group: 'Laboratório', minutes: 10, note: 'Coleta. Resultado em 48–72 h.' },
-  hba1c: { label: 'Hemoglobina glicada (HbA1c)', group: 'Laboratório', minutes: 60 },
-  lipid_panel: { label: 'Perfil lipídico', group: 'Laboratório', minutes: 60 },
-  liver_enzymes: { label: 'TGO/TGP', group: 'Laboratório', minutes: 50 },
-  csf: { label: 'Líquor (punção lombar)', group: 'Laboratório', minutes: 60 },
+  cbc: { label: 'Hemograma completo', cat: 'Hematologia', minutes: 50 },
+  crp: { label: 'Proteína C reativa', cat: 'Bioquímica', minutes: 50 },
+  bun_creatinine: { label: 'Ureia e creatinina', cat: 'Bioquímica', minutes: 50 },
+  electrolytes: { label: 'Sódio, potássio, cloro', cat: 'Bioquímica', minutes: 50 },
+  troponin: { label: 'Troponina', cat: 'Cardiologia', minutes: 60 },
+  blood_gas: { label: 'Gasometria (venosa/arterial)', cat: 'Gasometria', minutes: 15 },
+  lactate: { label: 'Lactato', cat: 'Gasometria', minutes: 15 },
+  blood_culture: { label: 'Hemocultura', cat: 'Culturas', minutes: 10, note: 'Coleta. Resultado em 24–72 h.' },
+  urinalysis: { label: 'Urina tipo 1 (EAS)', cat: 'Urina', minutes: 45 },
+  urine_culture: { label: 'Urocultura', cat: 'Culturas', minutes: 10, note: 'Coleta. Resultado em 48–72 h.' },
+  hba1c: { label: 'Hemoglobina glicada (HbA1c)', cat: 'Bioquímica', minutes: 60 },
+  lipid_panel: { label: 'Perfil lipídico', cat: 'Bioquímica', minutes: 60 },
+  liver_enzymes: { label: 'TGO/TGP', cat: 'Bioquímica', minutes: 50 },
+  csf: { label: 'Líquor (punção lombar)', cat: 'Procedimentos', minutes: 60 },
 
   // Imaging
-  chest_xray: { label: 'Radiografia de tórax', group: 'Imagem', minutes: 40 },
-  abdominal_xray: { label: 'Radiografia de abdome', group: 'Imagem', minutes: 40 },
-  abdominal_us: { label: 'Ultrassonografia de abdome', group: 'Imagem', minutes: 70 },
-  head_ct: { label: 'Tomografia de crânio', group: 'Imagem', minutes: 60 },
+  chest_xray: { label: 'Radiografia de tórax', cat: 'Radiografia', minutes: 40 },
+  abdominal_xray: { label: 'Radiografia de abdome', cat: 'Radiografia', minutes: 40 },
+  abdominal_us: { label: 'Ultrassonografia de abdome', cat: 'Ultrassonografia', minutes: 70 },
+  head_ct: { label: 'Tomografia de crânio', cat: 'Tomografia', minutes: 60 },
 };
 
 // Tests available per unit type (roughly matching Brazilian public health system reality).

@@ -38,6 +38,9 @@ try {
 
   const units = await page.$$eval('.unit', (els) => els.length);
   let reportChecked = false;
+  let tabsChecked = false;
+  let menuChecked = false;
+  let shuffledSeen = 0;
   for (let u = 0; u < units; u++) {
     await page.locator('.unit').nth(u).click();
     const specs = await page.locator('.spec').count();
@@ -58,6 +61,12 @@ try {
         }
         const enc = await page.evaluate(() => window.__plantao.shift?.current?.c.id);
         if (!enc) continue;
+        if (!tabsChecked) {
+          // chart tabs name their state: only the opening tab has been seen
+          tabsChecked = true;
+          const labels = await page.$$eval('.tab', (els) => els.map((e) => e.getAttribute('aria-label')));
+          if (!/já vista/.test(labels[0]) || labels.slice(1).some((l) => !/não aberta/.test(l))) throw new Error(`unexpected tab states: ${labels}`);
+        }
         // ask a few questions and do one physical exam item
         await page.getByRole('tab', { name: /Anamnese/ }).click();
         for (let i = 0; i < 4; i++) {
@@ -68,14 +77,37 @@ try {
         const p = page.locator('.pane .opt').first();
         if (await p.count()) await p.click();
         if (u === 0 && s === 0 && SHOTS) await page.screenshot({ path: `${SHOTS}/02-atendimento.png` });
+        if (!menuChecked) {
+          menuChecked = true;
+          // test menu: groups start collapsed, search is accent-insensitive and opens the matching group
+          await page.getByRole('tab', { name: /Exames/ }).click();
+          if (await page.locator('.test-cat[open]').count()) throw new Error('test groups should start collapsed');
+          await page.locator('.test-search').fill('GLICEMIA');
+          const hits = await page.locator('.test-cat[open] .opt').allTextContents();
+          if (hits.length !== 1 || !/Glicemia capilar/.test(hits[0])) throw new Error(`test search failed: ${hits}`);
+          await page.locator('.test-search').fill('bioquimica');
+          if (!(await page.locator('.test-cat[open] summary', { hasText: 'Bioquímica' }).count())) throw new Error('category search did not open Bioquímica');
+          await page.locator('.test-search').fill('');
+        }
         // correct decision
         await page.getByRole('tab', { name: /Decisão/ }).click();
+        // pick the correct options by id, never by position: the options are shuffled
         const correct = await page.evaluate(() => {
-          const c = window.__plantao.shift.current.c;
-          return { dx: c.diagnosis.options.findIndex((o) => o.id === c.diagnosis.correct), cd: c.conduct.options.findIndex((o) => o.id === c.conduct.correct) };
+          const e = window.__plantao.shift.current;
+          return { dx: e.c.diagnosis.correct, cd: e.c.conduct.correct, fileOrder: e.dxOptions.every((o, i) => o.id === e.c.diagnosis.options[i].id) && e.cdOptions.every((o, i) => o.id === e.c.conduct.options[i].id) };
         });
-        await page.locator('input[name=dx]').nth(correct.dx).check();
-        await page.locator('input[name=cd]').nth(correct.cd).check();
+        const renderedOrder = () => page.evaluate(() => ['dx', 'cd'].map((n) => [...document.querySelectorAll(`input[name=${n}]`)].map((el) => el.value).join()).join('|'));
+        const rendered = await renderedOrder();
+        const expected = await page.evaluate(() => { const e = window.__plantao.shift.current; return [e.dxOptions, e.cdOptions].map((l) => l.map((o) => o.id).join()).join('|'); });
+        if (rendered !== expected) throw new Error(`options render out of the encounter's order: ${rendered} vs ${expected}`);
+        if (!correct.fileOrder) shuffledSeen++;
+        await page.locator(`input[name=dx][value="${correct.dx}"]`).check();
+        await page.locator(`input[name=cd][value="${correct.cd}"]`).check();
+        // switching tabs re-renders the chart; the order must stay the same
+        await page.getByRole('tab', { name: /Triagem/ }).click();
+        await page.getByRole('tab', { name: /Decisão/ }).click();
+        if (await renderedOrder() !== rendered) throw new Error('option order changed on re-render');
+        if (!(await page.locator(`input[name=dx][value="${correct.dx}"]`).isChecked())) throw new Error('diagnosis choice lost on re-render');
         await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
         await page.waitForSelector('.modal');
         if (!reportChecked) {
@@ -101,6 +133,18 @@ try {
     }
   }
   if (!reportChecked) throw new Error('report link was never checked');
+  if (!tabsChecked) throw new Error('tab states were never checked');
+  if (!menuChecked) throw new Error('test menu was never checked');
+  if (!shuffledSeen) throw new Error('answer options were never shuffled in any encounter');
+  console.log(`✔ options shuffled in ${shuffledSeen} encounters`);
+  // the same seed gives the same option order
+  const sameSeed = await page.evaluate(async () => {
+    const { Shift } = await import('./src/game/shift.js');
+    const { UNITS } = await import('./src/data/catalog.js');
+    const order = () => new Shift({ unit: UNITS[0], specialty: UNITS[0].specialties[0], seed: 42 }).encounters.map((e) => [...e.dxOptions, ...e.cdOptions].map((o) => o.id).join()).join('|');
+    return order() === order();
+  });
+  if (!sameSeed) throw new Error('option order is not deterministic for a fixed seed');
   // PICU scene
   if (SHOTS) {
     await page.locator('.unit').last().click();
