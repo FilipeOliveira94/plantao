@@ -370,9 +370,9 @@ function paneFor(enc) {
   if (tab === 'decision') {
     return [
       h('h5', { class: 'section-title' }, 'Hipótese diagnóstica principal'),
-      c.diagnosis.options.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'dx', checked: decision.dx === o.id, onchange: () => { decision.dx = o.id; } }), h('span', {}, o.label))),
+      enc.dxOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'dx', value: o.id, checked: decision.dx === o.id, onchange: () => { decision.dx = o.id; } }), h('span', {}, o.label))),
       h('h5', { class: 'section-title', style: { marginTop: '16px' } }, 'Conduta'),
-      c.conduct.options.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'cd', checked: decision.cd === o.id, onchange: () => { decision.cd = o.id; } }), h('span', {}, o.label))),
+      enc.cdOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'cd', value: o.id, checked: decision.cd === o.id, onchange: () => { decision.cd = o.id; } }), h('span', {}, o.label))),
       h('div', { style: { marginTop: '14px' } }, h('button', { class: 'btn primary', onclick: () => finishEncounter(enc) }, '✔ Finalizar atendimento')),
     ];
   }
