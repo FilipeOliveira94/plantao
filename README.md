@@ -31,11 +31,22 @@ ES modules don't load over `file://`, so you need a server.
 
 ## Tests
 
+The tests need Node 22 or later. Set up the end-to-end test once with:
+
+```bash
+npm ci                            # installs Playwright (dev only; the game has no runtime dependencies)
+npx playwright install chromium   # downloads the headless browser
+```
+
+Then:
+
 ```bash
 npm run validate   # clinical case integrity checks; also fails if docs/REFERENCES.md is out of date
 npm run references # rebuild docs/REFERENCES.md after changing a case's references or diagnosis
-npm run test:e2e   # plays every shift in headless Chromium (requires Playwright)
+npm run test:e2e   # plays every shift in headless Chromium
 ```
+
+GitHub Actions runs `npm run validate` and `npm run test:e2e` on every pull request and every push to `main` (`.github/workflows/ci.yml`).
 
 ## Layout
 
