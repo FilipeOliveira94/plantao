@@ -1,10 +1,12 @@
 // Validates clinical case integrity. Usage: node tools/validate-cases.mjs
 import { CASES } from '../src/data/cases/index.js';
-import { EXAMS, UNIT_TYPES, UNITS, SPECIALTIES, TRIAGE } from '../src/data/catalog.js';
+import { EXAMS, EXAM_CATS, UNIT_TYPES, UNITS, SPECIALTIES, TRIAGE } from '../src/data/catalog.js';
 
 const errors = [];
 const warn = [];
 const err = (id, msg) => errors.push(`[${id}] ${msg}`);
+
+for (const [ex, e] of Object.entries(EXAMS)) if (!EXAM_CATS.includes(e.cat)) err(ex, `test has no valid category: ${e.cat}`);
 
 const ids = new Set();
 for (const c of CASES) {
