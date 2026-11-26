@@ -58,7 +58,7 @@ export default [
       correct: 'suporte',
       options: [
         { id: 'suporte', label: 'Suporte em domicílio: lavagem nasal com SF, manter aleitamento, orientar sinais de alarme e reavaliar em 24–48 h.' },
-        { id: 'salbu_cort', label: 'Salbutamol inalatório com espaçador e prednisolona oral por alguns dias pelos sibilos; manter o aleitamento e reavaliar na unidade em 24–48 h.' },
+        { id: 'salbu_cort', label: 'Salbutamol inalatório com espaçador a cada 4 h e prednisolona oral por 3 dias pelos sibilos; manter o aleitamento e reavaliar na unidade em 24–48 h.' },
         { id: 'internar_o2', label: 'Internar para oxigenoterapia e hidratação venosa, com monitorização contínua da SpO2 e reavaliação diária.' },
         { id: 'amoxi', label: 'Amoxicilina oral por 7 dias pelas crepitações, radiografia de tórax e reavaliação na unidade em 48 h.' },
         { id: 'xarope', label: 'Xarope antitussígeno e descongestionante nasal para aliviar a tosse e a obstrução; manter o aleitamento.', harmful: true },
@@ -271,7 +271,7 @@ export default [
         { id: 'amoxi10', label: 'Amoxicilina por 10 dias (ou penicilina G benzatina IM dose única) + analgesia.' },
         { id: 'azitro', label: 'Azitromicina por 5 dias, pela história de manchas com xarope, + analgesia.' },
         { id: 'sintomaticos', label: 'Apenas sintomáticos: analgesia, antitérmico e hidratação, sem antibiótico.' },
-        { id: 'cortic', label: 'Corticoide oral por alguns dias para reduzir a dor e o edema da garganta, sem antibiótico.' },
+        { id: 'cortic', label: 'Corticoide oral por 3 dias para reduzir a dor e o edema da garganta, sem antibiótico.' },
         { id: 'amoxi3', label: 'Amoxicilina por 3 dias, até a febre passar, + analgesia; suspender se melhorar.' },
       ],
     },
@@ -337,7 +337,7 @@ export default [
       correct: 'saba_cort',
       options: [
         { id: 'saba_cort', label: 'Salbutamol spray com espaçador a cada 20 min na 1ª hora, O2 para SpO2 94–98%, prednisolona oral; na alta, reiniciar corticoide inalatório, espaçador e plano de ação.' },
-        { id: 'aminofilina', label: 'Aminofilina EV como primeira linha, hidrocortisona EV e O2 por cateter nasal; internar em enfermaria com salbutamol por nebulização e reavaliação diária.' },
+        { id: 'aminofilina', label: 'Aminofilina EV como primeira linha, hidrocortisona EV e O2 por cateter nasal; internar em enfermaria com salbutamol por nebulização a cada 4 h e reavaliar em 6 h.' },
         { id: 'amoxi', label: 'Amoxicilina por 7 dias e xarope expectorante para a infecção que desencadeou a crise; salbutamol spray se precisar, retorno em 48 h e retirar o mofo do quarto.' },
         { id: 'so_saba', label: 'Salbutamol spray direto na boca a cada 20 min na 1ª hora, sem oxigênio; na alta, salbutamol só quando precisar, sem corticoide oral nem inalatório e sem espaçador.', harmful: true },
         { id: 'iot', label: 'Intubação orotraqueal imediata em sequência rápida, com sedação contínua e ventilação mecânica, sulfato de magnésio EV e transferência para a UTI pediátrica.', harmful: true },
@@ -490,9 +490,9 @@ export default [
       options: [
         { id: 'adrenalina_im', label: 'Adrenalina 1:1000 0,01 mg/kg IM na face anterolateral da coxa (máx. 0,3 mg), repetindo a cada 5–15 min se necessário; decúbito dorsal com membros inferiores elevados, oxigênio, acesso venoso, salbutamol inalatório; observação por 24–48 h.' },
         { id: 'antih1_corticoide', label: 'Anti-histamínico H1 e corticosteroide EV agora, oxigênio, acesso venoso e salbutamol inalatório; reavaliar em 1 hora e reservar a adrenalina IM para queda da pressão arterial; observação por 6–8 h e alta com anti-histamínico oral.', harmful: true },
-        { id: 'so_salbutamol', label: 'Tratar como crise de asma: salbutamol inalatório com espaçador em doses repetidas, corticosteroide oral e oxigênio, com a criança sentada para respirar melhor; anti-histamínico oral para a urticária; alta antes de 6–8 h se a ausculta normalizar.', harmful: true },
-        { id: 'adrenalina_ev', label: 'Adrenalina 1:1000 sem diluir, em bolus endovenoso, para efeito mais rápido que a via IM, repetindo a cada 5–15 min se necessário; decúbito dorsal com membros inferiores elevados, oxigênio, monitorização cardíaca; observação por 24–48 h.', harmful: true },
-        { id: 'alta_rapida', label: 'Adrenalina 1:1000 0,01 mg/kg IM na face anterolateral da coxa (máx. 0,3 mg), oxigênio e salbutamol inalatório; alta assim que a urticária melhorar, antes de completar 6–8 h de observação, com anti-histamínico oral e encaminhamento ao alergista.', harmful: true },
+        { id: 'so_salbutamol', label: 'Tratar como crise de asma: salbutamol inalatório com espaçador a cada 20 min na 1ª hora, corticosteroide oral e oxigênio, com a criança sentada para respirar melhor; anti-histamínico oral para a urticária; alta após 4 h se a ausculta normalizar.', harmful: true },
+        { id: 'adrenalina_ev', label: 'Adrenalina 1:1000 0,01 mg/kg (máx. 0,3 mg) sem diluir, em bolus endovenoso, para efeito mais rápido, repetindo a cada 5–15 min se necessário; decúbito dorsal com membros inferiores elevados, oxigênio, monitorização cardíaca; observação por 24–48 h.', harmful: true },
+        { id: 'alta_rapida', label: 'Adrenalina 1:1000 0,01 mg/kg IM na face anterolateral da coxa (máx. 0,3 mg), oxigênio e salbutamol inalatório; alta assim que a urticária melhorar, em cerca de 2 horas, com anti-histamínico oral e encaminhamento ao alergista.', harmful: true },
       ],
     },
     // TODO(medical review): the SBP guide was updated in 2021 (diagnostic criteria went from three to two); the 2021 PDF
@@ -561,11 +561,11 @@ export default [
       options: [
         { id: 'alta_orientada', label: 'Não solicitar tomografia; alta com um adulto responsável observando nas primeiras 24–48 h e orientação por escrito dos sinais de retorno, como vômitos repetidos, sonolência excessiva, confusão, convulsão ou sangue pelo nariz ou ouvido.' },
         { id: 'tc', label: 'Tomografia de crânio sem contraste agora, para tranquilizar a família e documentar a ausência de lesão; se normal, alta com um adulto responsável observando nas primeiras 24–48 h e orientação por escrito dos sinais de retorno.', harmful: true },
-        { id: 'internar', label: 'Internar por 48 h para observação neurológica seriada pelo mecanismo da queda, com analgesia e sem tomografia; alta somente após 48 h sem vômitos, sonolência, confusão ou alteração no exame neurológico.' },
+        { id: 'internar', label: 'Internar por 48 h para observação neurológica a cada 2 h pelo mecanismo da queda, com analgesia e sem tomografia; alta somente após 48 h sem vômitos, sonolência, confusão ou alteração no exame neurológico.' },
         // TODO(medical review): `alta_sem_orientacao` (discharge with no observer and no return guidance) is not flagged harmful.
         // P1-03 left the flag as it was; decide whether it should be.
         { id: 'alta_sem_orientacao', label: 'Alta imediata sem tomografia: “foi só um galo”; gelo e analgésico em casa, sem necessidade de um adulto observando nas próximas horas nem de orientação por escrito sobre sinais de retorno, pois o exame está normal.' },
-        { id: 'neurocirurgia', label: 'Solicitar avaliação da neurocirurgia pelo tamanho do hematoma frontal e manter em jejum, com cabeceira elevada e monitorização neurológica, deixando para o neurocirurgião a decisão sobre a tomografia de crânio e a alta.' },
+        { id: 'neurocirurgia', label: 'Solicitar avaliação da neurocirurgia pelo tamanho do hematoma frontal e manter em jejum, com cabeceira elevada a 30° e monitorização neurológica, deixando para o neurocirurgião a decisão sobre a tomografia de crânio e a alta.' },
       ],
     },
     // TODO(medical review): no Brazilian clinical guideline was confirmed for this case. The SBP page cited is family-facing

@@ -7,7 +7,7 @@
 3. **Doses** only when they are part of the lesson, written as the guideline range (e.g. "10–20 mL/kg"). Never a dose without a source.
 4. **Brazilian epidemiology:** arboviruses in the North/Northeast in the rainy season, respiratory viruses in the southern winter, and so on.
 5. **Real patients are messy.** Colloquial speech, vague symptoms, drugs called by nickname ("the little white one", "the blue inhaler"), self-medication, companions who don't know the history. Key information may require a follow-up question (`requires`).
-6. **Plausible wrong options:** real differentials and management choices that actually happen in practice. Mark `harmful: true` when a choice causes harm (e.g. NSAIDs in dengue, bicarbonate in DKA).
+6. **Plausible wrong options:** real differentials and management choices that actually happen in practice. Mark `harmful: true` when a choice causes harm (e.g. NSAIDs in dengue, bicarbonate in DKA). Wrong options may carry invented numbers (doses, intervals, durations) as long as they are clinically plausible; rule 3 applies to the correct option and the rest of the case.
 7. **Review:** every case must be reviewed by a physician of that specialty before the first final release (v1.0). MVP releases (v0.x) may ship cases that are still pending review. A case may reach `main` unreviewed only if it is listed as pending in `docs/REVIEW-STATUS.md`.
 
 ## Language
