@@ -37,6 +37,7 @@ try {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/01-menu.png` });
 
   const units = await page.$$eval('.unit', (els) => els.length);
+  let shuffledSeen = 0;
   for (let u = 0; u < units; u++) {
     await page.locator('.unit').nth(u).click();
     const specs = await page.locator('.spec').count();
@@ -69,12 +70,23 @@ try {
         if (u === 0 && s === 0 && SHOTS) await page.screenshot({ path: `${SHOTS}/02-atendimento.png` });
         // correct decision
         await page.getByRole('tab', { name: /Decisão/ }).click();
+        // pick the correct options by id, never by position: the options are shuffled
         const correct = await page.evaluate(() => {
-          const c = window.__plantao.shift.current.c;
-          return { dx: c.diagnosis.options.findIndex((o) => o.id === c.diagnosis.correct), cd: c.conduct.options.findIndex((o) => o.id === c.conduct.correct) };
+          const e = window.__plantao.shift.current;
+          return { dx: e.c.diagnosis.correct, cd: e.c.conduct.correct, fileOrder: e.dxOptions.every((o, i) => o.id === e.c.diagnosis.options[i].id) && e.cdOptions.every((o, i) => o.id === e.c.conduct.options[i].id) };
         });
-        await page.locator('input[name=dx]').nth(correct.dx).check();
-        await page.locator('input[name=cd]').nth(correct.cd).check();
+        const rendered = await page.$$eval('input[name=dx]', (els) => els.map((el) => el.value));
+        const expected = await page.evaluate(() => window.__plantao.shift.current.dxOptions.map((o) => o.id));
+        if (rendered.join() !== expected.join()) throw new Error(`diagnosis options render out of the encounter's order: ${rendered} vs ${expected}`);
+        if (!correct.fileOrder) shuffledSeen++;
+        await page.locator(`input[name=dx][value="${correct.dx}"]`).check();
+        await page.locator(`input[name=cd][value="${correct.cd}"]`).check();
+        // switching tabs re-renders the chart; the order must stay the same
+        await page.getByRole('tab', { name: /Triagem/ }).click();
+        await page.getByRole('tab', { name: /Decisão/ }).click();
+        const again = await page.$$eval('input[name=dx]', (els) => els.map((el) => el.value));
+        if (again.join() !== rendered.join()) throw new Error('option order changed on re-render');
+        if (!(await page.locator(`input[name=dx][value="${correct.dx}"]`).isChecked())) throw new Error('diagnosis choice lost on re-render');
         await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
         await page.waitForSelector('.modal');
         if (u === 0 && s === 0 && guard < 3 && SHOTS) await page.screenshot({ path: `${SHOTS}/03-feedback.png` });
@@ -88,6 +100,8 @@ try {
       await page.locator('.unit').nth(u).click();
     }
   }
+  if (!shuffledSeen) throw new Error('answer options were never shuffled in any encounter');
+  console.log(`✔ options shuffled in ${shuffledSeen} encounters`);
   // PICU scene
   if (SHOTS) {
     await page.locator('.unit').last().click();
