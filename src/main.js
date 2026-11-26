@@ -1,7 +1,7 @@
 // Plantão — main controller (menu, shift, encounter, feedback). UI text is pt-BR by design.
 import { UNITS, SPECIALTIES, TRIAGE, EXAMS, EXAM_CATS, UNIT_TYPES, ACTION_COST } from './data/catalog.js';
 import { Shift } from './game/shift.js';
-import { load, save, reset, levelOf, applyCase, applyShift, BADGES } from './game/progress.js';
+import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS } from './game/progress.js';
 import { IsoScene } from './render/iso.js';
 import { sfx } from './audio/sfx.js';
 import { h, mount, toast, modal } from './ui/dom.js';
@@ -46,7 +46,7 @@ function renderMenu() {
       h('h3', {}, u.name),
       h('p', { class: 'small muted', style: { margin: '6px 0' } }, u.flavor),
       h('div', {}, u.specialties.map((s) => h('span', { class: 'chip', style: { marginRight: '4px' } }, SPECIALTIES[s].icon, ' ', SPECIALTIES[s].label))),
-      locked ? h('p', { class: 'small', style: { marginBottom: 0 } }, `🔒 Desbloqueia no nível ${u.unlockLevel} (${levelTitle(u.unlockLevel)})`) : null,
+      locked ? lockInfo(u.unlockLevel) : null,
     ));
   });
 
@@ -65,10 +65,11 @@ function renderMenu() {
       h('div', {},
         h('div', { style: { fontWeight: 800, fontSize: '18px' } }, `Nível ${lvl.number} · ${lvl.title}`),
         h('div', { class: 'small muted' }, `${state.xp} XP · ${state.shifts} plantões · ${state.badges.length}/${Object.keys(BADGES).length} conquistas`),
-        h('div', { class: 'xpbar' }, h('i', { style: { width: `${Math.round(lvl.progress * 100)}%` } })),
+        xpBar(lvl.progress),
         lvl.nextXp ? h('div', { class: 'small muted', style: { marginTop: '4px' } }, `Próximo nível em ${lvl.nextXp - state.xp} XP`) : null,
       ),
       h('div', { class: 'menu-actions' },
+        h('button', { class: 'btn', onclick: showCareer }, '🎓 Carreira'),
         h('button', { class: 'btn', onclick: showBadges }, '🏅 Conquistas'),
         h('button', { class: 'btn', onclick: showHelp }, '❓ Como jogar'),
         h('button', { class: 'btn ghost', onclick: toggleMute, title: 'Som' }, state.settings.muted ? '🔇' : '🔊'),
@@ -90,7 +91,39 @@ function renderMenu() {
   ));
 }
 
-const levelTitle = (n) => ['Interno(a)', 'Residente R1', 'Residente R2', 'Residente R3', 'Plantonista'][n - 1] || '';
+/** XP bar; `fraction` in 0..1. */
+function xpBar(fraction, label = 'Progresso de XP') {
+  const pct = Math.round(Math.min(1, Math.max(0, fraction)) * 100);
+  return h('div', { class: 'xpbar', role: 'progressbar', 'aria-label': label, 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': pct },
+    h('i', { style: { width: `${pct}%` } }));
+}
+
+/** Requirement and progress on a locked unit card. */
+function lockInfo(level) {
+  const target = LEVELS[level - 1].xp;
+  return h('div', { class: 'lock-info' },
+    h('p', { class: 'small', style: { margin: 0 } }, `🔒 Nível ${level} · ${levelTitle(level)}`),
+    xpBar(target ? state.xp / target : 1, `Progresso até o nível ${level}`),
+    h('p', { class: 'small muted', style: { margin: '4px 0 0' } }, `faltam ${xpToLevel(state.xp, level)} XP`));
+}
+
+function showCareer() {
+  modal(h('div', {},
+    h('h2', { style: { marginBottom: '12px' } }, '🎓 Carreira'),
+    h('ol', { class: 'career' }, careerTrack(state.xp).map((l) => h('li', { class: `career-level ${l.state}` },
+      h('div', { class: 'career-head' },
+        h('b', {}, `${l.state === 'reached' ? '✅' : l.state === 'current' ? '📍' : '🔒'} Nível ${l.number} · ${l.title}`),
+        h('span', { class: 'small muted' }, `${l.xp} XP`)),
+      l.state === 'current'
+        ? h('div', {}, xpBar(l.progress, `Progresso no nível ${l.number}`),
+          h('p', { class: 'small muted career-status' }, l.isMax ? 'Nível máximo' : `Você está aqui · faltam ${xpToLevel(state.xp, l.number + 1)} XP para o próximo`))
+        : h('p', { class: 'small muted career-status' }, l.state === 'reached' ? 'Alcançado' : `faltam ${l.xpToGo} XP`),
+      h('p', { class: 'small career-unlocks' }, l.unlocks.length
+        ? `Desbloqueia: ${l.unlocks.map((u) => `${u.name} (${u.city}/${u.uf})`).join(', ')}`
+        : 'Nenhum desbloqueio por enquanto'),
+    ))),
+  ));
+}
 
 function toggleMute() {
   state.settings.muted = !state.settings.muted;

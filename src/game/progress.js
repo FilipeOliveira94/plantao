@@ -1,4 +1,5 @@
 // Persistent progression: XP, levels, achievements, unlocks.
+import { UNITS } from '../data/catalog.js';
 
 const KEY = 'plantao.save.v1';
 
@@ -57,6 +58,25 @@ export function levelOf(xp) {
     progress: next ? (xp - cur.xp) / (next.xp - cur.xp) : 1,
     nextXp: next?.xp ?? null,
   };
+}
+
+/** Title of level n (1-based); the single source for level names. */
+export const levelTitle = (n) => LEVELS[n - 1]?.title ?? '';
+
+/** XP still needed to reach level n (0 when already there). */
+export const xpToLevel = (xp, n) => Math.max(0, (LEVELS[n - 1]?.xp ?? 0) - xp);
+
+/** Every level with its state for the career screen. At the top level the last one stays 'current'. */
+export function careerTrack(xp) {
+  const cur = levelOf(xp);
+  return LEVELS.map((l, i) => ({
+    number: i + 1, title: l.title, xp: l.xp,
+    state: i < cur.index ? 'reached' : i === cur.index ? 'current' : 'locked',
+    xpToGo: xpToLevel(xp, i + 1),
+    progress: i === cur.index ? cur.progress : null,
+    isMax: i === LEVELS.length - 1,
+    unlocks: UNITS.filter((u) => u.unlockLevel === i + 1),
+  }));
 }
 
 /** Applies an encounter result. Returns newly earned badges. */

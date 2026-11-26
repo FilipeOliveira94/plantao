@@ -48,6 +48,15 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .unit .body { padding: 10px 12px 12px; }
 .unit .body h3 { font-size: 16px; }
 .unit.locked { filter: grayscale(.9); opacity: .6; cursor: not-allowed; }
+.unit.locked .lock-info { margin-top: 8px; color: var(--ink); }
+.unit.locked .lock-info .xpbar { height: 8px; margin: 4px 0 0; }
+.career { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.career-level { border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.career-level.current { border-color: var(--ink); background: #fff7e0; }
+.career-level.reached { opacity: .75; }
+.career-level.locked { color: var(--muted); }
+.career-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.career-status, .career-unlocks { margin: 4px 0 0; }
 .specs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
 .spec { border: 2px solid var(--ink); background: var(--card); border-radius: 12px; padding: 10px 14px; font-weight: 700; box-shadow: 0 3px 0 var(--ink); }
 .spec.selected { background: var(--ink); color: #fff; }

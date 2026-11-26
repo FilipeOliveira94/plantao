@@ -1,6 +1,7 @@
 // Validates clinical case integrity. Usage: node tools/validate-cases.mjs
 import { CASES } from '../src/data/cases/index.js';
 import { EXAMS, EXAM_CATS, UNIT_TYPES, UNITS, SPECIALTIES, TRIAGE } from '../src/data/catalog.js';
+import { LEVELS } from '../src/game/progress.js';
 
 const errors = [];
 const warn = [];
@@ -80,6 +81,11 @@ for (const c of CASES) {
     balanced.total++;
   }
   if (c.conduct?.options?.find((o) => o.id === c.conduct.correct)?.harmful) err(id, 'correct conduct is marked harmful');
+}
+
+// every unit unlocks at a level the career screen shows
+for (const u of UNITS) {
+  if (!Number.isInteger(u.unlockLevel) || u.unlockLevel < 1 || u.unlockLevel > LEVELS.length) err(u.id, `unlockLevel ${u.unlockLevel} is outside 1..${LEVELS.length}`);
 }
 
 // coverage: every unit × specialty combination needs cases
