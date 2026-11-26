@@ -435,7 +435,8 @@ function reportUrl(c, chosen) {
   const body = [
     `**Caso:** \`${c.id}\` (${SPECIALTIES[c.specialty].label})`,
     `**Unidade:** ${shift.unit.name} (\`${shift.unit.type}\`)`,
-    `**Minha resposta:** diagnóstico \`${chosen.dx}\`, conduta \`${chosen.cd}\``,
+    `**Meu diagnóstico:** \`${chosen.dx}\` (${c.diagnosis.options.find((o) => o.id === chosen.dx)?.label})`,
+    `**Minha conduta:** \`${chosen.cd}\` (${c.conduct.options.find((o) => o.id === chosen.cd)?.label})`,
     '',
     '**O que está errado, confuso ou desatualizado?**',
     '',
@@ -460,7 +461,7 @@ function showFeedback(enc, r, earned, leveled) {
     c.timeCritical ? h('p', { class: 'small' }, '⏱ ', c.timeCritical.reason) : null,
     h('div', { class: 'teach' }, c.teaching),
     h('details', {}, h('summary', { class: 'small' }, 'Referências'), h('ol', { class: 'refs' }, c.references.map((ref) => h('li', {}, ref)))),
-    h('p', { class: 'small report-case' }, h('a', { href: reportUrl(c, r.chosen), target: '_blank', rel: 'noopener noreferrer' }, '⚠️ Relatar um problema neste caso'), ' (abre uma issue no GitHub; precisa de conta)'),
+    h('p', { class: 'small report-case' }, h('a', { href: reportUrl(c, r.chosen), target: '_blank', rel: 'noopener noreferrer' }, '⚠️ Relatar um problema neste caso'), ' (abre uma issue pública no GitHub; precisa de conta)'),
     earned.length ? h('div', { style: { marginTop: '12px' } }, h('h3', { style: { marginBottom: '8px' } }, 'Nova conquista!'), h('div', { class: 'badges' }, earned.map((id) => h('div', { class: 'badge new' }, h('span', { class: 'ic' }, BADGES[id].icon), h('div', {}, h('b', {}, BADGES[id].name), h('div', { class: 'small muted' }, BADGES[id].desc)))))) : null,
     leveled ? h('p', { style: { fontWeight: 800, marginTop: '12px' } }, `🎉 Subiu para o nível ${levelOf(state.xp).number}: ${levelOf(state.xp).title}!`) : null,
     h('div', { class: 'menu-actions', style: { marginTop: '16px' } }, h('button', { class: 'btn primary', onclick: () => m.close() }, shift.done ? 'Encerrar plantão' : 'Próximo paciente')),

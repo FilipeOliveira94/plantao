@@ -12,7 +12,7 @@ Every case must be reviewed by a physician of its specialty before the first fin
 
 ## Player reports
 
-The feedback screen after each case has a "Relatar um problema neste caso" link. It opens a new GitHub issue titled `[Caso] <case id>: problema relatado`, prefilled with the case id, the unit and the player's answer. Check open `[Caso]` issues when reviewing a case.
+The feedback screen after each case has a "Relatar um problema neste caso" link. It opens a new GitHub issue titled `[Caso] <case id>: problema relatado`, prefilled with the case id, the unit and the player's answer (option ids and labels). The note next to the link says the issue is public. Check open `[Caso]` issues when reviewing a case.
 
 ## Release gate
 
