@@ -30,6 +30,7 @@ Other things found while reading: `AGENTS.md` said 14 cases, but there are 23 (8
 | Where issues live | This file and GitHub issues, one per row. | all |
 | Cases per specialty | Twenty, not ten. | P6-01 |
 | Endless random cases | A long-term issue, not scheduled: a major change for an established product. | P7-05 |
+| Career stats | After the MVP: not needed in v0.x. | P3-13 |
 
 ## User feedback, 2026-11-26
 
@@ -48,6 +49,8 @@ Each note was checked against the open issues. Where an issue already covered it
 | Endless random cases | New: P7-05, long-term. |
 | Distractors: 1 or 2 clearly wrong, 2 plausible, 1 right | New: P1-10, on top of P1-03's length and detail work. |
 | Difficulty follows the level title; an intern does not run the ICU alone | Widened P3-07: difficulty comes from the title, not a separate mode. |
+| The career screen should show stats: average time per shift, success rate, progress, usage and completion | New: P3-13, after the MVP. |
+| The leaderboard belongs on the career screen | Widened P5-05: the ranking shows on the career screen. |
 
 ## P0: Foundations
 
@@ -104,6 +107,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P3-10](https://github.com/FilipeOliveira94/plantao/issues/63) | Spaced review of missed cases | Cases finished below 3 stars come back for review after 1, 3 and 7 days, in a "Para revisar hoje" list on the menu, with a new option order. Each case gets a mastery state (new, learning, mastered) that the logbook shows. Uses existing cases only. | Lo/- | Md/- | P3-05 |
 | [P3-11](https://github.com/FilipeOliveira94/plantao/issues/64) | Progress after the top level | Level 8 is reached at 9,000 XP and nothing follows; after P3-12 the top title is Professor(a). After the top level, XP keeps counting toward something visible: per-specialty mastery or repeatable ranks, shown on the career screen. | Lo/- | Sm/- | P3-02, P3-03, P3-12 |
 | [P3-12](https://github.com/FilipeOliveira94/plantao/issues/74) | Career ladder from Acadêmico to Professor | Ten titles with wider XP gaps: Acadêmico(a), Interno(a), Residente R1 to R5, Assistente, Preceptor(a), Professor(a). Saves keep their XP and the level is recomputed. Unlocks and post-top progress move to the new ladder. | Lo/- | Sm/- | P3-02 |
+| [P3-13](https://github.com/FilipeOliveira94/plantao/issues/82) | Career stats (after the MVP) | Not needed in the MVP (v0.x). The career screen gains stats from the local save: average shift length (real time and game clock), shifts started and finished, success rate (correct diagnosis, correct management, share of 3-star cases), unnecessary tests per case, cases seen out of the total per specialty, days played and total time played, broken down per specialty and unit. The save keeps a short per-shift history for this. | Lo/- | Md/- | P3-02, P3-01 |
 
 ## P4: A sense of place
 
@@ -124,7 +128,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P5-02](https://github.com/FilipeOliveira94/plantao/issues/43) | Hosting and deploy | The game on Cloudflare Pages with preview builds per PR and a production release that only Filipe triggers. | Hi/- | Md/- | P5-01 |
 | [P5-03](https://github.com/FilipeOliveira94/plantao/issues/44) | Player-wide answer stats | Anonymous counts per case and option. After answering, feedback shows the share of players who chose each diagnosis and plan, hidden below a minimum sample. | Hi/- | Md/- | P5-01, P1-01 |
 | [P5-04](https://github.com/FilipeOliveira94/plantao/issues/45) | Accounts and cloud save | Sign in, sync the save between devices, merge with the local save. | Hi/- | Lg/- | P5-01, P3-01 |
-| [P5-05](https://github.com/FilipeOliveira94/plantao/issues/46) | Daily leaderboard | Ranking for the daily shift, with a display name the player chooses. | Hi/- | Md/- | P5-04, P3-04 |
+| [P5-05](https://github.com/FilipeOliveira94/plantao/issues/46) | Daily leaderboard | Ranking for the daily shift, with a display name the player chooses. The ranking shows on the career screen, next to the player's own stats (P3-13). | Hi/- | Md/- | P5-04, P3-04 |
 
 ## P6: Content and depth
 
@@ -152,7 +156,7 @@ Each note was checked against the open issues. Where an issue already covered it
 1. Quick wins that fix what the playtest noticed first: P1-01, P1-02, P2-05, P2-06, P3-02, P0-01, P0-02, P4-06.
 2. Make time matter: P1-04, P1-05, P1-06, then P2-02, P2-03 and P2-12 to show it.
 3. Make the screen lead the player: P2-01, P2-07, P2-04, then P2-08.
-4. Keep the player: P3-12, P3-01, P3-04, P3-09, P3-03, P3-05, P3-10, P3-11.
+4. Keep the player: P3-12, P3-01, P3-04, P3-09, P3-03, P3-05, P3-10, P3-11. P3-13 comes after the MVP.
 5. Content fairness, in parallel as review capacity allows: P1-03, P1-10, P3-06, P6-01.
 6. Place and polish: P4, P2-09 to P2-11.
 7. Online: P5, starting with the ADR (P5-01).
