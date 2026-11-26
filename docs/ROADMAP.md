@@ -117,7 +117,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P4-02](https://github.com/FilipeOliveira94/plantao/issues/38) | Unit cards with the place | Each menu card shows its city: landmark, landscape, building at the right scale. | Lo/- | Sm/- | P4-01, P4-06 |
 | [P4-03](https://github.com/FilipeOliveira94/plantao/issues/39) | Scene backdrop per unit | The room shows where it is: view through the window, weather and light (rain in Belém, cold light in Curitiba), furniture and wear matching the unit type. | Lo/- | Md/- | P4-01 |
 | [P4-04](https://github.com/FilipeOliveira94/plantao/issues/40) | Small-town units | Add units outside state capitals (a rural health post, a small-town hospital) with the resources they would really have. | Med/- | Sm/- | P4-03 |
-| [P4-05](https://github.com/FilipeOliveira94/plantao/issues/41) | Ambient sound per unit | Rain, fans, PICU monitors, waiting-room noise, with a volume control. | Lo/Lo | Sm/Sm | none |
+| [P4-05](https://github.com/FilipeOliveira94/plantao/issues/41) | Background music per unit | An original chiptune track per unit, synthesized with WebAudio, with rainy versions (the music plus rain) and a volume control. Replaced the first scope (rain, fans, PICU monitors, waiting-room noise) at Filipe's request. | Lo/Lo | Sm/Sm | none |
 | [P4-06](https://github.com/FilipeOliveira94/plantao/issues/75) | Fictional unit names | Units keep their real city and state but get invented names; today three use real neighborhoods and may match real services. The rule goes in the docs so new units follow it. | Lo/- | Sm/- | none |
 
 ## P5: Online features (need the backend decision)
