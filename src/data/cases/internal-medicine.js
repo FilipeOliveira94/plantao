@@ -570,7 +570,7 @@ export default [
       options: [
         { id: 'lepto_grave', label: 'Leptospirose com sinais de alerta (comprometimento renal e pulmonar)' },
         { id: 'lepto_precoce', label: 'Leptospirose em fase precoce (septicêmica), sem sinais de alerta' },
-        { id: 'dengue_c', label: 'Dengue com sinais de alarme (Grupo C), na fase crítica da defervescência' },
+        { id: 'dengue_c', label: 'Dengue com sinais de alarme (Grupo C), com dor abdominal e hepatomegalia' },
         { id: 'pac', label: 'Pneumonia adquirida na comunidade com sepse de foco pulmonar' },
         { id: 'hepatite', label: 'Hepatite viral aguda (forma ictérica, vírus A ou B)' },
         { id: 'malaria', label: 'Malária por Plasmodium vivax (forma não complicada)' },
