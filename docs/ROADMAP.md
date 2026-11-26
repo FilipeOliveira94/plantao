@@ -17,7 +17,7 @@ Ratings follow `~/.agents/claude/workflow.md`: each cell is `expected/seen`. Siz
 | Tests are hard to find | Three groups only (bedside, lab, imaging), with up to 14 lab tests in one flat list. |
 | The left side is empty | The scene takes half the screen but is only decoration: nothing in it is clickable, and the single speech bubble sits at the bottom of the canvas. |
 
-Other things found while reading: `AGENTS.md` says 14 cases, but there are 23 (8 internal medicine, 8 pediatrics, 7 PICU).
+Other things found while reading: `AGENTS.md` said 14 cases, but there are 23 (8 internal medicine, 8 pediatrics, 7 PICU). Fixed in #7.
 
 ## Decisions (Filipe, 2026-11-26)
 
@@ -33,7 +33,7 @@ Other things found while reading: `AGENTS.md` says 14 cases, but there are 23 (8
 | ID | Issue | Scope | Expected/Seen Risk | Expected/Seen Size | Depends on |
 | --- | --- | --- | --- | --- | --- |
 | [P0-01](https://github.com/FilipeOliveira94/plantao/issues/8) | CI on every PR | GitHub Actions runs `npm run validate` and `npm run test:e2e`. | Med/- | Md/- | none |
-| [P0-02](https://github.com/FilipeOliveira94/plantao/issues/9) | Sync `AGENTS.md` with reality | Fix the case count, point the roadmap section to this file. | Lo/- | Sm/- | none |
+| [P0-02](https://github.com/FilipeOliveira94/plantao/issues/9) | Sync `AGENTS.md` with reality | Fix the case count, point the roadmap section to this file. | Lo/Lo | Sm/Sm | none |
 
 ## P1: A fair core loop with consequences
 

@@ -55,7 +55,8 @@ tools/                  # case validator and E2E test
 docs/MEDICAL-CONTENT.md # schema and rules for writing cases
 docs/REVIEW-STATUS.md   # physician review status of each case
 docs/REFERENCES.md      # references used by each case (generated; linked from the game menu)
-AGENTS.md               # guide for coding agents, plus roadmap
+docs/ROADMAP.md         # issue backlog with ratings and suggested order
+AGENTS.md               # guide for coding agents
 ```
 
 ## Disclaimer
