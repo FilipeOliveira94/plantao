@@ -37,6 +37,7 @@ try {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/01-menu.png` });
 
   const units = await page.$$eval('.unit', (els) => els.length);
+  let menuChecked = false;
   for (let u = 0; u < units; u++) {
     await page.locator('.unit').nth(u).click();
     const specs = await page.locator('.spec').count();
@@ -67,6 +68,18 @@ try {
         const p = page.locator('.pane .opt').first();
         if (await p.count()) await p.click();
         if (u === 0 && s === 0 && SHOTS) await page.screenshot({ path: `${SHOTS}/02-atendimento.png` });
+        if (!menuChecked) {
+          menuChecked = true;
+          // test menu: groups start collapsed, search is accent-insensitive and opens the matching group
+          await page.getByRole('tab', { name: /Exames/ }).click();
+          if (await page.locator('.test-cat[open]').count()) throw new Error('test groups should start collapsed');
+          await page.locator('.test-search').fill('GLICEMIA');
+          const hits = await page.locator('.test-cat[open] .opt').allTextContents();
+          if (hits.length !== 1 || !/Glicemia capilar/.test(hits[0])) throw new Error(`test search failed: ${hits}`);
+          await page.locator('.test-search').fill('bioquimica');
+          if (!(await page.locator('.test-cat[open] summary', { hasText: 'Bioquímica' }).count())) throw new Error('category search did not open Bioquímica');
+          await page.locator('.test-search').fill('');
+        }
         // correct decision
         await page.getByRole('tab', { name: /Decisão/ }).click();
         const correct = await page.evaluate(() => {
@@ -88,6 +101,7 @@ try {
       await page.locator('.unit').nth(u).click();
     }
   }
+  if (!menuChecked) throw new Error('test menu was never checked');
   // PICU scene
   if (SHOTS) {
     await page.locator('.unit').last().click();
