@@ -195,8 +195,9 @@ function showImport() {
   fileIn.addEventListener('change', async () => {
     const f = fileIn.files?.[0];
     if (!f) return;
-    if (f.size > MAX_IMPORT_BYTES) { err.textContent = 'Arquivo grande demais para um progresso do Plantão.'; return; }
+    if (f.size > MAX_IMPORT_BYTES) { err.textContent = 'Arquivo grande demais para um progresso do Plantão.'; fileIn.value = ''; return; }
     try { check(await f.text()); } catch { err.textContent = 'Não foi possível ler o arquivo.'; }
+    fileIn.value = ''; // the same file can be picked again
   });
 }
 
@@ -213,7 +214,8 @@ function confirmImport(next) {
     h('p', { class: 'small muted' }, 'O progresso atual deste navegador será apagado.'),
     h('div', { class: 'menu-actions' },
       h('button', { class: 'btn warn', onclick: () => {
-        state = next; save(state); sfx.setMuted(state.settings.muted); m.close(); renderMenu(); toast('Progresso importado.');
+        state = next; sfx.setMuted(state.settings.muted); m.close(); renderMenu();
+        toast(save(state) ? 'Progresso importado.' : 'Progresso importado, mas este navegador não permitiu salvar: ele some ao recarregar a página.');
       } }, 'Substituir'),
       h('button', { class: 'btn', onclick: () => m.close() }, 'Cancelar')),
   ));

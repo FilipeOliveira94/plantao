@@ -110,7 +110,15 @@ try {
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Baixar plantao-progresso-/ }).click()]);
   if (!/^plantao-progresso-\d{4}-\d{2}-\d{2}\.json$/.test(dl.suggestedFilename())) throw new Error(`export file name: ${dl.suggestedFilename()}`);
   await page.getByRole('button', { name: 'Fechar' }).click();
-  console.log('✔ save: notice, migration, export (file, code), import, bad code');
+  // import the downloaded file over a reset progress
+  const file = await dl.path();
+  await page.getByRole('button', { name: 'Zerar progresso' }).click();
+  await page.getByRole('button', { name: 'Zerar', exact: true }).click();
+  await page.getByRole('button', { name: /Importar progresso/ }).click();
+  await page.locator('.modal input[type=file]').setInputFiles(file);
+  await page.getByRole('button', { name: 'Substituir' }).click();
+  if (await page.evaluate(() => window.__plantao.state.xp) !== 2000) throw new Error('file import did not restore XP');
+  console.log('✔ save: notice, migration, export and import (file, code), bad code');
 
   const units = await page.$$eval('.unit', (els) => els.length);
   let reportChecked = false;

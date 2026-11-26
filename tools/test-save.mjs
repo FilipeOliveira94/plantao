@@ -6,7 +6,7 @@ import { fromStored, exportSave, encodeCode, parseImport, SAVE_VERSION, MAX_IMPO
 
 const V1 = {
   xp: 1234, shifts: 7, cases: { 'im-dengue-warning-signs': 3, 'im-stemi': 2 }, badges: ['first_shift', 'sherlock'],
-  states: ['SP', 'BA'], counters: { cleanStreak: 4 }, settings: { muted: true }, doctorName: 'Dra. Conceição',
+  states: ['PE', 'PA'], counters: { cleanStreak: 4 }, settings: { muted: true }, doctorName: 'Dra. Conceição',
 };
 const exported = (over = {}) => JSON.stringify({ ...JSON.parse(exportSave(fromStored(JSON.stringify(V1)))), ...over });
 
@@ -27,6 +27,12 @@ test('loading is lenient: one bad field falls back, the rest is kept', () => {
   assert.equal(s.settings.muted, false);
   assert.deepEqual(s.badges, ['sherlock']);
   assert.deepEqual(s.cases, { 'im-dengue-warning-signs': 1 });
+});
+
+test('loading keeps the valid elements of a list with one bad element', () => {
+  const s = fromStored(JSON.stringify({ ...V1, badges: ['sherlock', 7], states: ['PE', 'xx', 'ZZ'] }));
+  assert.deepEqual(s.badges, ['sherlock']);
+  assert.deepEqual(s.states, ['PE']);
 });
 
 test('a stored save from a newer version keeps the fields it can read', () => {
@@ -83,6 +89,7 @@ const rejects = {
   'bad case key': exported({ cases: { 'IM STEMI': 1 } }),
   'badges as string': exported({ badges: 'sherlock' }),
   'bad UF': exported({ states: ['São Paulo'] }),
+  'badge not a string': exported({ badges: ['sherlock', 1] }),
   'muted as string': exported({ settings: { muted: 'no' } }),
   'long name': exported({ doctorName: 'x'.repeat(41) }),
   'name as object': exported({ doctorName: { a: 1 } }),
@@ -94,6 +101,12 @@ for (const [name, input] of Object.entries(rejects)) {
     assert.match(r.error, /\S/);
   });
 }
+
+test('import drops well-formed states that have no unit', () => {
+  const r = parseImport(exported({ states: ['PE', 'AA', 'BB'] }));
+  assert.ok(r.ok);
+  assert.deepEqual(r.state.states, ['PE']);
+});
 
 test('future version message asks to update the game', () => {
   assert.match(parseImport(exported({ version: SAVE_VERSION + 1 })).error, /versão mais nova/);

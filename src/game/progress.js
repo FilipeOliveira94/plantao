@@ -16,6 +16,7 @@ const MAX_NAME = 40;
 const CASE_ID = /^[a-z0-9-]{1,64}$/;
 const UF = /^[A-Z]{2}$/;
 const KNOWN_CASES = new Set(CASES.map((c) => c.id));
+const KNOWN_UFS = new Set(UNITS.map((u) => u.uf));
 
 export const LEVELS = [
   { xp: 0, title: 'Interno(a)' },
@@ -80,13 +81,16 @@ function normalize(raw, strict) {
     } else bad('cases');
   }
   if (has('badges')) {
-    if (Array.isArray(raw.badges) && raw.badges.every((b) => typeof b === 'string')) {
-      out.badges = [...new Set(raw.badges.filter((b) => Object.hasOwn(BADGES, b)))];
+    if (Array.isArray(raw.badges)) {
+      if (!raw.badges.every((b) => typeof b === 'string')) bad('badges');
+      out.badges = [...new Set(raw.badges.filter((b) => typeof b === 'string' && Object.hasOwn(BADGES, b)))];
     } else bad('badges');
   }
   if (has('states')) {
-    if (Array.isArray(raw.states) && raw.states.length <= MAX_STATES * 4 && raw.states.every((u) => typeof u === 'string' && UF.test(u))) {
-      out.states = [...new Set(raw.states)].slice(0, MAX_STATES);
+    if (Array.isArray(raw.states) && raw.states.length <= MAX_STATES * 4) {
+      if (!raw.states.every((u) => typeof u === 'string' && UF.test(u))) bad('states');
+      // only states that have a unit count (the around_brazil badge counts them)
+      out.states = [...new Set(raw.states.filter((u) => KNOWN_UFS.has(u)))].slice(0, MAX_STATES);
     } else bad('states');
   }
   if (has('counters')) {
@@ -132,8 +136,9 @@ export function load() {
   try { return fromStored(localStorage.getItem(KEY)); } catch { return fresh(); }
 }
 
+/** Writes the save. Returns false when storage is unavailable (private mode, quota). */
 export function save(state) {
-  try { localStorage.setItem(KEY, JSON.stringify({ ...state, version: SAVE_VERSION })); } catch { /* storage unavailable */ }
+  try { localStorage.setItem(KEY, JSON.stringify({ ...state, version: SAVE_VERSION })); return true; } catch { return false; }
 }
 
 /** The export file: the current save marked with the app name. */
