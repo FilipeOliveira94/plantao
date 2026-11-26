@@ -46,6 +46,36 @@ try {
   const refs = page.locator('.ai-notice a');
   if (!/docs\/REFERENCES\.md$/.test(await refs.getAttribute('href'))) throw new Error('menu notice does not link to docs/REFERENCES.md');
   if (await refs.getAttribute('target') !== '_blank' || !/noopener/.test(await refs.getAttribute('rel') || '')) throw new Error('references link must open in a new tab with rel=noopener');
+  // career screen and locked unit cards, at three points of the track
+  const career = async (xp) => {
+    await page.evaluate((v) => { localStorage.setItem('plantao.save.v1', JSON.stringify({ xp: v })); }, xp);
+    await page.reload();
+    await page.getByRole('button', { name: /Carreira/ }).click();
+    const rows = page.locator('.career-level');
+    const out = { count: await rows.count(), rows: [] };
+    for (let i = 0; i < out.count; i++) {
+      const r = rows.nth(i);
+      out.rows.push({ cls: await r.getAttribute('class'), text: await r.innerText(), bar: await r.getByRole('progressbar').count() });
+    }
+    await page.locator('.modal-back').click({ position: { x: 5, y: 5 } });
+    return out;
+  };
+  const state = (row) => row.cls.split(' ').find((c) => ['reached', 'current', 'locked'].includes(c));
+  let c = await career(0);
+  if (c.count !== 8) throw new Error(`career screen shows ${c.count} levels, expected 8`);
+  if (state(c.rows[0]) !== 'current' || !c.rows[0].bar) throw new Error('at 0 XP level 1 must be current with a progress bar');
+  if (state(c.rows[1]) !== 'locked' || !/faltam 300 XP/.test(c.rows[1].text)) throw new Error(`level 2 at 0 XP: ${c.rows[1].text}`);
+  if (!/Hospital Geral Santa Efigênia/.test(c.rows[1].text) || !/Hospital Infantil Pinheirinho/.test(c.rows[1].text)) throw new Error('level 2 must list the two units it unlocks');
+  if (!/Nenhum desbloqueio por enquanto/.test(c.rows[3].text)) throw new Error('level 4 must say it unlocks nothing yet');
+  const lockedCard = page.locator('.unit.locked').first();
+  const lockedText = await lockedCard.innerText();
+  if (!/Nível 2 · Residente R1/.test(lockedText) || !/faltam 300 XP/.test(lockedText) || !(await lockedCard.getByRole('progressbar').count())) throw new Error(`locked card lacks requirement or progress: ${lockedText}`);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/00-locked-cards.png` });
+  c = await career(900);
+  if (c.rows.slice(0, 2).some((r) => state(r) !== 'reached') || state(c.rows[2]) !== 'current' || !c.rows[2].bar) throw new Error('at 900 XP levels 1-2 must be reached and level 3 current');
+  if (!/faltam 600 XP/.test(c.rows[3].text)) throw new Error(`level 4 at 900 XP: ${c.rows[3].text}`);
+  c = await career(9000);
+  if (c.rows.slice(0, 7).some((r) => state(r) !== 'reached') || state(c.rows[7]) !== 'current' || !/Nível máximo/.test(c.rows[7].text)) throw new Error('at 9000 XP levels 1-7 must be reached and level 8 current at max');
   // unlock every unit for the test
   await page.evaluate(() => { localStorage.setItem('plantao.save.v1', JSON.stringify({ xp: 2000 })); });
   await page.reload();
