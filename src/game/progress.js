@@ -99,8 +99,11 @@ function normalize(raw, strict) {
     } else bad('counters');
   }
   if (has('settings')) {
-    if (isObj(raw.settings) && (!Object.hasOwn(raw.settings, 'muted') || typeof raw.settings.muted === 'boolean')) {
-      out.settings.muted = raw.settings.muted ?? false;
+    const st = raw.settings;
+    const volOk = (v) => typeof v === 'number' && v >= 0 && v <= 1;
+    if (isObj(st) && (!Object.hasOwn(st, 'muted') || typeof st.muted === 'boolean') && (!Object.hasOwn(st, 'musicVolume') || volOk(st.musicVolume))) {
+      out.settings.muted = st.muted ?? false;
+      if (Object.hasOwn(st, 'musicVolume')) out.settings.musicVolume = st.musicVolume;
     } else bad('settings');
   }
   if (has('doctorName')) {

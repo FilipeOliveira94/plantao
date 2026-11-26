@@ -6,7 +6,7 @@ import { fromStored, exportSave, encodeCode, parseImport, SAVE_VERSION, MAX_IMPO
 
 const V1 = {
   xp: 1234, shifts: 7, cases: { 'im-dengue-warning-signs': 3, 'im-stemi': 2 }, badges: ['first_shift', 'sherlock'],
-  states: ['PE', 'PA'], counters: { cleanStreak: 4 }, settings: { muted: true }, doctorName: 'Dra. Conceição',
+  states: ['PE', 'PA'], counters: { cleanStreak: 4 }, settings: { muted: true, musicVolume: 0.25 }, doctorName: 'Dra. Conceição',
 };
 const exported = (over = {}) => JSON.stringify({ ...JSON.parse(exportSave(fromStored(JSON.stringify(V1)))), ...over });
 
@@ -91,6 +91,7 @@ const rejects = {
   'bad UF': exported({ states: ['São Paulo'] }),
   'badge not a string': exported({ badges: ['sherlock', 1] }),
   'muted as string': exported({ settings: { muted: 'no' } }),
+  'music volume out of range': exported({ settings: { muted: false, musicVolume: 2 } }),
   'long name': exported({ doctorName: 'x'.repeat(41) }),
   'name as object': exported({ doctorName: { a: 1 } }),
 };
