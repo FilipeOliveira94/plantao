@@ -185,7 +185,8 @@ try {
   await page.waitForSelector('text=Fim de plantão', { timeout: 3000 });
   const listed = await page.locator('.modal li.unseen').count();
   if (listed !== endCase.unseen) throw new Error(`summary lists ${listed} unseen patients, expected ${endCase.unseen}`);
-  if (!(await page.getByText(`Pacientes sem atendimento (${endCase.unseen})`).count())) throw new Error('summary has no unseen-patient penalty line');
+  const penaltyLine = await page.locator('.modal li', { hasText: 'Pacientes sem atendimento' }).textContent();
+  if (!penaltyLine.includes(`(${endCase.unseen})`) || !penaltyLine.includes(`-${30 * endCase.unseen}`)) throw new Error(`unexpected penalty line: ${penaltyLine}`);
   if (await page.evaluate(() => window.__plantao.state.xp) < xpBefore) throw new Error('XP went down at the end of the shift');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/06-fim-com-pendentes.png` });
   console.log(`✔ shift end: ${endCase.unseen} unseen patients listed`);
