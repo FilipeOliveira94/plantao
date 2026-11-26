@@ -116,7 +116,7 @@ function showCareer() {
         h('span', { class: 'small muted' }, `${l.xp} XP`)),
       l.state === 'current'
         ? h('div', {}, xpBar(l.progress, `Progresso no nível ${l.number}`),
-          h('p', { class: 'small muted career-status' }, l.isMax ? 'Nível máximo' : `Você está aqui · faltam ${xpToLevel(state.xp, l.number + 1)} XP para o próximo`))
+          h('p', { class: 'small muted career-status' }, l.isMax ? 'Nível máximo' : `Você está aqui · faltam ${l.xpToNext} XP para o próximo`))
         : h('p', { class: 'small muted career-status' }, l.state === 'reached' ? 'Alcançado' : `faltam ${l.xpToGo} XP`),
       h('p', { class: 'small career-unlocks' }, l.unlocks.length
         ? `Desbloqueia: ${l.unlocks.map((u) => `${u.name} (${u.city}/${u.uf})`).join(', ')}`

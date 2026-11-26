@@ -74,6 +74,7 @@ export function careerTrack(xp) {
     state: i < cur.index ? 'reached' : i === cur.index ? 'current' : 'locked',
     xpToGo: xpToLevel(xp, i + 1),
     progress: i === cur.index ? cur.progress : null,
+    xpToNext: i === cur.index && cur.nextXp != null ? cur.nextXp - xp : null,
     isMax: i === LEVELS.length - 1,
     unlocks: UNITS.filter((u) => u.unlockLevel === i + 1),
   }));
