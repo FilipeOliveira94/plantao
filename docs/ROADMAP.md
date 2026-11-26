@@ -16,6 +16,7 @@ Ratings follow `~/.agents/claude/workflow.md`: each cell is `expected/seen`. Siz
 | Unlocks are unclear | Levels 2 and 3 unlock units; levels 4 to 8 unlock nothing. A locked card says only "unlocks at level N". Level titles are duplicated in `src/main.js:82` and `src/game/progress.js`. |
 | Tests are hard to find | Three groups only (bedside, lab, imaging), with up to 14 lab tests in one flat list. |
 | The left side is empty | The scene takes half the screen but is only decoration: nothing in it is clickable, and the single speech bubble sits at the bottom of the canvas. |
+| Nothing brings the player back tomorrow | Raised by Filipe after planning P3-02. Levels only add up: once a unit is open there is no reason to return on a given day, and level 8 (9,000 XP) is the end. Of the planned work, only the daily shift (P3-04) and its streak work on a daily rhythm. P3-09 to P3-11 add daily goals, review of missed cases and progress past the top level. |
 
 Other things found while reading: `AGENTS.md` said 14 cases, but there are 23 (8 internal medicine, 8 pediatrics, 7 PICU). Fixed in #7.
 
@@ -77,6 +78,9 @@ Other things found while reading: `AGENTS.md` said 14 cases, but there are 23 (8
 | [P3-06](https://github.com/FilipeOliveira94/plantao/issues/34) | Why each wrong option is wrong | Each distractor carries a one-line rationale with a reference, shown in feedback for the option the player chose. | Hi/- | Md/- | P1-03 |
 | [P3-07](https://github.com/FilipeOliveira94/plantao/issues/35) | Difficulty modes | Intern mode shows hints and budgets; preceptor mode hides them and tightens the budgets. | Med/- | Md/- | P1-05 |
 | [P3-08](https://github.com/FilipeOliveira94/plantao/issues/36) | Report a problem with a case | A link in the feedback screen opens a prefilled GitHub issue with the case id. Feeds the physician review. | Lo/Lo | Sm/Sm | none |
+| [P3-09](https://github.com/FilipeOliveira94/plantao/issues/62) | Daily and weekly goals | Three small goals each day and one each week, drawn from a date seed so every player gets the same ones (for example "3 estrelas num caso pediátrico", "um plantão sem exame desnecessário", "atenda na UPA"). Each goal pays XP. The menu shows today's goals with progress and the time left. Works without a backend. | Lo/- | Md/- | P3-01 |
+| [P3-10](https://github.com/FilipeOliveira94/plantao/issues/63) | Spaced review of missed cases | Cases finished below 3 stars come back for review after 1, 3 and 7 days, in a "Para revisar hoje" list on the menu, with a new option order. Each case gets a mastery state (new, learning, mastered) that the logbook shows. Uses existing cases only. | Lo/- | Md/- | P3-05 |
+| [P3-11](https://github.com/FilipeOliveira94/plantao/issues/64) | Progress after the top level | Level 8 is reached at 9,000 XP and nothing follows. After it, XP keeps counting toward something visible: per-specialty mastery or repeatable ranks, shown on the career screen. | Lo/- | Sm/- | P3-02, P3-03 |
 
 ## P4: A sense of place
 
@@ -114,7 +118,7 @@ Other things found while reading: `AGENTS.md` said 14 cases, but there are 23 (8
 1. Quick wins that fix what the playtest noticed first: P1-01, P1-02, P2-05, P2-06, P3-02, P0-01, P0-02.
 2. Make time matter: P1-04, P1-05, P1-06, then P2-02 and P2-03 to show it.
 3. Make the screen lead the player: P2-01, P2-07, P2-04, then P2-08.
-4. Keep the player: P3-01, P3-04, P3-03, P3-05.
+4. Keep the player: P3-01, P3-04, P3-09, P3-03, P3-05, P3-10, P3-11.
 5. Content fairness, in parallel as review capacity allows: P1-03, P3-06, P6-01.
 6. Place and polish: P4, P2-09 to P2-11.
 7. Online: P5, starting with the ADR (P5-01).
