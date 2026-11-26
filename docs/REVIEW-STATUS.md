@@ -27,23 +27,23 @@ grep -rn "TODO(medical review)" src/data
 | `im-cap` | Internal medicine | `main` | pending | - |
 | `im-cystitis` | Internal medicine | `main` | pending | - |
 | `im-t2dm-follow-up` | Internal medicine | `main` | pending | - |
-| `im-hypertensive-pseudocrisis` | Internal medicine | PR #2 | pending | - |
-| `im-ischemic-stroke-window` | Internal medicine | PR #2 | pending | - |
-| `im-leptospirosis-warning-signs` | Internal medicine | PR #2 | pending | - |
+| `im-hypertensive-pseudocrisis` | Internal medicine | `main` | pending | - |
+| `im-ischemic-stroke-window` | Internal medicine | `main` | pending | - |
+| `im-leptospirosis-warning-signs` | Internal medicine | `main` | pending | - |
 | `peds-bronchiolitis` | Pediatrics | `main` | pending | - |
 | `peds-acute-otitis-media` | Pediatrics | `main` | pending | - |
 | `peds-gastroenteritis-plan-b` | Pediatrics | `main` | pending | - |
 | `peds-strep-pharyngitis` | Pediatrics | `main` | pending | - |
 | `peds-asthma` | Pediatrics | `main` | pending | - |
-| `peds-febrile-uti-infant` | Pediatrics | PR #3 | pending | - |
-| `peds-anaphylaxis` | Pediatrics | PR #3 | pending | - |
-| `peds-minor-head-trauma-pecarn` | Pediatrics | PR #3 | pending | - |
+| `peds-febrile-uti-infant` | Pediatrics | `main` | pending | - |
+| `peds-anaphylaxis` | Pediatrics | `main` | pending | - |
+| `peds-minor-head-trauma-pecarn` | Pediatrics | `main` | pending | - |
 | `picu-septic-shock` | PICU | `main` | pending | - |
 | `picu-dka` | PICU | `main` | pending | - |
 | `picu-severe-bronchiolitis` | PICU | `main` | pending | - |
 | `picu-status-epilepticus` | PICU | `main` | pending | - |
-| `picu-ductal-dependent-chd` | PICU | PR #4 | pending | - |
-| `picu-organophosphate-carbamate-poisoning` | PICU | PR #4 | pending | - |
-| `picu-severe-asthma` | PICU | PR #4 | pending | - |
+| `picu-ductal-dependent-chd` | PICU | `main` | pending | - |
+| `picu-organophosphate-carbamate-poisoning` | PICU | `main` | pending | - |
+| `picu-severe-asthma` | PICU | `main` | pending | - |
 
-The open questions for the reviewer of each new case are in the description of its PR.
+The open questions for the reviewer of the nine cases added in November 2026 are in the descriptions of PRs #2 (internal medicine), #3 (pediatrics) and #4 (PICU).
