@@ -11,7 +11,7 @@
 - **Language split:** player-facing strings in pt-BR; identifiers, comments, docs and commits in English.
 - **No runtime dependencies** for now: plain ES modules served statically. A move to a bundler or Three.js should happen in a dedicated PR, keeping `src/data` independent from the engine.
 - **Layering:** `data/` (pure content, no logic), `game/` (rules, no DOM), `render/` and `audio/` (presentation), `main.js` and `ui/` (screens).
-- **Restrictive license:** don't paste third-party code under incompatible licenses. External assets only with a license that allows use (CC0 preferred), recorded in `CREDITS.md`.
+- **Restrictive license:** don't paste third-party code under incompatible licenses. External assets only with a license that allows use (CC0 preferred), recorded in `CREDITS.md`. Style and license rules: `docs/ART-DIRECTION.md`.
 
 ## Commands
 
@@ -24,7 +24,7 @@ npm run test:e2e                 # Playwright: plays every shift
 
 ## Current state (v0.1, MVP)
 
-23 cases (8 internal medicine, 8 pediatrics, 7 PICU), 5 units, Manchester-ordered queue, tests that take time, random events, follow-up visit with counter-referral, handoff notes, XP/levels/achievements, isometric Canvas 2D scene, WebAudio sounds.
+23 cases (8 internal medicine, 8 pediatrics, 7 PICU), 5 units, Manchester-ordered queue, tests that take time, random events, follow-up visit with counter-referral, handoff notes, XP/levels/achievements, isometric Canvas 2D scene, WebAudio sounds and chiptune background music per unit.
 
 ## Roadmap
 

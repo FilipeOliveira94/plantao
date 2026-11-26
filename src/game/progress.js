@@ -1,6 +1,22 @@
 // Persistent progression: XP, levels, achievements, unlocks.
+// The save is versioned: load() migrates older saves, and an imported save is untrusted input.
+import { UNITS } from '../data/catalog.js';
+import { CASES } from '../data/cases/index.js';
 
+// The key keeps its historical name; the schema version lives in the save's `version` field.
 const KEY = 'plantao.save.v1';
+const APP = 'plantao';
+export const SAVE_VERSION = 2;
+export const MAX_IMPORT_BYTES = 64 * 1024;
+
+const MAX_COUNT = 10_000_000;
+const MAX_CASES = 500;
+const MAX_STATES = 27;
+const MAX_NAME = 40;
+const CASE_ID = /^[a-z0-9-]{1,64}$/;
+const UF = /^[A-Z]{2}$/;
+const KNOWN_CASES = new Set(CASES.map((c) => c.id));
+const KNOWN_UFS = new Set(UNITS.map((u) => u.uf));
 
 export const LEVELS = [
   { xp: 0, title: 'Interno(a)' },
@@ -28,19 +44,143 @@ export const BADGES = {
 };
 
 const fresh = () => ({
-  xp: 0, shifts: 0, cases: {}, badges: [], states: [],
+  version: SAVE_VERSION, xp: 0, shifts: 0, cases: {}, badges: [], states: [],
   counters: { cleanStreak: 0 }, settings: { muted: false }, doctorName: '',
 });
 
-export function load() {
+// MIGRATIONS[n] turns a version-n save into version n+1. A schema change bumps SAVE_VERSION and adds one entry.
+const MIGRATIONS = {
+  // v1: the original save, with no version field. v2 only adds the field.
+  1: (s) => ({ ...s, version: 2 }),
+};
+
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+const isCount = (v) => Number.isInteger(v) && v >= 0 && v <= MAX_COUNT;
+
+class SaveError extends Error {}
+
+/**
+ * Checks every known field of a save (already migrated to SAVE_VERSION) and returns a fresh object.
+ * Unknown keys are dropped, as are unknown badge and case ids (content changes between versions).
+ * strict: a field with the wrong type or range throws SaveError; otherwise it falls back to its default.
+ */
+function normalize(raw, strict) {
+  const out = fresh();
+  const bad = (field) => { if (strict) throw new SaveError(`campo inválido: ${field}`); };
+  const has = (k) => Object.hasOwn(raw, k);
+
+  for (const k of ['xp', 'shifts']) {
+    if (has(k)) { if (isCount(raw[k])) out[k] = raw[k]; else bad(k); }
+  }
+  if (has('cases')) {
+    if (isObj(raw.cases) && Object.keys(raw.cases).length <= MAX_CASES) {
+      for (const [id, stars] of Object.entries(raw.cases)) {
+        if (!CASE_ID.test(id) || !Number.isInteger(stars) || stars < 0 || stars > 3) { bad('cases'); continue; }
+        if (KNOWN_CASES.has(id)) out.cases[id] = stars;
+      }
+    } else bad('cases');
+  }
+  if (has('badges')) {
+    if (Array.isArray(raw.badges)) {
+      if (!raw.badges.every((b) => typeof b === 'string')) bad('badges');
+      out.badges = [...new Set(raw.badges.filter((b) => typeof b === 'string' && Object.hasOwn(BADGES, b)))];
+    } else bad('badges');
+  }
+  if (has('states')) {
+    if (Array.isArray(raw.states) && raw.states.length <= MAX_STATES * 4) {
+      if (!raw.states.every((u) => typeof u === 'string' && UF.test(u))) bad('states');
+      // only states that have a unit count (the around_brazil badge counts them)
+      out.states = [...new Set(raw.states.filter((u) => KNOWN_UFS.has(u)))].slice(0, MAX_STATES);
+    } else bad('states');
+  }
+  if (has('counters')) {
+    if (isObj(raw.counters) && (!Object.hasOwn(raw.counters, 'cleanStreak') || isCount(raw.counters.cleanStreak))) {
+      out.counters.cleanStreak = raw.counters.cleanStreak ?? 0;
+    } else bad('counters');
+  }
+  if (has('settings')) {
+    const st = raw.settings;
+    const volOk = (v) => typeof v === 'number' && v >= 0 && v <= 1;
+    if (isObj(st) && (!Object.hasOwn(st, 'muted') || typeof st.muted === 'boolean') && (!Object.hasOwn(st, 'musicVolume') || volOk(st.musicVolume))) {
+      out.settings.muted = st.muted ?? false;
+      if (Object.hasOwn(st, 'musicVolume')) out.settings.musicVolume = st.musicVolume;
+    } else bad('settings');
+  }
+  if (has('doctorName')) {
+    if (typeof raw.doctorName === 'string' && raw.doctorName.length <= MAX_NAME) out.doctorName = raw.doctorName;
+    else bad('doctorName');
+  }
+  return out;
+}
+
+/** Runs the migration chain. Throws SaveError for a version this game cannot read. */
+function migrate(raw) {
+  let v = Object.hasOwn(raw, 'version') ? raw.version : 1;
+  if (!Number.isInteger(v) || v < 1) throw new SaveError('versão inválida');
+  if (v > SAVE_VERSION) throw new SaveError('Este progresso é de uma versão mais nova do jogo. Atualize a página e tente de novo.');
+  let s = raw;
+  while (v < SAVE_VERSION) { s = MIGRATIONS[v](s); v += 1; }
+  return s;
+}
+
+/** Reads the stored save leniently: an odd field falls back to its default, the rest is kept. */
+export function fromStored(text) {
+  if (!text) return fresh();
   try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? { ...fresh(), ...JSON.parse(raw) } : fresh();
+    const raw = JSON.parse(text);
+    if (!isObj(raw)) return fresh();
+    let migrated;
+    try { migrated = migrate(raw); } catch { migrated = raw; } // an unreadable version keeps the fields it can read
+    return normalize(migrated, false);
   } catch { return fresh(); }
 }
 
+export function load() {
+  try { return fromStored(localStorage.getItem(KEY)); } catch { return fresh(); }
+}
+
+/** Writes the save. Returns false when storage is unavailable (private mode, quota). */
 export function save(state) {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage unavailable */ }
+  try { localStorage.setItem(KEY, JSON.stringify({ ...state, version: SAVE_VERSION })); return true; } catch { return false; }
+}
+
+/** The export file: the current save marked with the app name. */
+export function exportSave(state) {
+  return JSON.stringify({ app: APP, ...normalize({ ...state }, false), version: SAVE_VERSION, exportedAt: new Date().toISOString() });
+}
+
+// Base64 of the UTF-8 JSON, so names with accents survive copy and paste.
+export function encodeCode(json) {
+  let bin = '';
+  for (const b of new TextEncoder().encode(json)) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+function decodeCode(code) {
+  const bin = atob(code.replace(/\s+/g, ''));
+  return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(bin, (ch) => ch.charCodeAt(0)));
+}
+
+/**
+ * Parses an imported save (file contents or a pasted code). The input is untrusted:
+ * returns { ok: true, state } or { ok: false, error } with a pt-BR message, and never touches storage.
+ */
+export function parseImport(input) {
+  if (typeof input !== 'string') return { ok: false, error: 'Arquivo ou código vazio.' };
+  const text = input.trim();
+  if (!text) return { ok: false, error: 'Arquivo ou código vazio.' };
+  if (text.length > MAX_IMPORT_BYTES) return { ok: false, error: 'Arquivo ou código grande demais para um progresso do Plantão.' };
+  let raw;
+  try {
+    raw = JSON.parse(text.startsWith('{') ? text : decodeCode(text));
+  } catch { return { ok: false, error: 'Não foi possível ler: o arquivo ou código não é um progresso do Plantão.' }; }
+  if (!isObj(raw) || raw.app !== APP) return { ok: false, error: 'Não foi possível ler: o arquivo ou código não é um progresso do Plantão.' };
+  try {
+    return { ok: true, state: normalize(migrate(raw), true) };
+  } catch (e) {
+    if (e instanceof SaveError) return { ok: false, error: /^Este progresso/.test(e.message) ? e.message : `Progresso corrompido (${e.message}). Nada foi alterado.` };
+    throw e;
+  }
 }
 
 export function reset() {
@@ -57,6 +197,26 @@ export function levelOf(xp) {
     progress: next ? (xp - cur.xp) / (next.xp - cur.xp) : 1,
     nextXp: next?.xp ?? null,
   };
+}
+
+/** Title of level n (1-based); the single source for level names. */
+export const levelTitle = (n) => LEVELS[n - 1]?.title ?? '';
+
+/** XP still needed to reach level n (0 when already there). */
+export const xpToLevel = (xp, n) => Math.max(0, (LEVELS[n - 1]?.xp ?? 0) - xp);
+
+/** Every level with its state for the career screen. At the top level the last one stays 'current'. */
+export function careerTrack(xp) {
+  const cur = levelOf(xp);
+  return LEVELS.map((l, i) => ({
+    number: i + 1, title: l.title, xp: l.xp,
+    state: i < cur.index ? 'reached' : i === cur.index ? 'current' : 'locked',
+    xpToGo: xpToLevel(xp, i + 1),
+    progress: i === cur.index ? cur.progress : null,
+    xpToNext: i === cur.index && cur.nextXp != null ? cur.nextXp - xp : null,
+    isMax: i === LEVELS.length - 1,
+    unlocks: UNITS.filter((u) => u.unlockLevel === i + 1),
+  }));
 }
 
 /** Applies an encounter result. Returns newly earned badges. */

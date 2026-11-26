@@ -68,35 +68,41 @@ export const UNIT_TYPES = {
   },
 };
 
+// `music`: background track and optional weather layer for the unit (see src/audio/music.js).
 export const UNITS = [
   {
     id: 'ubs-recife', name: 'UBS Vila das Flores', city: 'Recife', uf: 'PE', type: 'ubs',
     specialties: ['internal-medicine', 'pediatrics'], unlockLevel: 1,
     palette: { floor: '#e7dcc8', wall: '#7fb7a4', accent: '#2f7d6b' },
+    music: { track: 'clinic' },
     flavor: 'Agenda cheia, demanda espontânea e a ACS sempre trazendo alguém “só pra dar uma olhadinha”.',
   },
   {
     id: 'upa-belem', name: 'UPA 24h Marambaia', city: 'Belém', uf: 'PA', type: 'upa',
     specialties: ['internal-medicine', 'pediatrics'], unlockLevel: 1,
     palette: { floor: '#dcd6cf', wall: '#e9a15b', accent: '#b5561d' },
+    music: { track: 'er', weather: 'rain' },
     flavor: 'Calor, chuva das três da tarde e sala de espera lotada em época de arbovirose.',
   },
   {
     id: 'hospital-bh', name: 'Hospital Geral Santa Efigênia', city: 'Belo Horizonte', uf: 'MG', type: 'hospital',
     specialties: ['internal-medicine'], unlockLevel: 2,
     palette: { floor: '#d9dee3', wall: '#8aa6c1', accent: '#2d5a87' },
+    music: { track: 'ward' },
     flavor: 'Pronto-socorro porta aberta com regulação de leitos sempre no limite.',
   },
   {
     id: 'hospital-infantil-curitiba', name: 'Hospital Infantil Pinheirinho', city: 'Curitiba', uf: 'PR', type: 'hospital',
     specialties: ['pediatrics'], unlockLevel: 2,
     palette: { floor: '#e3e0ef', wall: '#9d8fd1', accent: '#5a4aa8' },
+    music: { track: 'kids' },
     flavor: 'Inverno chegando: começa a temporada de vírus respiratórios.',
   },
   {
     id: 'picu-poa', name: 'UTI Pediátrica — Hospital Universitário', city: 'Porto Alegre', uf: 'RS', type: 'picu',
     specialties: ['picu'], unlockLevel: 3,
     palette: { floor: '#d8e4e6', wall: '#5f9ea8', accent: '#1f5f6b' },
+    music: { track: 'picu' },
     flavor: 'Passagem de plantão às 7h, monitores apitando e a regulação ligando por vaga.',
   },
 ];

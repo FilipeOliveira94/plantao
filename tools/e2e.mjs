@@ -1,5 +1,5 @@
 // End-to-end test: plays a full shift in every unit/specialty, always picking the correct answers.
-// Requires Playwright (global or local) and Python 3 to serve the files.
+// Requires Playwright (`npm ci && npx playwright install chromium`) and Python 3 to serve the files.
 // Usage: node tools/e2e.mjs [--shots dir]
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -7,39 +7,124 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 let chromium;
-try { ({ chromium } = require('playwright')); } catch {
-  ({ chromium } = require('/opt/node22/lib/node_modules/playwright'));
+try { ({ chromium } = require('playwright')); } catch (e) {
+  if (e.code !== 'MODULE_NOT_FOUND') throw e;
+  console.error('Playwright not found: run `npm ci && npx playwright install chromium`.');
+  process.exit(1);
 }
 
-const PORT = 8765;
+const PORT = Number(process.env.E2E_PORT) || 8765; // set E2E_PORT when another checkout already serves 8765
 const shotsIdx = process.argv.indexOf('--shots');
 const SHOTS = shotsIdx > -1 ? process.argv[shotsIdx + 1] : null;
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
 const server = spawn('python3', ['-m', 'http.server', String(PORT)], { stdio: 'ignore' });
-await new Promise((r) => setTimeout(r, 800));
+process.on('exit', () => server.kill()); // never leave the server running, whatever fails below
+// wait until our server answers (a slow CI runner can take more than a second)
+for (let tries = 0; ; tries++) {
+  if (server.exitCode !== null) {
+    console.error(`E2E server exited (is port ${PORT} already in use?).`);
+    process.exit(1);
+  }
+  try { if ((await fetch(`http://localhost:${PORT}/index.html`, { signal: AbortSignal.timeout(1000) })).ok) break; } catch { /* not up yet */ }
+  if (tries >= 50) {
+    console.error(`E2E server did not start on port ${PORT}.`);
+    process.exit(1);
+  }
+  await new Promise((r) => setTimeout(r, 200));
+}
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1366, height: 820 } });
 const errors = [];
-page.on('pageerror', (e) => errors.push(e.message));
-page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
 try {
+  const page = await browser.newPage({ viewport: { width: 1366, height: 820 } });
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(`http://localhost:${PORT}/index.html`);
   // the menu states that the cases are AI-generated and links to the references table
   const refs = page.locator('.ai-notice a');
   if (!/docs\/REFERENCES\.md$/.test(await refs.getAttribute('href'))) throw new Error('menu notice does not link to docs/REFERENCES.md');
   if (await refs.getAttribute('target') !== '_blank' || !/noopener/.test(await refs.getAttribute('rel') || '')) throw new Error('references link must open in a new tab with rel=noopener');
+  // career screen and locked unit cards, at three points of the track
+  const career = async (xp) => {
+    await page.evaluate((v) => { localStorage.setItem('plantao.save.v1', JSON.stringify({ xp: v })); }, xp);
+    await page.reload();
+    await page.getByRole('button', { name: /Carreira/ }).click();
+    const rows = page.locator('.career-level');
+    const out = { count: await rows.count(), rows: [] };
+    for (let i = 0; i < out.count; i++) {
+      const r = rows.nth(i);
+      out.rows.push({ cls: await r.getAttribute('class'), text: await r.innerText(), bar: await r.getByRole('progressbar').count() });
+    }
+    await page.locator('.modal-back').click({ position: { x: 5, y: 5 } });
+    return out;
+  };
+  const state = (row) => row.cls.split(' ').find((c) => ['reached', 'current', 'locked'].includes(c));
+  let c = await career(0);
+  if (c.count !== 8) throw new Error(`career screen shows ${c.count} levels, expected 8`);
+  if (state(c.rows[0]) !== 'current' || !c.rows[0].bar) throw new Error('at 0 XP level 1 must be current with a progress bar');
+  if (state(c.rows[1]) !== 'locked' || !/faltam 300 XP/.test(c.rows[1].text)) throw new Error(`level 2 at 0 XP: ${c.rows[1].text}`);
+  if (!/Hospital Geral Santa Efigênia/.test(c.rows[1].text) || !/Hospital Infantil Pinheirinho/.test(c.rows[1].text)) throw new Error('level 2 must list the two units it unlocks');
+  if (!/Nenhum desbloqueio por enquanto/.test(c.rows[3].text)) throw new Error('level 4 must say it unlocks nothing yet');
+  const lockedCard = page.locator('.unit.locked').first();
+  const lockedText = await lockedCard.innerText();
+  if (!/Nível 2 · Residente R1/.test(lockedText) || !/faltam 300 XP/.test(lockedText) || !(await lockedCard.getByRole('progressbar').count())) throw new Error(`locked card lacks requirement or progress: ${lockedText}`);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/00-locked-cards.png` });
+  c = await career(900);
+  if (c.rows.slice(0, 2).some((r) => state(r) !== 'reached') || state(c.rows[2]) !== 'current' || !c.rows[2].bar) throw new Error('at 900 XP levels 1-2 must be reached and level 3 current');
+  if (!/faltam 600 XP/.test(c.rows[3].text)) throw new Error(`level 4 at 900 XP: ${c.rows[3].text}`);
+  c = await career(9000);
+  if (c.rows.slice(0, 7).some((r) => state(r) !== 'reached') || state(c.rows[7]) !== 'current' || !/Nível máximo/.test(c.rows[7].text)) throw new Error('at 9000 XP levels 1-7 must be reached and level 8 current at max');
   // unlock every unit for the test
   await page.evaluate(() => { localStorage.setItem('plantao.save.v1', JSON.stringify({ xp: 2000 })); });
   await page.reload();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/01-menu.png` });
 
+  // save: the menu says progress lives in this browser; the v1 seed above was migrated
+  if (!/só neste navegador/.test(await page.locator('.save-notice').textContent())) throw new Error('menu misses the browser-only save notice');
+  if (await page.evaluate(() => window.__plantao.state.version) !== 2) throw new Error('v1 save was not migrated to version 2');
+  // export as a code, reset, import the code back
+  await page.getByRole('button', { name: /Exportar progresso/ }).click();
+  const code = await page.locator('.modal .save-code').inputValue();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/01b-export.png` });
+  await page.getByRole('button', { name: 'Fechar' }).click();
+  await page.getByRole('button', { name: 'Zerar progresso' }).click();
+  await page.getByRole('button', { name: 'Zerar', exact: true }).click();
+  if (await page.evaluate(() => window.__plantao.state.xp) !== 0) throw new Error('reset did not clear XP');
+  // a bad code is rejected and changes nothing
+  await page.getByRole('button', { name: /Importar progresso/ }).click();
+  await page.locator('.modal .save-code').fill('bm90IGEgc2F2ZQ==');
+  await page.getByRole('button', { name: 'Ler código' }).click();
+  if (!/não é um progresso/.test(await page.locator('.modal .import-error').textContent())) throw new Error('bad import code shows no error');
+  if (await page.evaluate(() => window.__plantao.state.xp) !== 0) throw new Error('bad import changed the progress');
+  await page.locator('.modal .save-code').fill(code);
+  await page.getByRole('button', { name: 'Ler código' }).click();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/01c-import.png` });
+  await page.getByRole('button', { name: 'Substituir' }).click();
+  if (await page.evaluate(() => window.__plantao.state.xp) !== 2000) throw new Error('import did not restore XP');
+  await page.reload();
+  if (await page.evaluate(() => JSON.parse(localStorage.getItem('plantao.save.v1')).xp) !== 2000) throw new Error('imported progress was not saved');
+  // export as a file
+  await page.getByRole('button', { name: /Exportar progresso/ }).click();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Baixar plantao-progresso-/ }).click()]);
+  if (!/^plantao-progresso-\d{4}-\d{2}-\d{2}\.json$/.test(dl.suggestedFilename())) throw new Error(`export file name: ${dl.suggestedFilename()}`);
+  await page.getByRole('button', { name: 'Fechar' }).click();
+  // import the downloaded file over a reset progress
+  const file = await dl.path();
+  await page.getByRole('button', { name: 'Zerar progresso' }).click();
+  await page.getByRole('button', { name: 'Zerar', exact: true }).click();
+  await page.getByRole('button', { name: /Importar progresso/ }).click();
+  await page.locator('.modal input[type=file]').setInputFiles(file);
+  await page.getByRole('button', { name: 'Substituir' }).click();
+  if (await page.evaluate(() => window.__plantao.state.xp) !== 2000) throw new Error('file import did not restore XP');
+  console.log('✔ save: notice, migration, export and import (file, code), bad code');
+
   const units = await page.$$eval('.unit', (els) => els.length);
   let reportChecked = false;
   let tabsChecked = false;
   let menuChecked = false;
+  let musicChecked = false;
   let shuffledSeen = 0;
   for (let u = 0; u < units; u++) {
     await page.locator('.unit').nth(u).click();
@@ -48,6 +133,15 @@ try {
       await page.locator('.spec').nth(s).click();
       await page.getByRole('button', { name: /Começar plantão/ }).click();
       await page.waitForSelector('.game');
+      // music: the unit's track (and weather) plays during the shift, and the slider sets and saves the volume
+      const mus = await page.evaluate(() => ({ playing: window.__plantao.music, expected: window.__plantao.shift.unit.music }));
+      if (!mus.expected?.track || mus.playing?.track !== mus.expected.track || mus.playing.weather !== (mus.expected.weather ?? null)) throw new Error(`music ${JSON.stringify(mus.playing)} != ${JSON.stringify(mus.expected)}`);
+      if (!musicChecked) {
+        musicChecked = true;
+        await page.locator('.topbar .music-vol input').fill('20');
+        const vol = await page.evaluate(() => JSON.parse(localStorage.getItem('plantao.save.v1')).settings.musicVolume);
+        if (vol !== 0.2) throw new Error(`music volume not saved: ${vol}`);
+      }
       let guard = 0;
       while (guard++ < 60) {
         const done = await page.evaluate(() => window.__plantao.shift?.done);
@@ -130,6 +224,7 @@ try {
       if (u === units - 1 && SHOTS) await page.screenshot({ path: `${SHOTS}/04-fim.png` });
       console.log(`✔ unit ${u} · specialty ${s}`);
       await page.getByRole('button', { name: /Voltar ao menu/ }).click();
+      if (await page.evaluate(() => window.__plantao.music)) throw new Error('music still playing on the menu');
       await page.locator('.unit').nth(u).click();
     }
   }

@@ -1,14 +1,17 @@
 // Plantão — main controller (menu, shift, encounter, feedback). UI text is pt-BR by design.
 import { UNITS, SPECIALTIES, TRIAGE, EXAMS, EXAM_CATS, UNIT_TYPES, ACTION_COST } from './data/catalog.js';
 import { Shift, clockLabelAt } from './game/shift.js';
-import { load, save, reset, levelOf, applyCase, applyShift, BADGES } from './game/progress.js';
+import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS, exportSave, encodeCode, parseImport, MAX_IMPORT_BYTES } from './game/progress.js';
 import { IsoScene } from './render/iso.js';
 import { sfx } from './audio/sfx.js';
+import { music } from './audio/music.js';
 import { h, mount, toast, modal } from './ui/dom.js';
 
 const app = document.getElementById('app');
 let state = load();
 sfx.setMuted(state.settings.muted);
+music.setMuted(state.settings.muted);
+music.setVolume(state.settings.musicVolume ?? 0.4);
 
 let shift = null;
 let scene = null;
@@ -33,6 +36,7 @@ let menuSel = { unit: null, spec: null };
 
 function renderMenu() {
   scene = null;
+  music.stop();
   const lvl = levelOf(state.xp);
   const unitCards = UNITS.map((u) => {
     const locked = lvl.number < u.unlockLevel;
@@ -46,7 +50,7 @@ function renderMenu() {
       h('h3', {}, u.name),
       h('p', { class: 'small muted', style: { margin: '6px 0' } }, u.flavor),
       h('div', {}, u.specialties.map((s) => h('span', { class: 'chip', style: { marginRight: '4px' } }, SPECIALTIES[s].icon, ' ', SPECIALTIES[s].label))),
-      locked ? h('p', { class: 'small', style: { marginBottom: 0 } }, `🔒 Desbloqueia no nível ${u.unlockLevel} (${levelTitle(u.unlockLevel)})`) : null,
+      locked ? lockInfo(u.unlockLevel) : null,
     ));
   });
 
@@ -65,13 +69,15 @@ function renderMenu() {
       h('div', {},
         h('div', { style: { fontWeight: 800, fontSize: '18px' } }, `Nível ${lvl.number} · ${lvl.title}`),
         h('div', { class: 'small muted' }, `${state.xp} XP · ${state.shifts} plantões · ${state.badges.length}/${Object.keys(BADGES).length} conquistas`),
-        h('div', { class: 'xpbar' }, h('i', { style: { width: `${Math.round(lvl.progress * 100)}%` } })),
+        xpBar(lvl.progress),
         lvl.nextXp ? h('div', { class: 'small muted', style: { marginTop: '4px' } }, `Próximo nível em ${lvl.nextXp - state.xp} XP`) : null,
       ),
       h('div', { class: 'menu-actions' },
+        h('button', { class: 'btn', onclick: showCareer }, '🎓 Carreira'),
         h('button', { class: 'btn', onclick: showBadges }, '🏅 Conquistas'),
         h('button', { class: 'btn', onclick: showHelp }, '❓ Como jogar'),
         h('button', { class: 'btn ghost', onclick: toggleMute, title: 'Som' }, state.settings.muted ? '🔇' : '🔊'),
+        musicSlider(),
       ),
     ),
     h('p', { class: 'section-title' }, 'Escolha a unidade'),
@@ -79,8 +85,11 @@ function renderMenu() {
     specs,
     h('div', { class: 'menu-actions' },
       h('button', { class: 'btn primary', disabled: !menuSel.unit, onclick: () => startShift(menuSel.unit, menuSel.spec) }, 'Começar plantão ▶'),
+      h('button', { class: 'btn ghost small', onclick: showExport }, '💾 Exportar progresso'),
+      h('button', { class: 'btn ghost small', onclick: showImport }, '📂 Importar progresso'),
       h('button', { class: 'btn ghost small', onclick: confirmReset }, 'Zerar progresso'),
     ),
+    h('p', { class: 'small muted save-notice' }, '💾 Seu progresso fica salvo só neste navegador. Exporte para não perder ou para continuar em outro aparelho.'),
     h('p', { class: 'disclaimer ai-notice' },
       '🤖 Os casos foram gerados por inteligência artificial com base em diretrizes e artigos publicados e ainda não passaram por revisão médica. ',
       h('a', { href: REFERENCES_URL, target: '_blank', rel: 'noopener noreferrer' }, 'Ver a tabela de referências usadas em cada caso'),
@@ -90,11 +99,54 @@ function renderMenu() {
   ));
 }
 
-const levelTitle = (n) => ['Interno(a)', 'Residente R1', 'Residente R2', 'Residente R3', 'Plantonista'][n - 1] || '';
+function musicSlider() {
+  const vol = state.settings.musicVolume ?? 0.4;
+  return h('label', { class: 'music-vol small', title: 'Volume da música' }, '🎵 ',
+    h('input', {
+      type: 'range', min: 0, max: 100, step: 5, value: Math.round(vol * 100), 'aria-label': 'Volume da música',
+      oninput: (e) => { state.settings.musicVolume = e.target.value / 100; music.setVolume(state.settings.musicVolume); },
+      onchange: () => save(state),
+    }));
+}
+
+/** XP bar; `fraction` in 0..1. */
+function xpBar(fraction, label = 'Progresso de XP') {
+  const pct = Math.round(Math.min(1, Math.max(0, fraction)) * 100);
+  return h('div', { class: 'xpbar', role: 'progressbar', 'aria-label': label, 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': pct },
+    h('i', { style: { width: `${pct}%` } }));
+}
+
+/** Requirement and progress on a locked unit card. */
+function lockInfo(level) {
+  const target = LEVELS[level - 1].xp;
+  return h('div', { class: 'lock-info' },
+    h('p', { class: 'small', style: { margin: 0 } }, `🔒 Nível ${level} · ${levelTitle(level)}`),
+    xpBar(target ? state.xp / target : 1, `Progresso até o nível ${level}`),
+    h('p', { class: 'small muted', style: { margin: '4px 0 0' } }, `faltam ${xpToLevel(state.xp, level)} XP`));
+}
+
+function showCareer() {
+  modal(h('div', {},
+    h('h2', { style: { marginBottom: '12px' } }, '🎓 Carreira'),
+    h('ol', { class: 'career' }, careerTrack(state.xp).map((l) => h('li', { class: `career-level ${l.state}` },
+      h('div', { class: 'career-head' },
+        h('b', {}, `${l.state === 'reached' ? '✅' : l.state === 'current' ? '📍' : '🔒'} Nível ${l.number} · ${l.title}`),
+        h('span', { class: 'small muted' }, `${l.xp} XP`)),
+      l.state === 'current'
+        ? h('div', {}, xpBar(l.progress, `Progresso no nível ${l.number}`),
+          h('p', { class: 'small muted career-status' }, l.isMax ? 'Nível máximo' : `Você está aqui · faltam ${l.xpToNext} XP para o próximo`))
+        : h('p', { class: 'small muted career-status' }, l.state === 'reached' ? 'Alcançado' : `faltam ${l.xpToGo} XP`),
+      h('p', { class: 'small career-unlocks' }, l.unlocks.length
+        ? `Desbloqueia: ${l.unlocks.map((u) => `${u.name} (${u.city}/${u.uf})`).join(', ')}`
+        : 'Nenhum desbloqueio por enquanto'),
+    ))),
+  ));
+}
 
 function toggleMute() {
   state.settings.muted = !state.settings.muted;
   sfx.setMuted(state.settings.muted);
+  music.setMuted(state.settings.muted);
   save(state);
   if (shift) renderTop(); else renderMenu();
 }
@@ -104,7 +156,83 @@ function confirmReset() {
     h('h2', {}, 'Zerar progresso?'),
     h('p', {}, 'XP, conquistas e histórico de casos serão apagados deste navegador.'),
     h('div', { class: 'menu-actions' },
-      h('button', { class: 'btn warn', onclick: () => { state = reset(); m.close(); renderMenu(); } }, 'Zerar'),
+      h('button', { class: 'btn warn', onclick: () => { state = reset(); sfx.setMuted(false); music.setMuted(false); music.setVolume(0.4); m.close(); renderMenu(); } }, 'Zerar'),
+      h('button', { class: 'btn', onclick: () => m.close() }, 'Cancelar')),
+  ));
+}
+
+function showExport() {
+  const json = exportSave(state);
+  const code = encodeCode(json);
+  const file = `plantao-progresso-${new Date().toISOString().slice(0, 10)}.json`;
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a = h('a', { href: url, download: file });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const box = h('textarea', { class: 'save-code', readOnly: true, rows: 5, 'aria-label': 'Código do progresso' }, code);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(code); toast('Código copiado.'); } catch { box.select(); toast('Selecione e copie o código.'); }
+  };
+  const m = modal(h('div', {},
+    h('h2', {}, '💾 Exportar progresso'),
+    h('p', {}, 'Guarde o arquivo ou o código para recuperar seu progresso neste ou em outro navegador.'),
+    h('div', { class: 'menu-actions' }, h('button', { class: 'btn primary', onclick: download }, `Baixar ${file}`)),
+    h('p', { class: 'section-title' }, 'Ou copie o código'),
+    box,
+    h('div', { class: 'menu-actions', style: { marginTop: '10px' } },
+      h('button', { class: 'btn', onclick: copy }, 'Copiar código'),
+      h('button', { class: 'btn ghost', onclick: () => m.close() }, 'Fechar')),
+  ));
+}
+
+function showImport() {
+  const err = h('p', { class: 'small import-error', role: 'alert' });
+  const box = h('textarea', { class: 'save-code', rows: 5, placeholder: 'Cole aqui o código do progresso', 'aria-label': 'Código do progresso' });
+  const fileIn = h('input', { type: 'file', accept: '.json,application/json', 'aria-label': 'Arquivo de progresso' });
+  const m = modal(h('div', {},
+    h('h2', {}, '📂 Importar progresso'),
+    h('p', {}, 'Escolha o arquivo exportado ou cole o código. O progresso atual só é substituído depois da sua confirmação.'),
+    fileIn,
+    h('p', { class: 'section-title' }, 'Ou cole o código'),
+    box,
+    err,
+    h('div', { class: 'menu-actions', style: { marginTop: '10px' } },
+      h('button', { class: 'btn primary', onclick: () => check(box.value) }, 'Ler código'),
+      h('button', { class: 'btn ghost', onclick: () => m.close() }, 'Cancelar')),
+  ));
+  function check(text) {
+    const r = parseImport(text);
+    if (!r.ok) { err.textContent = r.error; return; }
+    m.close();
+    confirmImport(r.state);
+  }
+  fileIn.addEventListener('change', async () => {
+    const f = fileIn.files?.[0];
+    if (!f) return;
+    if (f.size > MAX_IMPORT_BYTES) { err.textContent = 'Arquivo grande demais para um progresso do Plantão.'; fileIn.value = ''; return; }
+    try { check(await f.text()); } catch { err.textContent = 'Não foi possível ler o arquivo.'; }
+    fileIn.value = ''; // the same file can be picked again
+  });
+}
+
+function confirmImport(next) {
+  const lvl = levelOf(next.xp);
+  const m = modal(h('div', {},
+    h('h2', {}, 'Substituir o progresso?'),
+    h('p', {}, 'O progresso importado tem:'),
+    h('ul', { class: 'score-lines import-summary' },
+      h('li', {}, h('span', {}, 'Nível'), h('span', {}, `${lvl.number} · ${lvl.title}`)),
+      h('li', {}, h('span', {}, 'XP'), h('span', {}, String(next.xp))),
+      h('li', {}, h('span', {}, 'Plantões'), h('span', {}, String(next.shifts))),
+      h('li', {}, h('span', {}, 'Conquistas'), h('span', {}, `${next.badges.length}/${Object.keys(BADGES).length}`))),
+    h('p', { class: 'small muted' }, 'O progresso atual deste navegador será apagado.'),
+    h('div', { class: 'menu-actions' },
+      h('button', { class: 'btn warn', onclick: () => {
+        state = next; sfx.setMuted(state.settings.muted); music.setMuted(state.settings.muted); music.setVolume(state.settings.musicVolume ?? 0.4); m.close(); renderMenu();
+        toast(save(state) ? 'Progresso importado.' : 'Progresso importado, mas este navegador não permitiu salvar: ele some ao recarregar a página.');
+      } }, 'Substituir'),
       h('button', { class: 'btn', onclick: () => m.close() }, 'Cancelar')),
   ));
 }
@@ -141,6 +269,7 @@ function startShift(unit, specialty) {
   sfx.unlock();
   shift = new Shift({ unit, specialty, completedCases: state.cases });
   if (!shift.encounters.length) { toast('Ainda não há casos para essa combinação.'); return; }
+  music.play(unit.music);
   renderGame();
   toast(`Plantão iniciado: ${unit.name} (${unit.city}/${unit.uf}). ${unit.flavor}`, 6000);
 }
@@ -180,6 +309,7 @@ function renderTop() {
     h('span', { class: 'small' }, `Nv ${lvl.number} · ${state.xp} XP`),
     h('span', { class: `clock${shift.over ? ' over' : ''}`, title: `Relógio do plantão (termina às ${shift.endLabel})` }, shift.clockLabel, h('span', { class: 'clock-end' }, ` · fim ${shift.endLabel}`)),
     h('button', { class: 'btn ghost', onclick: toggleMute }, state.settings.muted ? '🔇' : '🔊'),
+    musicSlider(),
   );
 }
 
@@ -552,4 +682,4 @@ function showShiftSummary() {
 renderMenu();
 
 // exposed for automated tests
-window.__plantao = { get shift() { return shift; }, get state() { return state; } };
+window.__plantao = { get shift() { return shift; }, get state() { return state; }, get music() { return music.playing; } };
