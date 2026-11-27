@@ -213,7 +213,7 @@ try {
           await page.locator('.test-cat[open] .opt').first().click();
           const after = await page.evaluate(() => { const s = window.__plantao.shift; const r = s.current.requested.get('capillary_glucose'); return { spent: s.current.minutesSpent, wait: r.readyAt - s.clock }; });
           if (after.spent !== before + 1 || after.wait <= 0) throw new Error(`test order cost: ${JSON.stringify({ before, ...after })}`);
-          if (!/Consulta: \d+% do tempo-alvo/.test(await page.locator('.chart .chip', { hasText: 'tempo-alvo' }).textContent())) throw new Error('chart does not show consultation time against its target');
+          if (!/Tempo de consulta\s*\d+% do alvo/.test(await page.locator('.chart .consult-chip').textContent())) throw new Error('chart does not show consultation time against its target');
           await page.getByRole('button', { name: /Aguardar aqui/ }).click();
           if (await page.evaluate(() => window.__plantao.shift.current.minutesSpent) !== after.spent) throw new Error('waiting in the room counted as consultation time');
           if (!(await page.locator('.exam-row', { hasText: 'Glicemia capilar' }).getByText('Liberado').count())) throw new Error('point-of-care result not ready after waiting in the room');
@@ -426,6 +426,61 @@ try {
     await page.locator('.modal .btn.primary').click();
     if ((await step(10000)).clock !== 1) throw new Error('the clock did not resume after the feedback');
     console.log('✔ real-time clock: ticks, thinking counts in the room, holds on pause, popup and feedback');
+    await page.getByRole('button', { name: '←' }).click();
+    await page.getByRole('button', { name: 'Sair' }).click();
+  }
+  // time on screen (P2-02): the queue's patience bars and the consultation bar drain as the clock runs, hovering an
+  // action previews its cut and picking it takes that cut, an action shows its clock jump, and test bars fill up
+  {
+    await page.locator('.unit').first().click();
+    await page.locator('.spec').first().click();
+    await page.getByRole('button', { name: /Começar plantão/ }).click();
+    await page.waitForSelector('.game');
+    // a second patient waits from 07:00, so the queue has someone waiting while the first is seen
+    await page.evaluate(() => { const e = window.__plantao.shift.encounters[1]; e.arrivedAt = 0; e._arrivalNotified = true; });
+    const step = (ms) => page.evaluate((v) => window.__plantao.clock.step(v), ms);
+    const width = (sel) => page.locator(sel).first().evaluate((el) => parseFloat(el.style.width));
+    await step(10000);
+    const patience = '.qcard .tbar.patience .fill';
+    if (await page.locator('.qcard .tbar.patience').count() !== 2) throw new Error('queue cards have no patience bar');
+    const p0 = await width(patience);
+    await step(30000);
+    const p1 = await width(patience);
+    if (!(p1 < p0)) throw new Error(`patience bar did not drain: ${p0} -> ${p1}`);
+    await page.locator('.qcard button:not([disabled])').first().click();
+    if (await page.locator('.qcard .tbar.patience').count() !== 1) throw new Error('the patient still waiting lost the patience bar');
+    const fill = '.consult-chip .tbar.consult .fill';
+    const cut = '.consult-chip .tbar.consult .cut';
+    if (await width(fill) !== 100) throw new Error('the consultation bar does not start full');
+    await step(20000);
+    const c1 = await width(fill);
+    if (!(c1 < 100)) throw new Error(`the consultation bar did not drain while thinking: ${c1}`);
+    await page.getByRole('tab', { name: /Anamnese/ }).click();
+    const opt = page.locator('.pane .opt').first();
+    await opt.hover();
+    const preview = await width(cut);
+    if (!(preview > 0)) throw new Error('hovering a question does not preview its cut');
+    await page.mouse.move(2, 2);
+    if (await width(cut) !== 0) throw new Error('the preview stays after the pointer leaves');
+    await opt.hover();
+    const before = { left: await width(fill), clock: await page.locator('.clock').evaluate((el) => el.firstChild.textContent) };
+    await opt.click();
+    const after = await width(fill);
+    if (Math.abs(after - (before.left - preview)) > 0.2) throw new Error(`picking the question did not take the previewed cut: ${before.left} - ${preview} -> ${after}`);
+    const jump = await page.locator('.clock-jump').textContent();
+    if (!jump.startsWith(`${before.clock} → `) || !/→ \d\d:\d\d/.test(jump)) throw new Error(`no clock jump after the action: ${jump}`);
+    if (/min/.test(jump)) throw new Error(`the clock jump shows minutes: ${jump}`);
+    // a point-of-care test's bar fills toward its result
+    await page.getByRole('tab', { name: /Exames/ }).click();
+    await page.locator('.test-search').fill('a'); // opens every group with a match
+    await page.locator('.test-cats .opt', { hasText: 'resultado na consulta' }).first().click();
+    const exam = '.exam-row .tbar.exam .fill';
+    if (await page.locator(exam).count() !== 1) throw new Error('the pending test has no progress bar');
+    const e0 = await width(exam);
+    await step(10000);
+    if (!(await width(exam) > e0)) throw new Error('the test bar did not fill as the clock ran');
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/06b-tempo-na-tela.png` });
+    console.log('✔ time on screen: patience and consultation bars drain, hover previews the cut, the action takes it and shows the clock jump');
     await page.getByRole('button', { name: '←' }).click();
     await page.getByRole('button', { name: 'Sair' }).click();
   }

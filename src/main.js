@@ -3,7 +3,7 @@ import { UNITS, SPECIALTIES, TRIAGE, EXAMS, EXAM_CATS, UNIT_TYPES, ACTION_COST }
 import { Shift } from './game/shift.js';
 import { ShiftClock } from './game/clock.js';
 import { clockLabelAt } from './game/time.js';
-import { consultTarget } from './game/encounter.js';
+import { consultBar, patienceBar, examProgress, waitSnapshot, jumpImpact } from './game/timebars.js';
 import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS, exportSave, encodeCode, parseImport, MAX_IMPORT_BYTES } from './game/progress.js';
 import { IsoScene } from './render/iso.js';
 import { sfx } from './audio/sfx.js';
@@ -332,6 +332,7 @@ function renderTop({ ifChanged = false } = {}) {
     // event effects (P1-09) stay on screen while they last
     ...shift.activeEffects().map((f) => h('span', { class: 'chip effect', title: f.detail }, f.label)),
     h('span', { class: `clock${shift.over ? ' over' : ''}`, title: `Relógio do plantão (termina às ${shift.endLabel})` }, shift.clockLabel, h('span', { class: 'clock-end' }, ` · fim ${shift.endLabel}`)),
+    jumpChip(),
     h('button', { class: 'btn ghost pause-btn', onclick: showPause, disabled: shift.done, title: 'Pausar o relógio do plantão' }, '⏸ Pausar'),
     h('button', { class: 'btn ghost', onclick: toggleMute }, state.settings.muted ? '🔇' : '🔊'),
     musicSlider(),
@@ -370,7 +371,81 @@ function onClockTick(fired) {
   renderTop({ ifChanged: true });
   renderQueue({ ifChanged: true });
   refreshChart();
+  refreshLive();
   if (shift.done && !shift.current) setTimeout(showShiftSummary, 400);
+}
+
+// ----------------------------------------------------------------------
+// Time on screen (P2-02): bars for patience, consultation time and test progress. A clock tick redraws them in
+// place (refreshLive), never the screen around them. Fractions come from game/timebars.js.
+// ----------------------------------------------------------------------
+const pctW = (f) => `${Math.round(f * 1000) / 10}%`;
+
+/** A bar whose `draw(el)` sets its fill; redrawn on every clock tick while it is on screen. */
+function liveBar(cls, label, draw, marks = []) {
+  const el = h('div', { class: `tbar ${cls}`, role: 'meter', 'aria-label': label, 'aria-valuemin': 0, 'aria-valuemax': 100 },
+    h('i', { class: 'fill' }), marks.map((m) => h('span', { class: `mark ${m.cls}`, style: { left: pctW(m.at) }, title: m.title })));
+  draw(el);
+  (ui.live ||= []).push([el, draw]);
+  return el;
+}
+
+function refreshLive() {
+  ui.live = (ui.live || []).filter(([el]) => el.isConnected);
+  for (const [el, draw] of ui.live) draw(el);
+}
+
+const setFill = (el, f) => { el.querySelector('.fill').style.width = pctW(f); el.setAttribute('aria-valuenow', Math.round(f * 100)); };
+
+/** Queue card: how much patience a patient never called has left, with marks at the Manchester target and,
+ *  for those who can leave, at the point they get impatient. */
+function patienceMeter(enc) {
+  const b0 = patienceBar(enc, shift.clock);
+  if (!b0) return null;
+  const marks = [];
+  if (b0.target < 0.995) marks.push({ cls: 'target', at: b0.target, title: 'Alvo da classificação' });
+  if (b0.impatience != null) marks.push({ cls: 'impatience', at: b0.impatience, title: 'Começa a ficar impaciente' });
+  return liveBar('patience', 'Paciência na fila', (el) => {
+    const b = patienceBar(enc, shift.clock);
+    if (!b) return;
+    el.classList.remove('ok', 'late', 'impatient', 'left');
+    el.classList.add(b.stage);
+    setFill(el, b.left);
+  }, marks);
+}
+
+/** Progress of the tests still pending: the one that comes back last. */
+function examMeter(recs, label = 'Exames em andamento') {
+  const last = () => recs.reduce((a, r) => (r.readyAt > a.readyAt ? r : a), recs[0]);
+  return liveBar('exam', label, (el) => setFill(el, examProgress(last(), shift.clock)));
+}
+
+// Clock jump after an action (P2-02): the clock times before and after, and who in the queue it moved to a worse
+// stage. Shown for a few seconds next to the clock; real-time ticks never show one.
+const JUMP_MS = 4500;
+const JUMP_TEXT = { late: 'passou do alvo', impatient: 'ficou impaciente', left: 'foi embora' };
+
+/** Runs a clock-moving action and records its jump. Returns what the action returned. */
+function timed(fn) {
+  const from = shift.clock;
+  const snap = waitSnapshot(shift);
+  const out = fn();
+  if (shift.clock > from) {
+    const jump = { from, to: shift.clock, hit: jumpImpact(shift, snap), at: performance.now() };
+    ui.jump = jump;
+    setTimeout(() => { if (ui.jump === jump) { ui.jump = null; ui.top?.querySelector('.clock-jump')?.remove(); if (shift && jump.hit.length) renderQueue(); } }, JUMP_MS);
+  }
+  return out;
+}
+
+const jumpFresh = () => ui.jump && performance.now() - ui.jump.at < JUMP_MS;
+
+function jumpChip() {
+  if (!jumpFresh()) return null;
+  const j = ui.jump;
+  return h('span', { class: 'clock-jump', role: 'status', title: 'Quanto o relógio andou com a última ação' },
+    `${clockAt(j.from)} → ${clockAt(j.to)}`,
+    j.hit.length ? h('span', { class: 'jump-hit' }, ` · ${j.hit.map((x) => `${x.enc.c.patient.name.split(' ')[0]} ${JUMP_TEXT[x.stage]}`).join(', ')}`) : null);
 }
 
 function showPause() {
@@ -432,17 +507,20 @@ function renderQueue({ ifChanged = false } = {}) {
     const tri = TRIAGE[enc.c.triage.priority];
     const st = statusOf(enc);
     const canCall = !shift.current && !shift.over && (enc.status !== 'awaiting_results' || st.ready);
-    return h('div', { class: `qcard ${st.ready ? 'ready' : ''}`, style: { borderLeftColor: tri.color } },
+    const pend = enc.pendingExams(shift.clock).map(([, r]) => r);
+    const hit = jumpFresh() && ui.jump.hit.some((x) => x.enc === enc);
+    return h('div', { class: `qcard ${st.ready ? 'ready' : ''}${hit ? ' hit' : ''}`, style: { borderLeftColor: tri.color } },
       h('div', { class: 'nm' }, enc.c.patient.name),
       h('div', { class: 'small muted' }, `${enc.c.patient.age} · ${tri.label}${enc.c.type === 'follow_up' ? ' · Retorno' : ''}`),
       h('div', { class: 'small' }, st.text),
+      patienceMeter(enc) ?? (pend.length ? examMeter(pend) : null),
       h('button', { class: 'btn small', disabled: !canCall, onclick: () => callPatient(enc) }, 'Chamar'),
     );
   });
   const upcoming = shift.upcoming().length;
   const children = cards.length ? cards : [h('div', { class: 'empty' }, upcoming ? 'Ninguém na fila agora.' : shift.current ? 'Último paciente em atendimento.' : 'Fila vazia.')];
   if (showWait) {
-    children.push(h('button', { class: 'btn', style: { alignSelf: 'center' }, onclick: () => { handleEvents(shift.waitForNext()); renderAll(); if (shift.done) setTimeout(showShiftSummary, 400); } }, '☕ Aguardar próximo'));
+    children.push(h('button', { class: 'btn', style: { alignSelf: 'center' }, onclick: () => { handleEvents(timed(() => shift.waitForNext())); renderAll(); if (shift.done) setTimeout(showShiftSummary, 400); } }, '☕ Aguardar próximo'));
   }
   mount(ui.queue, children);
 }
@@ -610,9 +688,25 @@ function say(enc, text, who = 'pt') {
 // Patient chart
 // ----------------------------------------------------------------------
 // Consultation chips in the chart head; a clock tick swaps them in place so the chart keeps its state.
+// "Tempo de consulta" (P2-02): the bar drains as the consultation uses its target; hovering an action shows the
+// share it would cut (ui.hoverCost, in consultation minutes), and picking it takes that share.
 function consultChip(enc) {
-  const goal = consultTarget(enc.c);
-  return h('span', { class: `chip consult-chip${enc.minutesSpent > goal ? ' over' : ''}`, title: 'Tempo de consulta usado, contando o tempo pensando com o paciente na sala. Acima de 100% do alvo perde pontos.' }, `Consulta: ${Math.round((enc.minutesSpent / goal) * 100)}% do tempo-alvo`);
+  const b = consultBar(enc, ui.hoverCost ?? 0);
+  return h('div', { class: `consult-chip${b.over ? ' over' : ''}`, title: 'Tempo de consulta usado, contando o tempo pensando com o paciente na sala. Acima de 100% do alvo perde pontos.' },
+    h('div', { class: 'consult-label' }, h('span', {}, 'Tempo de consulta'), h('b', {}, `${b.pct}% do alvo`)),
+    h('div', { class: 'tbar consult', role: 'meter', 'aria-label': 'Tempo de consulta restante', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': Math.round(b.left * 100) },
+      h('i', { class: 'fill', style: { width: pctW(b.left) } }),
+      h('i', { class: 'cut', style: { left: pctW(b.left - b.cut), width: pctW(b.cut) } })));
+}
+
+/** Hover and focus handlers that preview an action's cut of the consultation bar. */
+function previewCost(cost) {
+  const set = (v) => () => {
+    if ((ui.hoverCost ?? 0) === v || !shift?.current) return;
+    ui.hoverCost = v;
+    ui.chart.querySelector('.consult-chip')?.replaceWith(consultChip(shift.current));
+  };
+  return { onmouseenter: set(cost), onfocus: set(cost), onmouseleave: set(0), onblur: set(0) };
 }
 
 // the critical window counts action minutes only until P1-12 moves it to clock time
@@ -635,6 +729,7 @@ function refreshChart() {
 
 function renderChart() {
   ui.chartSig = chartSig();
+  ui.hoverCost = 0; // the hovered button is gone; a new hover sets it again
   const enc = shift.current;
   if (!enc) {
     const next = shift.queue()[0];
@@ -735,13 +830,13 @@ function paneFor(enc) {
       asked.length ? h('details', { class: 'asked', open: askedOpen, ontoggle: (e) => { askedOpen = e.target.open; } },
         h('summary', {}, `Já perguntado (${asked.length})`),
         h('ul', {}, asked.map((l) => h('li', {}, h('b', {}, l.q), ' ', enc.speakerFor(l.a).text)))) : null,
-      groups.length ? groups.map(([cat, qs]) => h('div', { class: 'opt-group' }, h('h5', {}, cat), h('div', { class: 'opts' }, qs.map((q) => h('button', { class: 'opt', onclick: () => doAsk(enc, q.id) }, q.q))))) : h('p', { class: 'muted' }, 'Sem mais perguntas relevantes.'),
+      groups.length ? groups.map(([cat, qs]) => h('div', { class: 'opt-group' }, h('h5', {}, cat), h('div', { class: 'opts' }, qs.map((q) => h('button', { class: 'opt', ...previewCost(ACTION_COST.question), onclick: () => doAsk(enc, q.id) }, q.q))))) : h('p', { class: 'muted' }, 'Sem mais perguntas relevantes.'),
     ];
   }
   if (tab === 'physical') {
     return [
       ...c.physical.filter((p) => enc.examined.has(p.id)).map((p) => h('div', { class: 'finding' }, h('b', {}, p.label), p.finding)),
-      h('div', { class: 'opts', style: { marginTop: '8px' } }, c.physical.filter((p) => !enc.examined.has(p.id)).map((p) => h('button', { class: 'opt', onclick: () => doExamine(enc, p.id) }, '🩺 ', p.label))),
+      h('div', { class: 'opts', style: { marginTop: '8px' } }, c.physical.filter((p) => !enc.examined.has(p.id)).map((p) => h('button', { class: 'opt', ...previewCost(ACTION_COST.physical), onclick: () => doExamine(enc, p.id) }, '🩺 ', p.label))),
     ];
   }
   if (tab === 'tests') {
@@ -750,6 +845,7 @@ function paneFor(enc) {
       return h('div', { class: 'exam-row' },
         h('b', {}, EXAMS[id].label, r.brought ? ' (trazido pelo paciente)' : ''),
         h('span', { class: 'small muted' }, ready ? 'Liberado' : `Previsto ${clockAt(r.readyAt)}`),
+        ready ? null : examMeter([r], `Andamento: ${EXAMS[id].label}`),
         h('div', { class: `res ${ready ? '' : 'pending'}` }, ready ? r.result : 'Aguardando resultado… Atenda outro paciente enquanto isso.'),
         ready && r.note ? h('div', { class: 'small muted', style: { gridColumn: '1 / -1' } }, 'ℹ️ ', r.note) : null,
       );
@@ -790,7 +886,7 @@ function testGroups(enc) {
     ontoggle: (e) => { if (!q) { if (e.target.open) openTestCats.add(cat); else openTestCats.delete(cat); } },
   },
   h('summary', {}, cat, h('span', { class: 'count' }, ids.length)),
-  h('div', { class: 'opts' }, ids.map((id) => h('button', { class: 'opt', onclick: () => doRequest(enc, id) },
+  h('div', { class: 'opts' }, ids.map((id) => h('button', { class: 'opt', ...previewCost(ACTION_COST.order), onclick: () => doRequest(enc, id) },
     EXAMS[id].label, h('span', { class: 'muted small' }, EXAMS[id].poc ? ' · resultado na consulta' : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ' · resultado em dias' : ' · laboratório')))))));
 }
 
@@ -798,7 +894,7 @@ function doAsk(enc, id) {
   const q = enc.ask(id);
   if (!q) return;
   sfx.click();
-  handleEvents(shift.spend(ACTION_COST.question));
+  handleEvents(timed(() => shift.spend(ACTION_COST.question)));
   say(enc, q.q, 'doctor');
   say(enc, q.a);
   renderAll();
@@ -808,12 +904,12 @@ function doExamine(enc, id) {
   const p = enc.examine(id);
   if (!p) return;
   sfx.click();
-  handleEvents(shift.spend(ACTION_COST.physical));
+  handleEvents(timed(() => shift.spend(ACTION_COST.physical)));
   renderAll();
 }
 
 function doRequest(enc, id) {
-  const { rec, fired } = shift.requestExam(id);
+  const { rec, fired } = timed(() => shift.requestExam(id));
   sfx.click();
   if (rec.readyAt <= shift.clock) { rec._notified = true; sfx.result(); }
   else toast(`${EXAMS[id].label} solicitado. Previsão: ${clockAt(rec.readyAt)}.`);
@@ -823,7 +919,7 @@ function doRequest(enc, id) {
 
 function waitInRoom(enc) {
   sfx.click();
-  handleEvents(shift.waitInRoom());
+  handleEvents(timed(() => shift.waitInRoom()));
   renderAll();
 }
 

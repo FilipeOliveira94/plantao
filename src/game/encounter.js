@@ -37,7 +37,7 @@ export class Encounter {
     this.unitType = unitType;
     this.asked = new Set();
     this.examined = new Set();
-    this.requested = new Map(); // examId -> { readyAt, result, relevance, note, harmful }
+    this.requested = new Map(); // examId -> { requestedAt, readyAt, result, relevance, note, harmful }
     this.minutesSpent = 0;
     // where the consultation went: minutes by action plus real time in the room (thinking, P1-11),
     // which add up to minutesSpent
@@ -130,7 +130,7 @@ export class Encounter {
     const wait = meta.poc ? meta.minutes : Math.round(meta.minutes * multiplier);
     this.minutesSpent += ACTION_COST.order;
     this.time.orders += ACTION_COST.order;
-    const rec = { ...data, readyAt: now + wait, poc: !!meta.poc };
+    const rec = { ...data, requestedAt: now, readyAt: now + wait, poc: !!meta.poc };
     this.requested.set(examId, rec);
     return rec;
   }
