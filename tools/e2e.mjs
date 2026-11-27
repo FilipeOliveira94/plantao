@@ -48,6 +48,16 @@ try {
   // random event popups (P1-09, about one shift in six): the full-shift runs close them; the event check below covers them
   const eventCard = page.locator('.popup.event:not(.out)');
   await page.addLocatorHandler(eventCard, async () => { await eventCard.getByRole('button', { name: 'Entendi' }).click(); }, { noWaitAfter: true });
+  // next step (P2-01): exactly one highlighted action on screen, skipping a popup on its way out
+  const steps = () => page.evaluate(() => [...document.querySelectorAll('.next-step')].filter((el) => !el.closest('.popup.out')).map((el) => el.dataset.step));
+  const expectStep = async (want, what) => {
+    try {
+      await page.waitForFunction((w) => {
+        const on = [...document.querySelectorAll('.next-step')].filter((el) => !el.closest('.popup.out'));
+        return on.length === 1 && (!w || on[0].dataset.step === w);
+      }, want, { timeout: 3000 });
+    } catch { throw new Error(`${what}: next step ${JSON.stringify(await steps())}, expected exactly one${want ? ` (${want})` : ''}`); }
+  };
   await page.goto(`http://localhost:${PORT}/index.html?clock=manual`); // the test steps the clock itself (P1-11)
   // the menu states that the cases are AI-generated and links to the references table
   const refs = page.locator('.ai-notice a');
@@ -165,6 +175,7 @@ try {
         }
         const enc = await page.evaluate(() => window.__plantao.shift?.current?.c.id);
         if (!enc) continue;
+        await expectStep(null, `${enc} called`);
         if (!tabsChecked) {
           // chart tabs name their state: only the opening tab has been seen
           tabsChecked = true;
@@ -662,6 +673,111 @@ try {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/11-imprevisto-resumo.png` });
   console.log(`✔ random event: "system_down" at ${evAt}, popup, chip, slower actions, excused loss in the summary`);
   await page.getByRole('button', { name: /Voltar ao menu/ }).click();
+  // next step (P2-01): one highlighted action per state, empty states say what to do, a result toast opens the results
+  await page.locator('.unit').nth(1).click(); // UPA: lab results come back during the shift
+  await page.locator('.spec').first().click();
+  await page.getByRole('button', { name: /Começar plantão/ }).click();
+  await page.waitForSelector('.game');
+  await page.evaluate(() => {
+    const s = window.__plantao.shift;
+    s.pendingEvents = [];
+    for (const e of s.upcoming()) e.arrivedAt = s.endsAt - 1; // patients arrive only when this check brings them in
+  });
+  // bring the next upcoming patient in now; `calm` makes them green, `quiet` skips their arrival card
+  const bringIn = (opts) => page.evaluate(({ calm, quiet }) => {
+    const s = window.__plantao.shift;
+    const e = s.upcoming()[0];
+    if (calm) e.c = { ...e.c, triage: { ...e.c.triage, priority: 'green' } }; // a copy: the shared case data is untouched
+    e.arrivedAt = s.clock;
+    e._arrivalNotified = !!quiet;
+    window.__plantao.clock.step(10000); // one shift minute: the screen picks the arrival up
+    return e.c.id;
+  }, opts);
+  await expectStep('call', 'room free, a patient waiting');
+  if (!/Chame para começar/.test(await page.locator('.free-room-hint').textContent())) throw new Error('the free room does not say to call the next patient');
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/12a-next-call.png` });
+  await page.locator('[data-step=call]').click();
+  await expectStep('tab:triage', 'patient just called');
+  if (!/Siga com o atendimento/.test(await page.locator('.queue .empty').textContent())) throw new Error('the empty queue does not say what to do');
+  await page.getByRole('tab', { name: /Anamnese/ }).click();
+  await expectStep('tab:history', 'anamnese not started');
+  await page.locator('.pane .opt').first().click();
+  await expectStep('tab:physical', 'physical exam not started');
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/12e-next-tab.png` });
+  await page.getByRole('tab', { name: /Exame físico/ }).click();
+  await page.locator('.pane .opt').first().click();
+  await expectStep('decide', 'enough gathered');
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/12b-next-decide.png` });
+  await page.getByRole('tab', { name: /Exames/ }).click();
+  await page.evaluate(() => document.querySelectorAll('.test-cat').forEach((d) => { d.open = true; }));
+  await page.locator('.pane .opt', { hasText: '· laboratório' }).first().click();
+  await expectStep('wait-here', 'a test still out and no one else to see');
+  await page.locator('[data-step=send-wait]').click();
+  await expectStep('wait-next', 'room free, no one to call yet');
+  if (!/Aguardar próximo/.test(await page.locator('.free-room-hint').textContent())) throw new Error('the free room does not say how to move on');
+  await bringIn({ quiet: true });
+  await expectStep('call', 'a new patient waiting');
+  await page.locator('[data-step=call]').click();
+  const p2 = await page.evaluate(() => window.__plantao.shift.current.c.id);
+  await page.evaluate(() => { const s = window.__plantao.shift; const e = s.encounters[0]; s.advance(Math.max(...[...e.requested.values()].map((r) => r.readyAt)) - s.clock); });
+  await page.getByRole('tab', { name: /Anamnese/ }).click();
+  await page.locator('.pane .opt').first().click(); // any action announces the results
+  const resultToast = page.locator('.toast.clickable', { hasText: /^Resultados de .* Clique para abrir\.$/ });
+  await resultToast.first().waitFor();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/12c-next-result-toast.png` });
+  await resultToast.first().click();
+  const opened = await page.evaluate(() => { const s = window.__plantao.shift; return { cur: s.current?.c.id, first: s.encounters[0].c.id, tab: document.querySelector('.tab.active')?.dataset.step, paused: s.encounters.filter((e) => e.status === 'paused').map((e) => e.c.id) }; });
+  if (opened.cur !== opened.first || opened.tab !== 'tab:tests' || opened.paused.join() !== p2) throw new Error(`the result toast did not open that patient's results: ${JSON.stringify(opened)}`);
+  await expectStep('decide', 'results opened, enough gathered');
+  await page.locator('[data-step=decide]').click();
+  await expectStep('finish', 'decision tab');
+  const finishRight = async () => {
+    const d = await page.evaluate(() => { const c = window.__plantao.shift.current.c; return { dx: c.diagnosis.correct, cd: c.conduct.correct }; });
+    await page.locator(`input[name=dx][value="${d.dx}"]`).check();
+    await page.locator(`input[name=cd][value="${d.cd}"]`).check();
+    await page.locator('[data-step=finish]').click();
+    await page.waitForSelector('.modal-back.feedback');
+    await expectStep('feedback-next', 'feedback');
+    await page.locator('[data-step=feedback-next]').click();
+  };
+  await finishRight();
+  await expectStep('call', 'a paused patient in the queue');
+  if (!/Retomar atendimento/.test(await page.locator('[data-step=call]').textContent())) throw new Error('the call button does not say it resumes the paused patient');
+  if (!/pausado/.test(await page.locator('.free-room-hint').textContent())) throw new Error('the free room does not say the patient is paused');
+  await page.getByRole('button', { name: /Pausar/ }).click();
+  await expectStep('continue', 'pause screen');
+  await page.locator('[data-step=continue]').click();
+  await bringIn({ calm: true });
+  await arrivalCard.waitFor();
+  await expectStep('attend', 'arrival with the room free');
+  await arrivalCard.getByRole('button', { name: 'Depois' }).click();
+  await arrivalCard.waitFor({ state: 'detached' });
+  await page.locator('[data-step=call]').click();
+  if (await page.evaluate(() => window.__plantao.shift.current?.c.id) !== p2) throw new Error('"Retomar atendimento" did not resume the paused patient');
+  await bringIn({ calm: true });
+  await arrivalCard.waitFor();
+  await expectStep('later', 'calm arrival during a consultation');
+  if (SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${SHOTS}/12d-next-arrival-later.png` }); }
+  await arrivalCard.getByRole('button', { name: 'Depois' }).click();
+  await arrivalCard.waitFor({ state: 'detached' });
+  // end of the shift: the summary takes the step
+  await page.evaluate(() => { const s = window.__plantao.shift; s.advance(s.endsAt - s.clock); });
+  await page.getByRole('tab', { name: /Decisão/ }).click();
+  await finishRight();
+  await page.waitForSelector('.modal-back.summary', { timeout: 3000 });
+  await expectStep('summary-menu', 'shift summary');
+  // calm by default, no animation; the tutorial switch (P2-04) makes it stronger
+  const look = await page.evaluate(() => {
+    const el = document.querySelector('.next-step');
+    const calm = getComputedStyle(el);
+    window.__plantao.setNextStepEmphasis(true);
+    const strong = getComputedStyle(el).outlineWidth;
+    window.__plantao.setNextStepEmphasis(false);
+    return { calm: calm.outlineWidth, anim: calm.animationName, strong };
+  });
+  if (look.calm !== '2px' || look.anim !== 'none' || look.strong !== '3px') throw new Error(`next-step highlight: ${JSON.stringify(look)}`);
+  console.log('✔ next step: one highlight per state (call, triage, anamnese, physical, decide, finish, wait, feedback, paused, pause, arrival, summary); result toast opens the results');
+  await page.locator('[data-step=summary-menu]').click();
   // PICU scene
   if (SHOTS) {
     await page.locator('.unit').last().click();

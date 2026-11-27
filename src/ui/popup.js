@@ -13,7 +13,7 @@ let seq = 0;
 
 /**
  * @param {Node|Node[]} content
- * @param {{ actions?: { label: string, primary?: boolean, onclick?: () => void }[], blocking?: boolean,
+ * @param {{ actions?: { label: string, primary?: boolean, step?: string, onclick?: () => void }[], blocking?: boolean,
  *   timeout?: number, accent?: string, label?: string, className?: string, onTimeout?: () => void, onClose?: () => void }} opts
  * @returns {{ close: () => void, el: HTMLElement, blocking: boolean }} close() dismisses it with no action
  */
@@ -46,6 +46,7 @@ export function popup(content, { actions = [], blocking = false, timeout = 0, ac
   };
   const buttons = actions.map((a) => h('button', {
     class: `btn${a.primary ? ' primary' : ''}`,
+    'data-step': a.step, // next-step highlight (P2-01)
     onclick: () => close(a.onclick),
   }, a.label));
   const body = h('div', { class: 'popup-body' }, content);

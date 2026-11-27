@@ -22,9 +22,13 @@ export function mount(parent, ...nodes) {
   return parent;
 }
 
-export function toast(text, ms = 4200) {
+/** A message that goes away after `ms`. With `onClick` it is a button: a click runs it and closes the toast,
+ *  unless onClick returns false (it could not act now), so the toast stays until it times out. */
+export function toast(text, ms = 4200, { onClick } = {}) {
   const box = document.getElementById('toasts');
-  const t = h('div', { class: 'toast' }, text);
+  const t = onClick
+    ? h('button', { type: 'button', class: 'toast clickable', onclick: () => { if (onClick() !== false) t.remove(); } }, text)
+    : h('div', { class: 'toast' }, text);
   box.append(t);
   setTimeout(() => t.remove(), ms);
 }
