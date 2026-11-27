@@ -7,6 +7,7 @@ import {
   Shift, scaledTarget, IMPATIENCE_MARGIN, LEAVE_MARGIN, SATISFACTION_PENALTY, impatienceAt, leaveAt, satisfactionXp,
 } from '../src/game/shift.js';
 import { applyShift } from '../src/game/progress.js';
+import { clockLabelAt, durationLabel, shownMinutes, SHIFT_MINUTES, REAL_SHIFT_MINUTES } from '../src/game/time.js';
 import { UNITS, TRIAGE } from '../src/data/catalog.js';
 
 const UPA = UNITS.find((u) => u.type === 'upa');
@@ -22,11 +23,20 @@ function shiftWith(priorities, complain = false) {
 }
 
 test('thresholds: impatient past target + margin, leaving only for green and blue', () => {
-  for (const p of Object.keys(TRIAGE)) assert.equal(impatienceAt(p), scaledTarget(p) + IMPATIENCE_MARGIN);
+  for (const p of Object.keys(TRIAGE)) assert.equal(impatienceAt(p), scaledTarget(p) + IMPATIENCE_MARGIN[p]);
   assert.equal(leaveAt('green'), scaledTarget('green') + LEAVE_MARGIN);
   assert.equal(leaveAt('blue'), scaledTarget('blue') + LEAVE_MARGIN);
   for (const p of ['red', 'orange', 'yellow']) assert.equal(leaveAt(p), null);
-  assert.ok(LEAVE_MARGIN > IMPATIENCE_MARGIN, 'leaving needs a longer wait than impatience');
+  for (const p of ['green', 'blue']) assert.ok(leaveAt(p) > impatienceAt(p), 'leaving needs a longer wait than impatience');
+  assert.deepEqual(['red', 'orange', 'yellow'].map(impatienceAt), [20, 27.5, 45]);
+});
+
+test('the clock and durations show a fictitious 12-hour shift', () => {
+  assert.equal(clockLabelAt(0), '07:00');
+  assert.equal(clockLabelAt(SHIFT_MINUTES), '19:00');
+  assert.equal(clockLabelAt(15), '08:00');
+  assert.deepEqual([2, 10, 15, 20, 0.5].map(durationLabel), ['8 min', '40 min', '1 h', '1 h 20 min', '2 min']);
+  assert.equal(shownMinutes(SHIFT_MINUTES), REAL_SHIFT_MINUTES);
 });
 
 test('Manchester targets scale from a 12-hour shift to the game shift', () => {

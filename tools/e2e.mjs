@@ -314,13 +314,13 @@ try {
     return bad;
   });
   if (arrivals.length) throw new Error(arrivals.join('\n'));
-  // the shift has an end: after 10:00 no one else is called, the patient in the room can be finished,
+  // the shift has an end: after 19:00 (the fictitious 12-hour clock) no one else is called, the patient in the room can be finished,
   // and patients left unseen are listed in the summary and cost XP from the closing bonus
   await page.locator('.unit').first().click();
   await page.locator('.spec').first().click();
   await page.getByRole('button', { name: /Começar plantão/ }).click();
   await page.waitForSelector('.game');
-  if (!/fim 10:00/.test(await page.locator('.clock').textContent())) throw new Error('top bar does not show the end of the shift');
+  if (!/fim 19:00/.test(await page.locator('.clock').textContent())) throw new Error('top bar does not show the end of the shift');
   await page.locator('.qcard button:not([disabled])').first().click();
   const xpBefore = await page.evaluate(() => { const s = window.__plantao.shift; s.advance(s.endsAt - s.clock); return window.__plantao.state.xp; });
   await page.getByRole('tab', { name: /Anamnese/ }).click();

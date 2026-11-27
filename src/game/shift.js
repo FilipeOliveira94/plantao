@@ -3,18 +3,14 @@
 import { UNIT_TYPES, TRIAGE, EXAMS } from '../data/catalog.js';
 import { casesFor } from '../data/cases/index.js';
 import { Encounter } from './encounter.js';
+import { SHIFT_MINUTES, TIME_SCALE, clockLabelAt, durationLabel } from './time.js';
 
-export const SHIFT_START_HOUR = 7;
-// Game minutes in a shift (07:00 to 10:00) and the window in which patients arrive.
-// Five patients in three game hours keep a shift to about 10 to 15 minutes of real play.
-export const SHIFT_MINUTES = 180;
+export { SHIFT_START_HOUR, SHIFT_MINUTES, REAL_SHIFT_MINUTES, clockLabelAt } from './time.js';
+// Internal minutes (see time.js): the shift lasts SHIFT_MINUTES, shown as 07:00 to 19:00, and patients
+// arrive within the first ARRIVAL_WINDOW (shown as 8 hours). Five patients keep a shift to about
+// 10 to 15 minutes of real play.
 export const ARRIVAL_WINDOW = 120;
 export const PATIENTS_PER_SHIFT = { default: 5, picu: 4 };
-
-export const clockLabelAt = (minutes) => {
-  const total = SHIFT_START_HOUR * 60 + minutes;
-  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-};
 
 export function mulberry32(seed) {
   return function () {
@@ -26,13 +22,15 @@ export function mulberry32(seed) {
 }
 
 // Waiting consequences (P1-06): non-clinical only, no vital sign changes.
-// The game shift (SHIFT_MINUTES on the clock) stands for a real 12-hour shift, so the Manchester targets,
-// set in real minutes in TRIAGE, are scaled by SHIFT_MINUTES / REAL_SHIFT_MINUTES (blue: 240 -> 60).
-export const REAL_SHIFT_MINUTES = 12 * 60;
-/** Manchester target for a priority, in game minutes. */
-export const scaledTarget = (priority) => TRIAGE[priority].target * SHIFT_MINUTES / REAL_SHIFT_MINUTES;
-// A patient never called is impatient once their wait passes the scaled target plus this margin (game minutes).
-export const IMPATIENCE_MARGIN = 15;
+// The Manchester targets in TRIAGE are minutes the player sees on the 12-hour clock; the engine compares
+// them in internal minutes (blue: 240 shown -> 60 internal).
+/** Manchester target for a priority, in internal minutes. */
+export const scaledTarget = (priority) => TRIAGE[priority].target / TIME_SCALE;
+// A patient never called is impatient once their wait passes the scaled target plus their priority's margin
+// (internal minutes; red 20 is shown as 80 min).
+// Red to yellow get a wider margin: their scaled targets are short (0 to 15), and a doctor busy with
+// another urgent patient for one consultation should not make them impatient straight away.
+export const IMPATIENCE_MARGIN = { red: 20, orange: 25, yellow: 30, green: 15, blue: 15 };
 // Only these priorities give up and leave unseen, once their wait passes the scaled target plus this margin.
 export const CAN_LEAVE = ['green', 'blue'];
 export const LEAVE_MARGIN = 30;
@@ -43,7 +41,7 @@ export const SATISFACTION_PENALTY = { impatient: 10, complaint: 5, left: 15 };
 export const COMPLAINT_CHANCE = 0.5;
 
 /** Wait in minutes after which a patient of this priority gets impatient. */
-export const impatienceAt = (priority) => scaledTarget(priority) + IMPATIENCE_MARGIN;
+export const impatienceAt = (priority) => scaledTarget(priority) + IMPATIENCE_MARGIN[priority];
 /** Wait after which a patient of this priority leaves unseen, or null when they never leave. */
 export const leaveAt = (priority) => (CAN_LEAVE.includes(priority) ? scaledTarget(priority) + LEAVE_MARGIN : null);
 /** XP added to (or taken from) the closing bonus for the shift's satisfaction. */
@@ -51,7 +49,7 @@ export const satisfactionXp = (s) => (s >= 90 ? 10 : s >= 70 ? 0 : s >= 40 ? -10
 
 const familyOf = (enc) => (enc.c.patient.companion ? `A família de ${enc.c.patient.name}` : enc.c.patient.name);
 const COMPLAINTS = [
-  (enc, wait) => `Recepção: “${familyOf(enc)} veio reclamar da demora. São ${wait} minutos de espera.”`,
+  (enc, wait) => `Recepção: “${familyOf(enc)} veio reclamar da demora. Já são ${durationLabel(wait)} de espera.”`,
   (enc) => `Enfermagem: “${familyOf(enc)} perguntou de novo quanto falta. O clima na sala de espera está pesado.”`,
 ];
 const leftText = (enc) => `Recepção: “${familyOf(enc)} cansou de esperar e foi embora sem atendimento.”`;
@@ -63,7 +61,7 @@ const shuffle = (arr, rnd) => {
 };
 
 const EVENTS = [
-  { id: 'lab_delay', text: 'Laboratório: “O analisador travou, os exames vão atrasar uns 30 minutos.”', effect: (s) => { s.labExtra = 30; } },
+  { id: 'lab_delay', text: 'Laboratório: “O analisador travou, os exames vão atrasar umas 2 horas.”', effect: (s) => { s.labExtra = 30; } },
   { id: 'system_down', text: 'Recepção: “O sistema do prontuário caiu de novo… tô anotando tudo no papel.”' },
   { id: 'companion_complaint', text: 'Enfermagem: “Tem um acompanhante perguntando pela terceira vez quando vai ser atendido.”' },
   { id: 'coffee', text: 'Técnica de enfermagem: “Passei um café fresco na copa, doutor(a). Quando der, né?”' },
@@ -98,7 +96,7 @@ export class Shift {
 
     // a separate stream, so shuffling options does not change arrivals or events for a given seed
     const optionRnd = mulberry32(seed ^ 0x5bd1e995);
-    // the first patient is waiting at 07:00; the rest spread evenly over the arrival window, ±8 min
+    // the first patient is waiting at 07:00; the rest spread evenly over the arrival window, ±8 internal min
     const step = picked.length > 1 ? ARRIVAL_WINDOW / (picked.length - 1) : 0;
     let prev = 0;
     this.encounters = picked.map((c, i) => {
