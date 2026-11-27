@@ -329,6 +329,8 @@ function renderTop({ ifChanged = false } = {}) {
     h('span', { class: 'spacer' }),
     h('span', { class: 'small muted' }, `${shift.results.length}/${shift.encounters.length} atendidos`),
     h('span', { class: 'small' }, `Nv ${lvl.number} · ${state.xp} XP`),
+    // event effects (P1-09) stay on screen while they last
+    ...shift.activeEffects().map((f) => h('span', { class: 'chip effect', title: f.detail }, f.label)),
     h('span', { class: `clock${shift.over ? ' over' : ''}`, title: `Relógio do plantão (termina às ${shift.endLabel})` }, shift.clockLabel, h('span', { class: 'clock-end' }, ` · fim ${shift.endLabel}`)),
     h('button', { class: 'btn ghost pause-btn', onclick: showPause, disabled: shift.done, title: 'Pausar o relógio do plantão' }, '⏸ Pausar'),
     h('button', { class: 'btn ghost', onclick: toggleMute }, state.settings.muted ? '🔇' : '🔊'),
@@ -446,7 +448,8 @@ function renderQueue({ ifChanged = false } = {}) {
 }
 
 function handleEvents(fired) {
-  for (const ev of fired || []) toast(ev.text, 6500);
+  // high-impact events open a popup; cosmetic ones and waiting consequences stay as toasts
+  for (const ev of fired || []) { if (ev.impact) announceEvent(ev); else toast(ev.text, 6500); }
   if (shift.over && !shift._overNotified) {
     shift._overNotified = true;
     clearArrivals(); // no one else can be called: an open arrival card has nothing left to offer
@@ -477,24 +480,62 @@ function handleEvents(fired) {
 // ----------------------------------------------------------------------
 // Arrival popups: one at a time, most urgent first. Red and orange block the screen with the alarm;
 // the others are a compact card that goes away on its own ("Depois").
+// Event popups (P1-09) share the slot: one card at a time, arrivals first.
 // ----------------------------------------------------------------------
 const ARRIVAL_AUTO_CLOSE_MS = 6000;
+const EVENT_AUTO_CLOSE_MS = 9000;
 const arrivals = [];
+const events = [];
 let arrivalPopup = null;
+let eventPopup = null;
 
 function clearArrivals() {
   arrivals.length = 0;
+  events.length = 0;
   const p = arrivalPopup;
+  const q = eventPopup;
   arrivalPopup = null;
+  eventPopup = null;
   p?.close();
+  q?.close();
+}
+
+/** Shows the next queued card when none is up: arrivals before events. */
+function showNextNotice() {
+  if (arrivalPopup || eventPopup) return;
+  if (arrivals.length) showNextArrival();
+  if (!arrivalPopup && events.length) showEvent(events.shift());
 }
 
 function announceArrival(enc) {
   arrivals.push(enc);
   arrivals.sort((a, b) => TRIAGE[a.c.triage.priority].order - TRIAGE[b.c.triage.priority].order);
-  // a red or orange arrival does not wait behind a calm card: that card counts as "Depois"
-  if (arrivalPopup && !arrivalPopup.blocking && TRIAGE[enc.c.triage.priority].order <= TRIAGE.orange.order) arrivalPopup.close();
-  else if (!arrivalPopup) showNextArrival();
+  // a red or orange arrival does not wait behind a calm card: an arrival card counts as "Depois",
+  // an event card closes (its effect stays in the top bar)
+  const open = arrivalPopup ?? eventPopup;
+  if (open && !open.blocking && TRIAGE[enc.c.triage.priority].order <= TRIAGE.orange.order) open.close();
+  else showNextNotice();
+}
+
+function announceEvent(ev) {
+  events.push(ev);
+  showNextNotice();
+}
+
+function showEvent(ev) {
+  if (!shift || shift.over) { events.length = 0; return; }
+  const own = popup(h('div', {},
+    h('span', { class: 'event-tag' }, '⚠️ Imprevisto no plantão'),
+    h('p', { class: 'event-text' }, ev.text),
+    ev.detail ? h('p', { class: 'event-detail small' }, ev.detail) : null,
+  ), {
+    className: 'event',
+    timeout: EVENT_AUTO_CLOSE_MS,
+    label: 'Imprevisto no plantão',
+    actions: [{ label: 'Entendi' }],
+    onClose: () => { if (eventPopup === own) { eventPopup = null; showNextNotice(); } },
+  });
+  eventPopup = own;
 }
 
 function showNextArrival() {
@@ -520,7 +561,7 @@ function showNextArrival() {
       { label: 'Atender agora', primary: true, onclick: () => attendNow(enc) },
       { label: 'Depois' },
     ],
-    onClose: () => { if (arrivalPopup === own) { arrivalPopup = null; showNextArrival(); } },
+    onClose: () => { if (arrivalPopup === own) { arrivalPopup = null; showNextNotice(); } },
   });
   own.enc = enc;
   arrivalPopup = own;
@@ -798,7 +839,7 @@ function sendToWait(enc) {
 function finishEncounter(enc) {
   if (!decision.dx || !decision.cd) { toast('Escolha a hipótese diagnóstica e a conduta.'); return; }
   const prevLevel = levelOf(state.xp).number;
-  const result = enc.score({ diagnosisId: decision.dx, conductId: decision.cd, now: shift.clock });
+  const result = enc.score({ diagnosisId: decision.dx, conductId: decision.cd, now: shift.clock, excusedWait: shift.excusedWait(enc) });
   result.chosen = { dx: decision.dx, cd: decision.cd };
   shift.finish(enc, result);
   const earned = applyCase(state, enc.c, result);
@@ -896,15 +937,22 @@ function showFeedback(enc, r, earned, leveled) {
 function impatientNote(s) {
   const n = s.encounters.filter((e) => e.impatient).length;
   const k = s.satisfactionLog.filter((l) => l.reason === 'complaint').length;
-  if (!n) return '';
-  return ` · ${n} impaciente${n > 1 ? 's' : ''}${k ? `, ${k} reclamaç${k > 1 ? 'ões' : 'ão'}` : ''}`;
+  // complaints include a companion's complaint from a random event (P1-09), which needs no impatient patient
+  const parts = [n && `${n} impaciente${n > 1 ? 's' : ''}`, k && `${k} reclamaç${k > 1 ? 'ões' : 'ão'}`].filter(Boolean);
+  return parts.length ? ` · ${parts.join(', ')}` : '';
+}
+
+// " · 15 pontos atribuídos ao imprevisto (não contam no bônus)" when an event (P1-09) caused part of the loss
+function excusedNote(shown, graded) {
+  const n = graded - shown;
+  return n > 0 ? ` · ${n} ponto${n > 1 ? 's' : ''} atribuído${n > 1 ? 's' : ''} ao imprevisto (não conta${n > 1 ? 'm' : ''} no bônus)` : '';
 }
 
 function showShiftSummary() {
   if (!shift || shift._summaryShown) return;
   shift._summaryShown = true;
   const prev = levelOf(state.xp).number;
-  const { earned, bonus, unseenPenalty, satisfaction, satisfactionBonus } = applyShift(state, shift);
+  const { earned, bonus, unseenPenalty, satisfaction, gradedSatisfaction, satisfactionBonus } = applyShift(state, shift);
   const unseen = shift.unseen();
   save(state);
   const leveled = levelOf(state.xp).number > prev;
@@ -919,7 +967,7 @@ function showShiftSummary() {
       unseen.map((enc) => h('li', { class: `unseen${enc.status === 'left' ? ' left' : ''}` }, h('span', {}, enc.c.patient.name, ` (${TRIAGE[enc.c.triage.priority].label})`),
         h('span', { class: 'neg' }, enc.status === 'left' ? `foi embora sem atendimento às ${clockAt(enc.leftAt)}` : 'não atendido'))),
       unseen.length ? h('li', {}, h('span', {}, `Pacientes sem atendimento (${unseen.length})`), h('span', { class: 'neg' }, `-${unseenPenalty}`)) : null,
-      h('li', { class: 'satisfaction' }, h('span', {}, `Satisfação dos pacientes: ${satisfaction}/100${impatientNote(finished)}`),
+      h('li', { class: 'satisfaction' }, h('span', {}, `Satisfação dos pacientes: ${satisfaction}/100${impatientNote(finished)}${excusedNote(satisfaction, gradedSatisfaction)}`),
         h('span', { class: satisfactionBonus > 0 ? 'pos' : satisfactionBonus < 0 ? 'neg' : 'muted' }, satisfactionBonus < 0 ? `${satisfactionBonus}` : `+${satisfactionBonus}`)),
       h('li', {}, h('span', {}, unseen.length || satisfactionBonus < 0 ? 'Bônus de fechamento (após descontos, mínimo 0)' : 'Bônus de fechamento de plantão'), h('span', { class: bonus ? 'pos' : 'muted' }, `+${bonus}`)),
       h('li', {}, h('b', {}, 'Total'), h('b', {}, `+${total} XP`)),

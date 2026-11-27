@@ -144,7 +144,7 @@ export class Encounter {
   }
 
   /** Final score. Returns a detailed object for the feedback screen. */
-  score({ diagnosisId, conductId, now }) {
+  score({ diagnosisId, conductId, now, excusedWait = 0 }) {
     const c = this.c;
     const lines = [];
     let pts = 0;
@@ -180,7 +180,8 @@ export class Encounter {
     if (harmfulExams.length) add(-20 * harmfulExams.length, 'Exame com risco ao paciente instável');
 
     // Waiting time vs. triage target
-    const waited = this.firstSeenAt != null ? this.firstSeenAt - this.arrivedAt : 0;
+    // `excusedWait`: minutes of that wait a random event took from the doctor (Shift.excusedWait), not held against them
+    const waited = this.firstSeenAt != null ? Math.max(0, this.firstSeenAt - this.arrivedAt - excusedWait) : 0;
     const target = TRIAGE[c.triage.priority].target;
     if (waited > target + 15) add(-Math.min(40, Math.round((waited - target) / 5)), 'Espera acima do alvo da classificação');
 

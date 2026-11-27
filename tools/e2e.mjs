@@ -45,6 +45,9 @@ try {
   const arrivalCard = page.locator('.popup.arrival:not(.out)');
   const dismissArrival = async () => { await arrivalCard.getByRole('button', { name: 'Depois' }).click(); };
   await page.addLocatorHandler(arrivalCard, dismissArrival, { noWaitAfter: true });
+  // random event popups (P1-09, about one shift in six): the full-shift runs close them; the event check below covers them
+  const eventCard = page.locator('.popup.event:not(.out)');
+  await page.addLocatorHandler(eventCard, async () => { await eventCard.getByRole('button', { name: 'Entendi' }).click(); }, { noWaitAfter: true });
   await page.goto(`http://localhost:${PORT}/index.html?clock=manual`); // the test steps the clock itself (P1-11)
   // the menu states that the cases are AI-generated and links to the references table
   const refs = page.locator('.ai-notice a');
@@ -538,6 +541,61 @@ try {
   console.log('✔ arrival popups: details, non-blocking "Depois", auto-dismiss, red "Atender agora" pauses with progress kept');
   await page.locator('.topbar .btn.ghost').first().click(); // ←: leave the shift
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  // random events (P1-09): a system-down event scheduled on the live shift shows its popup and the effect chip,
+  // and each action costs extra shift time while it lasts
+  await page.removeLocatorHandler(eventCard);
+  await page.locator('.unit').first().click();
+  await page.locator('.spec').first().click();
+  await page.getByRole('button', { name: /Começar plantão/ }).click();
+  await page.waitForSelector('.game');
+  await page.locator('.qcard button:not([disabled])').first().click();
+  await page.getByRole('tab', { name: /Anamnese/ }).click();
+  const evAt = await page.evaluate(() => {
+    const s = window.__plantao.shift;
+    for (const e of s.upcoming()) e.arrivedAt = s.endsAt - 1; // no arrival card in the way
+    s.pendingEvents = []; // drop any rolled event: this check schedules its own
+    const at = s.clock + 20;
+    s.scheduleEvent('system_down', at);
+    s.advance(at - 1 - s.clock);
+    return at;
+  });
+  await page.locator('.pane .opt').first().click(); // crosses the event minute through the UI
+  await eventCard.waitFor();
+  const evText = await eventCard.innerText();
+  if (!/sistema do prontuário caiu/.test(evText) || !/Sistema fora do ar até \d\d:\d\d/.test(evText)) throw new Error(`unexpected event popup: ${evText}`);
+  if (/\d+\s*min\b/.test(evText)) throw new Error(`event popup shows scaled minutes: ${evText}`);
+  if (await page.locator('.popup-wrap.blocking').count()) throw new Error('an event popup must not block the screen');
+  const chip = page.locator('.topbar .chip.effect', { hasText: /Sistema fora do ar até/ });
+  await chip.waitFor();
+  if (SHOTS) { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/10-imprevisto.png` }); }
+  await eventCard.getByRole('button', { name: 'Entendi' }).click();
+  await eventCard.waitFor({ state: 'detached' });
+  const t0 = await page.evaluate(() => window.__plantao.shift.clock);
+  await page.locator('.pane .opt').first().click();
+  const t1 = await page.evaluate(() => window.__plantao.shift.clock);
+  if (t1 - t0 !== 3) throw new Error(`a question during the system-down event advanced the clock by ${t1 - t0}, expected 3`);
+  await page.evaluate(() => { const s = window.__plantao.shift; s.advance(s.activeEffects()[0].until - s.clock); });
+  await page.locator('.pane .opt').first().click();
+  if (await chip.count()) throw new Error('the effect chip stays after the event ends');
+  // a loss the event caused shows in the summary but does not count in the bonus
+  const evEnd = await page.evaluate(() => {
+    const s = window.__plantao.shift;
+    s.changeSatisfaction(-15, 'impatient', s.encounters[1], { excused: 'system_down' });
+    s.advance(s.endsAt - s.clock);
+    return { dx: s.current.c.diagnosis.correct, cd: s.current.c.conduct.correct };
+  });
+  await page.getByRole('tab', { name: /Decisão/ }).click();
+  await page.locator(`input[name=dx][value="${evEnd.dx}"]`).check();
+  await page.locator(`input[name=cd][value="${evEnd.cd}"]`).check();
+  await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
+  await page.waitForSelector('.modal');
+  await page.locator('.modal .btn.primary').click();
+  await page.waitForSelector('text=Fim de plantão', { timeout: 3000 });
+  const evSat = await page.locator('.modal li.satisfaction').textContent();
+  if (!/Satisfação dos pacientes: 85\/100/.test(evSat) || !/15 pontos atribuídos ao imprevisto \(não contam no bônus\)/.test(evSat) || !/\+10$/.test(evSat.trim())) throw new Error(`unexpected satisfaction line after an event: ${evSat}`);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/11-imprevisto-resumo.png` });
+  console.log(`✔ random event: "system_down" at ${evAt}, popup, chip, slower actions, excused loss in the summary`);
+  await page.getByRole('button', { name: /Voltar ao menu/ }).click();
   // PICU scene
   if (SHOTS) {
     await page.locator('.unit').last().click();

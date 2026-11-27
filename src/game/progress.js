@@ -259,8 +259,10 @@ export function applyShift(state, shift) {
   // shift satisfaction (P1-06) adds or takes a little from the same bonus, never from a case's score
   const unseenPenalty = UNSEEN_PENALTY * unseen;
   const satisfaction = shift.satisfaction ?? 100;
-  const satisfactionBonus = satisfactionXp(satisfaction);
+  // losses a random event caused (P1-09) are shown but do not count in the bonus
+  const gradedSatisfaction = shift.gradedSatisfaction ?? satisfaction;
+  const satisfactionBonus = satisfactionXp(gradedSatisfaction);
   const bonus = Math.max(0, 50 + 10 * rs.filter((r) => r.stars === 3).length - unseenPenalty + satisfactionBonus);
   state.xp += bonus;
-  return { earned, bonus, unseen, unseenPenalty, satisfaction, satisfactionBonus };
+  return { earned, bonus, unseen, unseenPenalty, satisfaction, gradedSatisfaction, satisfactionBonus };
 }
