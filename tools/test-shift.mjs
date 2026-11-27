@@ -190,3 +190,15 @@ test('pause with no one in the room does nothing', () => {
   assert.equal(s.pause(), null);
   assert.equal(s.current, null);
 });
+
+test('a fixed case list (the guided first shift, P2-04): that case at 07:00, no random events, for any seed', () => {
+  const UBS = UNITS.find((u) => u.id === 'ubs-recife');
+  for (let seed = 1; seed <= 60; seed++) {
+    const s = new Shift({ unit: UBS, specialty: 'internal-medicine', seed, caseIds: ['im-cystitis'], events: false });
+    assert.deepEqual(s.encounters.map((e) => e.c.id), ['im-cystitis']);
+    assert.equal(s.encounters[0].arrivedAt, 0);
+    assert.deepEqual(s.pendingEvents, []);
+  }
+  // the default shift still rolls events for some seeds
+  assert.ok([...Array(60).keys()].some((i) => new Shift({ unit: UBS, specialty: 'internal-medicine', seed: i + 1 }).pendingEvents.length));
+});

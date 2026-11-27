@@ -16,6 +16,7 @@ The game text is in **Brazilian Portuguese** on purpose: the target audience is 
 - **Shift simulation:** Manchester triage priorities, staggered arrivals and a game clock. Lab and imaging tests take time, so the patient goes to the waiting room and comes back when results are ready. Random events happen too (lab analyzer down, no beds available).
 - **Continuity of care:** follow-up visits with tests the patient brings, specialist counter-referral letters and handoff notes from the previous doctor.
 - **Scoring and rewards:** stars per encounter, XP, 8 levels (from intern to head of shift), 11 achievements and unlockable units. Penalties for unnecessary tests (Choosing Wisely), waits beyond the triage target, missed time-critical windows and harmful management.
+- **Guided first shift:** a fresh save offers a short tutorial: one easy case with a prompt for each step, the shift clock held while you read. It can be skipped, and replayed from the menu (🧭 Tutorial). The first finished run pays the case's XP; replays pay nothing.
 - **Simplified 3D look:** a low-poly isometric scene drawn in code on Canvas 2D, with no external assets.
 - **Synthesized sound:** WebAudio only (queue call chime, PICU monitor, right/wrong, achievement).
 - No dependencies: HTML, CSS and ES modules.
@@ -58,7 +59,8 @@ src/
   data/cases/*.js       # cases per specialty
   game/encounter.js     # encounter state and scoring
   game/shift.js         # shift: queue, clock, pending tests, random events
-  game/progress.js      # XP, levels, achievements, save (localStorage)
+  game/progress.js      # XP, levels, achievements, versioned save (localStorage)
+  game/tutorial.js      # guided first shift: its case and the prompt for each next step
   render/iso.js         # low-poly isometric renderer
   audio/sfx.js          # synthesized sounds
   ui/dom.js             # DOM helpers

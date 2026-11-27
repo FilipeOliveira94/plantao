@@ -208,6 +208,24 @@ body.tutorial .btn.next-step:not(.primary) { background: color-mix(in srgb, var(
 .popup-wrap.blocking.closing { pointer-events: none; background: transparent; transition: background 180ms ease-in; }
 .popup.out { animation: popup-out 180ms ease-in both; pointer-events: none; }
 .popup-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+/* guided first shift (P2-04): the coach card parks bottom-left over the scene, just above the queue
+   (main.js sets --coach-bottom), and above modals, without blocking the board */
+.popup-wrap.dock-bottom-left { align-items: flex-end; justify-content: flex-start; padding: 16px 16px calc(12px + var(--coach-bottom, 0px)); }
+.popup.coach { max-width: 340px; max-height: calc(100vh - 100px - var(--coach-bottom, 0px)); overflow-y: auto; border-left-color: var(--accent); }
+.popup.coach .coach-title { font-weight: 800; margin-bottom: 6px; }
+.popup.coach .coach-text p { margin: 0 0 6px; }
+.popup.coach .popup-actions { margin-top: 6px; }
+.popup-wrap.dock-bottom-left.hidden { display: none; }
+.coach-note { border-left: 6px solid var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--card)); border-radius: 10px; padding: 8px 12px; margin: 8px 0 12px; }
+.coach-note p { margin: 4px 0 0; }
+.tutorial-offer { display: flex; gap: 12px 18px; flex-wrap: wrap; align-items: center; justify-content: space-between; background: var(--card); border: 2px solid var(--accent); border-radius: 14px; padding: 12px 16px; margin: 14px 0 4px; }
+.tutorial-offer p { margin: 4px 0 0; }
+/* narrow screens: a bottom sheet; the page gets room to scroll everything above it */
+@media (max-width: 900px) {
+  .popup-wrap.dock-bottom-left { padding: 8px; }
+  .popup.coach { max-width: none; max-height: 38vh; font-size: 14px; }
+  body.tutorial .game { padding-bottom: 40vh; }
+}
 @keyframes popup-in { from { transform: translateX(-100vw); } to { transform: none; } }
 @keyframes popup-out { from { transform: none; } to { transform: translateX(100vw); } }
 @media (prefers-reduced-motion: reduce) {

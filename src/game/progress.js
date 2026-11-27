@@ -7,7 +7,7 @@ import { satisfactionXp } from './shift.js';
 // The key keeps its historical name; the schema version lives in the save's `version` field.
 const KEY = 'plantao.save.v1';
 const APP = 'plantao';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const MAX_IMPORT_BYTES = 64 * 1024;
 
 const MAX_COUNT = 10_000_000;
@@ -18,6 +18,8 @@ const CASE_ID = /^[a-z0-9-]{1,64}$/;
 const UF = /^[A-Z]{2}$/;
 const KNOWN_CASES = new Set(CASES.map((c) => c.id));
 const KNOWN_UFS = new Set(UNITS.map((u) => u.uf));
+// guided first shift (P2-04): null until the player finishes ('done') or skips ('skipped') it
+const TUTORIAL_STATES = ['done', 'skipped'];
 
 export const LEVELS = [
   { xp: 0, title: 'Interno(a)' },
@@ -46,13 +48,15 @@ export const BADGES = {
 
 const fresh = () => ({
   version: SAVE_VERSION, xp: 0, shifts: 0, cases: {}, badges: [], states: [],
-  counters: { cleanStreak: 0 }, settings: { muted: false }, doctorName: '',
+  counters: { cleanStreak: 0 }, settings: { muted: false }, doctorName: '', tutorial: null,
 });
 
 // MIGRATIONS[n] turns a version-n save into version n+1. A schema change bumps SAVE_VERSION and adds one entry.
 const MIGRATIONS = {
   // v1: the original save, with no version field. v2 only adds the field.
   1: (s) => ({ ...s, version: 2 }),
+  // v3 adds `tutorial` (P2-04). Someone who already played a shift is not offered the guided first shift.
+  2: (s) => ({ ...s, version: 3, tutorial: Number.isInteger(s.shifts) && s.shifts > 0 ? 'done' : null }),
 };
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -110,6 +114,10 @@ function normalize(raw, strict) {
   if (has('doctorName')) {
     if (typeof raw.doctorName === 'string' && raw.doctorName.length <= MAX_NAME) out.doctorName = raw.doctorName;
     else bad('doctorName');
+  }
+  if (has('tutorial')) {
+    if (raw.tutorial === null || TUTORIAL_STATES.includes(raw.tutorial)) out.tutorial = raw.tutorial;
+    else bad('tutorial');
   }
   return out;
 }

@@ -1,7 +1,7 @@
 // A shift: clock, patient queue, pending tests and random events (P1-09).
 // Event texts are player-facing and stay in pt-BR.
 import { UNIT_TYPES, TRIAGE, EXAMS } from '../data/catalog.js';
-import { casesFor } from '../data/cases/index.js';
+import { CASES, casesFor } from '../data/cases/index.js';
 import { Encounter } from './encounter.js';
 import { SHIFT_MINUTES, REAL_SECONDS_PER_MINUTE, clockLabelAt } from './time.js';
 import { scaledTarget, impatienceAt } from './waiting.js';
@@ -115,7 +115,8 @@ const EVENTS = [
 export const EVENT_IDS = EVENTS.map((e) => e.id);
 
 export class Shift {
-  constructor({ unit, specialty, seed = Date.now(), completedCases = {} }) {
+  // caseIds: a fixed list of cases played in that order (the guided first shift, P2-04); events: false turns random events off.
+  constructor({ unit, specialty, seed = Date.now(), completedCases = {}, caseIds = null, events = true }) {
     this.unit = unit;
     this.unitType = UNIT_TYPES[unit.type];
     this.specialty = specialty;
@@ -134,15 +135,19 @@ export class Shift {
     // a separate stream for complaints, so they do not change arrivals, options or events
     this.waitRnd = mulberry32(seed ^ 0x2545f491);
 
-    const pool = casesFor(specialty, unit.type);
-    // follow-up cases only appear after the player has completed at least one case
-    const eligible = pool.filter((c) => c.type !== 'follow_up' || Object.keys(completedCases).length > 0);
-    // prefer cases not played yet
-    const fresh = shuffle(eligible.filter((c) => !completedCases[c.id]), this.rnd);
-    const seen = shuffle(eligible.filter((c) => completedCases[c.id]), this.rnd);
-    const n = PATIENTS_PER_SHIFT[unit.type] ?? PATIENTS_PER_SHIFT.default;
-    // a pool smaller than the shift plays every case once: no repeats, same length and arrival window
-    const picked = [...fresh, ...seen].slice(0, Math.min(n, eligible.length));
+    let picked;
+    if (caseIds) picked = caseIds.map((id) => CASES.find((c) => c.id === id)).filter(Boolean);
+    else {
+      const pool = casesFor(specialty, unit.type);
+      // follow-up cases only appear after the player has completed at least one case
+      const eligible = pool.filter((c) => c.type !== 'follow_up' || Object.keys(completedCases).length > 0);
+      // prefer cases not played yet
+      const fresh = shuffle(eligible.filter((c) => !completedCases[c.id]), this.rnd);
+      const seen = shuffle(eligible.filter((c) => completedCases[c.id]), this.rnd);
+      const n = PATIENTS_PER_SHIFT[unit.type] ?? PATIENTS_PER_SHIFT.default;
+      // a pool smaller than the shift plays every case once: no repeats, same length and arrival window
+      picked = [...fresh, ...seen].slice(0, Math.min(n, eligible.length));
+    }
 
     // a separate stream, so shuffling options does not change arrivals or events for a given seed
     const optionRnd = mulberry32(seed ^ 0x5bd1e995);
@@ -161,7 +166,7 @@ export class Shift {
     // random events (P1-09): a separate stream, so they do not change arrivals, options or complaints
     this.eventRnd = mulberry32(seed ^ 0x68e31da4);
     this.pendingEvents = [];
-    if (this.eventRnd() < EVENT_CHANCE) {
+    if (this.eventRnd() < EVENT_CHANCE && events) {
       const kinds = EVENTS.filter((e) => !e.when || e.when(this.unitType));
       const ev = kinds[Math.floor(this.eventRnd() * kinds.length)];
       this.scheduleEvent(ev.id, EVENT_WINDOW.from + Math.floor(this.eventRnd() * (EVENT_WINDOW.to - EVENT_WINDOW.from)));
