@@ -46,7 +46,7 @@ npm run references # rebuild docs/REFERENCES.md after changing a case's referenc
 npm run test:e2e   # plays every shift in headless Chromium
 ```
 
-GitHub Actions runs `npm run validate` and `npm run test:e2e` on every pull request and every push to `main` (`.github/workflows/ci.yml`).
+GitHub Actions runs `npm run validate` and `npm run test:e2e` on every pull request to `main` and every push to `main` (`.github/workflows/ci.yml`). A second check fails any pull request that targets another branch, such as one stacked on another PR, until it is retargeted to `main` (`.github/workflows/pr-target.yml`).
 
 ## Layout
 
