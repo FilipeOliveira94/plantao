@@ -2,6 +2,7 @@
 // The save is versioned: load() migrates older saves, and an imported save is untrusted input.
 import { UNITS } from '../data/catalog.js';
 import { CASES } from '../data/cases/index.js';
+import { satisfactionXp } from './shift.js';
 
 // The key keeps its historical name; the schema version lives in the save's `version` field.
 const KEY = 'plantao.save.v1';
@@ -254,9 +255,12 @@ export function applyShift(state, shift) {
   if (rs.length && rs.every((r) => !r.harmful)) give('primum_non_nocere');
   if (state.states.length >= 3) give('around_brazil');
   if (state.shifts >= 10) give('marathoner');
-  // patients left unseen at the end cost XP from the closing bonus, never below zero
+  // patients left unseen at the end cost XP from the closing bonus, never below zero;
+  // shift satisfaction (P1-06) adds or takes a little from the same bonus, never from a case's score
   const unseenPenalty = UNSEEN_PENALTY * unseen;
-  const bonus = Math.max(0, 50 + 10 * rs.filter((r) => r.stars === 3).length - unseenPenalty);
+  const satisfaction = shift.satisfaction ?? 100;
+  const satisfactionBonus = satisfactionXp(satisfaction);
+  const bonus = Math.max(0, 50 + 10 * rs.filter((r) => r.stars === 3).length - unseenPenalty + satisfactionBonus);
   state.xp += bonus;
-  return { earned, bonus, unseen, unseenPenalty };
+  return { earned, bonus, unseen, unseenPenalty, satisfaction, satisfactionBonus };
 }

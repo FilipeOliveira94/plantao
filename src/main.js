@@ -677,11 +677,19 @@ function showFeedback(enc, r, earned, leveled) {
   });
 }
 
+// " · 2 impacientes, 1 reclamação" for the satisfaction line, or nothing when no one waited too long.
+function impatientNote(s) {
+  const n = s.encounters.filter((e) => e.impatient).length;
+  const k = s.satisfactionLog.filter((l) => l.reason === 'complaint').length;
+  if (!n) return '';
+  return ` · ${n} impaciente${n > 1 ? 's' : ''}${k ? `, ${k} reclamaç${k > 1 ? 'ões' : 'ão'}` : ''}`;
+}
+
 function showShiftSummary() {
   if (!shift || shift._summaryShown) return;
   shift._summaryShown = true;
   const prev = levelOf(state.xp).number;
-  const { earned, bonus, unseenPenalty } = applyShift(state, shift);
+  const { earned, bonus, unseenPenalty, satisfaction, satisfactionBonus } = applyShift(state, shift);
   const unseen = shift.unseen();
   save(state);
   const leveled = levelOf(state.xp).number > prev;
@@ -693,9 +701,12 @@ function showShiftSummary() {
     h('p', { class: 'muted' }, `${finished.unit.name} · ${finished.unit.city}/${finished.unit.uf} · encerrado às ${finished.clockLabel}`),
     h('ul', { class: 'score-lines' },
       finished.results.map(({ enc, result }) => h('li', {}, h('span', {}, enc.c.patient.name), h('span', {}, '⭐'.repeat(result.stars) || '—', ` · +${result.points}`))),
-      unseen.map((enc) => h('li', { class: 'unseen' }, h('span', {}, enc.c.patient.name, ` (${TRIAGE[enc.c.triage.priority].label})`), h('span', { class: 'neg' }, 'não atendido'))),
+      unseen.map((enc) => h('li', { class: `unseen${enc.status === 'left' ? ' left' : ''}` }, h('span', {}, enc.c.patient.name, ` (${TRIAGE[enc.c.triage.priority].label})`),
+        h('span', { class: 'neg' }, enc.status === 'left' ? `foi embora sem atendimento às ${clockAt(enc.leftAt)}` : 'não atendido'))),
       unseen.length ? h('li', {}, h('span', {}, `Pacientes sem atendimento (${unseen.length})`), h('span', { class: 'neg' }, `-${unseenPenalty}`)) : null,
-      h('li', {}, h('span', {}, unseen.length ? 'Bônus de fechamento (após descontos, mínimo 0)' : 'Bônus de fechamento de plantão'), h('span', { class: bonus ? 'pos' : 'muted' }, `+${bonus}`)),
+      h('li', { class: 'satisfaction' }, h('span', {}, `Satisfação dos pacientes: ${satisfaction}/100${impatientNote(finished)}`),
+        h('span', { class: satisfactionBonus > 0 ? 'pos' : satisfactionBonus < 0 ? 'neg' : 'muted' }, satisfactionBonus < 0 ? `${satisfactionBonus}` : `+${satisfactionBonus}`)),
+      h('li', {}, h('span', {}, unseen.length || satisfactionBonus < 0 ? 'Bônus de fechamento (após descontos, mínimo 0)' : 'Bônus de fechamento de plantão'), h('span', { class: bonus ? 'pos' : 'muted' }, `+${bonus}`)),
       h('li', {}, h('b', {}, 'Total'), h('b', {}, `+${total} XP`)),
     ),
     earned.length ? h('div', {}, h('h3', { style: { marginBottom: '8px' } }, 'Conquistas'), h('div', { class: 'badges' }, earned.map((id) => h('div', { class: 'badge new' }, h('span', { class: 'ic' }, BADGES[id].icon), h('div', {}, h('b', {}, BADGES[id].name)))))) : null,

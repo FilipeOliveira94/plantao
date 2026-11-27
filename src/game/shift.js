@@ -25,6 +25,32 @@ export function mulberry32(seed) {
   };
 }
 
+// Waiting consequences (P1-06): non-clinical only, no vital sign changes.
+// A patient never called is impatient once their wait passes the Manchester target plus this margin.
+export const IMPATIENCE_MARGIN = 15;
+// Only these priorities give up and leave unseen, once their wait passes the target plus this margin.
+export const CAN_LEAVE = ['green', 'blue'];
+export const LEAVE_MARGIN = 30;
+// Shift satisfaction, 0 to 100, starts at 100. Penalties are game balance, not clinical claims.
+export const SATISFACTION_START = 100;
+export const SATISFACTION_PENALTY = { impatient: 10, complaint: 5, left: 15 };
+// Share of impatient patients who complain at the desk.
+export const COMPLAINT_CHANCE = 0.5;
+
+/** Wait in minutes after which a patient of this priority gets impatient. */
+export const impatienceAt = (priority) => TRIAGE[priority].target + IMPATIENCE_MARGIN;
+/** Wait after which a patient of this priority leaves unseen, or null when they never leave. */
+export const leaveAt = (priority) => (CAN_LEAVE.includes(priority) ? TRIAGE[priority].target + LEAVE_MARGIN : null);
+/** XP added to (or taken from) the closing bonus for the shift's satisfaction. */
+export const satisfactionXp = (s) => (s >= 90 ? 10 : s >= 70 ? 0 : s >= 40 ? -10 : -20);
+
+const familyOf = (enc) => (enc.c.patient.companion ? `A família de ${enc.c.patient.name}` : enc.c.patient.name);
+const COMPLAINTS = [
+  (enc, wait) => `Recepção: “${familyOf(enc)} veio reclamar da demora. São ${wait} minutos de espera.”`,
+  (enc) => `Enfermagem: “${familyOf(enc)} perguntou de novo quanto falta. O clima na sala de espera está pesado.”`,
+];
+const leftText = (enc) => `Recepção: “${familyOf(enc)} cansou de esperar e foi embora sem atendimento.”`;
+
 const shuffle = (arr, rnd) => {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
@@ -50,6 +76,10 @@ export class Shift {
     this.labExtra = 0;
     this.messages = [];
     this.results = [];
+    this.satisfaction = SATISFACTION_START;
+    this.satisfactionLog = []; // { delta, reason, at, enc? }
+    // a separate stream for complaints, so they do not change arrivals, options or events
+    this.waitRnd = mulberry32(seed ^ 0x2545f491);
 
     const pool = casesFor(specialty, unit.type);
     // follow-up cases only appear after the player has completed at least one case
@@ -95,13 +125,50 @@ export class Shift {
     for (const ev of this.pendingEvents) {
       if (!ev.fired && ev.at <= this.clock) { ev.fired = true; ev.effect?.(this); this.messages.push(ev.text); fired.push(ev); }
     }
+    for (const ev of this.checkWaiting()) { this.messages.push(ev.text); fired.push(ev); }
     return fired;
+  }
+
+  /** Changes shift satisfaction by `delta`, kept within 0..100, and logs why. Returns the new value. */
+  changeSatisfaction(delta, reason, enc = null) {
+    const next = Math.min(100, Math.max(0, this.satisfaction + delta));
+    this.satisfactionLog.push({ delta: next - this.satisfaction, reason, at: this.clock, enc });
+    this.satisfaction = next;
+    return next;
+  }
+
+  /** Marks newly impatient patients and lets low-priority ones leave. Only patients never called count:
+   *  the target is the wait for first contact. Returns the messages to show, as event-like objects. */
+  checkWaiting() {
+    const out = [];
+    for (const e of this.encounters) {
+      if (e.status !== 'waiting' || e.firstSeenAt != null || e.arrivedAt > this.clock) continue;
+      const wait = this.clock - e.arrivedAt;
+      const pr = e.c.triage.priority;
+      if (!e.impatient && wait > impatienceAt(pr)) {
+        e.impatient = true;
+        this.changeSatisfaction(-SATISFACTION_PENALTY.impatient, 'impatient', e);
+        if (this.waitRnd() < COMPLAINT_CHANCE) {
+          this.changeSatisfaction(-SATISFACTION_PENALTY.complaint, 'complaint', e);
+          const say = COMPLAINTS[Math.floor(this.waitRnd() * COMPLAINTS.length)];
+          out.push({ id: 'complaint', enc: e, text: say(e, wait) });
+        }
+      }
+      const limit = leaveAt(pr);
+      if (limit != null && wait > limit) {
+        e.status = 'left';
+        e.leftAt = this.clock;
+        this.changeSatisfaction(-SATISFACTION_PENALTY.left, 'left', e);
+        out.push({ id: 'left', enc: e, text: leftText(e) });
+      }
+    }
+    return out;
   }
 
   /** Patients who have arrived and are not done yet, sorted by priority. */
   queue() {
     return this.encounters
-      .filter((e) => e.arrivedAt <= this.clock && e.status !== 'done' && e !== this.current)
+      .filter((e) => e.arrivedAt <= this.clock && e.status !== 'done' && e.status !== 'left' && e !== this.current)
       .sort((a, b) => {
         const ra = a.status === 'awaiting_results' && a.pendingExams(this.clock).length === 0 ? -1 : 0;
         const rb = b.status === 'awaiting_results' && b.pendingExams(this.clock).length === 0 ? -1 : 0;
@@ -168,7 +235,7 @@ export class Shift {
     if (this.over) return [];
     const times = [];
     for (const e of this.encounters) {
-      if (e.status === 'done') continue;
+      if (e.status === 'done' || e.status === 'left') continue;
       if (e.arrivedAt > this.clock) times.push(e.arrivedAt);
       for (const [, r] of e.pendingExams(this.clock)) times.push(r.readyAt);
     }
@@ -177,9 +244,9 @@ export class Shift {
     return this.advance(Math.max(1, next - this.clock));
   }
 
-  /** Patients not finished: at the end of the shift these count against it. */
+  /** Patients not finished, including those who left: at the end of the shift these count against it. */
   unseen() { return this.encounters.filter((e) => e.status !== 'done'); }
 
   /** The shift closes when everyone is done, or when time is up and no one is in the room. */
-  get done() { return this.encounters.every((e) => e.status === 'done') || (this.over && !this.current); }
+  get done() { return this.encounters.every((e) => e.status === 'done' || e.status === 'left') || (this.over && !this.current); }
 }
