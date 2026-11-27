@@ -16,3 +16,7 @@ export const clockLabelAt = (minutes) => {
   const total = SHIFT_START_HOUR * 60 + shownMinutes(minutes);
   return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 };
+
+// The clock also runs in real time during play (P1-11): this many real seconds make one internal minute
+// (4 clock minutes). Thinking costs shift time and, with a patient in the room, consultation time.
+export const REAL_SECONDS_PER_MINUTE = 10;

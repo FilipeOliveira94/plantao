@@ -7,12 +7,17 @@ export const DEFAULT_EXAM_RESULT = 'Sem alterações significativas.';
 // by triage priority, used when a case does not set `consultMinutes`. Game balance, not a clinical
 // claim: every current case's key items fit within its default (checked by tools/validate-cases.mjs).
 export const CONSULT_TARGET_MINUTES = { red: 20, orange: 20, yellow: 25, green: 25, blue: 20 };
+// Real time in the room also counts against the consultation (P1-11): the target adds this allowance for
+// thinking, in internal minutes (about 100 real seconds at REAL_SECONDS_PER_MINUTE). Game balance.
+export const THINKING_ALLOWANCE = 10;
 // Points lost per minute over the target, and the cap.
 export const OVERTIME_POINTS_PER_MINUTE = 2;
 export const OVERTIME_CAP = 40;
 
-/** Target consultation time for a case: its own `consultMinutes`, else the triage default. */
-export const consultTarget = (c) => c.consultMinutes ?? CONSULT_TARGET_MINUTES[c.triage.priority];
+/** Target for the consultation's actions: the case's own `consultMinutes`, else the triage default. */
+export const actionTarget = (c) => c.consultMinutes ?? CONSULT_TARGET_MINUTES[c.triage.priority];
+/** Target consultation time for a case: its action target plus the thinking allowance. */
+export const consultTarget = (c) => actionTarget(c) + THINKING_ALLOWANCE;
 
 /** Consultation minutes of the focused path: every key question (with the questions it requires),
  *  every key physical item and every key test the patient did not bring. */
@@ -34,8 +39,9 @@ export class Encounter {
     this.examined = new Set();
     this.requested = new Map(); // examId -> { readyAt, result, relevance, note, harmful }
     this.minutesSpent = 0;
-    // where the consultation went: minutes by action, which add up to minutesSpent
-    this.time = { questions: 0, physical: 0, orders: 0 };
+    // where the consultation went: minutes by action plus real time in the room (thinking, P1-11),
+    // which add up to minutesSpent
+    this.time = { questions: 0, physical: 0, orders: 0, thinking: 0 };
     // shift-clock spans { from, to } (to = null while open): in the room, and waiting for a result in the room.
     // Waiting for results in the waiting room is the gap between two room spans. Shift time, not consultation time.
     this.roomSpans = [];
@@ -77,6 +83,16 @@ export class Encounter {
     else if (head && p.name.toLowerCase().startsWith(head)) sp = { role: 'patient', name: p.name };
     else return { ...sp, text };
     return { ...sp, text: m[1].includes(',') ? text : text.slice(m[0].length) };
+  }
+
+  /** Consultation minutes spent on actions, without thinking. `timeCritical` windows use these until P1-12
+   *  moves them to clock time. */
+  get actionMinutes() { return this.minutesSpent - this.time.thinking; }
+
+  /** One internal minute of real time with this patient in the room. */
+  think(minutes = 1) {
+    this.minutesSpent += minutes;
+    this.time.thinking += minutes;
   }
 
   get availableQuestions() {
@@ -170,7 +186,7 @@ export class Encounter {
 
     // Time-critical cases
     if (c.timeCritical) {
-      if (this.minutesSpent <= c.timeCritical.minutes) add(25, 'Decisão dentro da janela crítica');
+      if (this.actionMinutes <= c.timeCritical.minutes) add(25, 'Decisão dentro da janela crítica');
       else add(-30, 'Decisão fora da janela crítica');
     }
 
@@ -189,7 +205,7 @@ export class Encounter {
       points: Math.max(0, pts), lines, stars, dxOk, dxAcceptable, cdOk,
       harmful: !!cdOpt?.harmful, unnecessaryCount: unnecessary.length,
       keyHit, keyTotal, questionsAsked: this.asked.size, minutesSpent: this.minutesSpent,
-      waited, consultTarget: goal, time: { ...this.time }, timeCriticalOk: c.timeCritical ? this.minutesSpent <= c.timeCritical.minutes : null,
+      waited, consultTarget: goal, time: { ...this.time }, timeCriticalOk: c.timeCritical ? this.actionMinutes <= c.timeCritical.minutes : null,
       noUnnecessary: unnecessary.length === 0 && this.requested.size > 0,
     };
   }

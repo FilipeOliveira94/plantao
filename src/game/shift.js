@@ -3,7 +3,7 @@
 import { UNIT_TYPES, TRIAGE, EXAMS } from '../data/catalog.js';
 import { casesFor } from '../data/cases/index.js';
 import { Encounter } from './encounter.js';
-import { SHIFT_MINUTES, TIME_SCALE, clockLabelAt } from './time.js';
+import { SHIFT_MINUTES, TIME_SCALE, REAL_SECONDS_PER_MINUTE, clockLabelAt } from './time.js';
 
 export { SHIFT_START_HOUR, SHIFT_MINUTES, REAL_SHIFT_MINUTES, clockLabelAt } from './time.js';
 // Internal minutes (see time.js): the shift lasts SHIFT_MINUTES, shown as 07:00 to 19:00, and patients
@@ -79,6 +79,7 @@ export class Shift {
     this.specialty = specialty;
     this.rnd = mulberry32(seed);
     this.clock = 0;
+    this.realMs = 0; // real time not yet turned into a clock minute (tick)
     this.labExtra = 0;
     this.messages = [];
     this.results = [];
@@ -132,6 +133,23 @@ export class Shift {
       if (!ev.fired && ev.at <= this.clock) { ev.fired = true; ev.effect?.(this); this.messages.push(ev.text); fired.push(ev); }
     }
     for (const ev of this.checkWaiting()) { this.messages.push(ev.text); fired.push(ev); }
+    return fired;
+  }
+
+  /** Real time passing during play (P1-11): every REAL_SECONDS_PER_MINUTE adds one internal minute to the
+   *  clock, through advance, so waits, events and results move as with any action. With a patient in the room
+   *  that minute is also consultation time (thinking). Stops at the end of the shift. Returns the fired events. */
+  tick(realMs) {
+    if (this.over) { this.realMs = 0; return []; }
+    this.realMs += Math.max(0, realMs);
+    const per = REAL_SECONDS_PER_MINUTE * 1000;
+    const fired = [];
+    while (this.realMs >= per && !this.over) {
+      this.realMs -= per;
+      this.current?.think(1);
+      fired.push(...this.advance(1));
+    }
+    if (this.over) this.realMs = 0;
     return fired;
   }
 
@@ -297,6 +315,7 @@ export class Shift {
     }
     if (!times.length) return [];
     const next = Math.min(Math.min(...times), SHIFT_MINUTES);
+    this.realMs = 0; // a fast-forward drops the part of a minute already ticking
     return this.advance(Math.max(1, next - this.clock));
   }
 
