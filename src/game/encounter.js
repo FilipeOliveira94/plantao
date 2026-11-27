@@ -36,7 +36,7 @@ export class Encounter {
     this.minutesSpent = 0;
     this.arrivedAt = null; // shift clock
     this.firstSeenAt = null;
-    this.status = 'waiting'; // waiting | in_progress | awaiting_results | done
+    this.status = 'waiting'; // waiting | in_progress | paused | awaiting_results | done
     this.log = [];
     // display order of the answer options; Shift shuffles them once per encounter
     this.dxOptions = caseData.diagnosis.options;

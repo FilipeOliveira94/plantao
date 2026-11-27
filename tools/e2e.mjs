@@ -41,6 +41,10 @@ try {
   const page = await browser.newPage({ viewport: { width: 1366, height: 820 } });
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  // arrival popups: the full-shift runs answer "Depois"; the arrival check near the end covers both answers
+  const arrivalCard = page.locator('.popup.arrival:not(.out)');
+  const dismissArrival = async () => { await arrivalCard.getByRole('button', { name: 'Depois' }).click(); };
+  await page.addLocatorHandler(arrivalCard, dismissArrival, { noWaitAfter: true });
   await page.goto(`http://localhost:${PORT}/index.html`);
   // the menu states that the cases are AI-generated and links to the references table
   const refs = page.locator('.ai-notice a');
@@ -343,6 +347,67 @@ try {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/06-fim-com-pendentes.png` });
   console.log(`✔ shift end: ${endCase.unseen} unseen patients listed`);
   await page.getByRole('button', { name: /Voltar ao menu/ }).click();
+  // arrival popups: non-urgent ones leave the game usable and "Depois" keeps the consultation;
+  // red ones block, and "Atender agora" pauses the patient in the room with everything kept
+  await page.removeLocatorHandler(arrivalCard);
+  await page.locator('.unit').first().click();
+  await page.locator('.spec').first().click();
+  await page.getByRole('button', { name: /Começar plantão/ }).click();
+  await page.waitForSelector('.game');
+  await page.locator('.qcard button:not([disabled])').first().click();
+  await page.getByRole('tab', { name: /Anamnese/ }).click();
+  await page.locator('.pane .opt').first().click();
+  await page.getByRole('tab', { name: /Exames/ }).click();
+  await page.locator('.test-search').fill('glicemia capilar');
+  await page.locator('.test-cat[open] .opt').first().click();
+  await page.getByRole('tab', { name: /Anamnese/ }).click();
+  // give the next arrivals known priorities (copies of the case, the shared data is untouched) and bring the first in
+  const arr = await page.evaluate(() => {
+    const s = window.__plantao.shift;
+    const cur = s.current;
+    const [green, red, yellow] = s.upcoming();
+    const set = (e, priority, at) => { e.c = { ...e.c, triage: { ...e.c.triage, priority } }; e.arrivedAt = at; };
+    set(green, 'green', s.clock + 1); set(red, 'red', s.clock + 30); set(yellow, 'yellow', s.clock + 60);
+    s.advance(1);
+    return { cur: cur.c.id, asked: [...cur.asked], tests: [...cur.requested.keys()], green: green.c.id, greenName: green.c.patient.name, greenAge: green.c.patient.age, greenComplaint: green.c.triage.complaint, red: red.c.id, redName: red.c.patient.name };
+  });
+  const nextQuestion = () => page.locator('.pane .opt').first().click(); // any clinical action announces arrivals
+  await nextQuestion();
+  await arrivalCard.waitFor();
+  const greenText = await arrivalCard.innerText();
+  if (![arr.greenName, arr.greenAge, arr.greenComplaint, 'Pouco urgente'].every((t) => greenText.includes(t))) throw new Error(`arrival popup misses triage, name, age or complaint: ${greenText}`);
+  if (await page.locator('.popup-wrap.blocking').count()) throw new Error('a green arrival must not block the screen');
+  await page.getByRole('tab', { name: /Exame físico/ }).click(); // the game stays usable under a non-blocking card
+  if (SHOTS) { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/07-chegada-verde.png` }); } // after the slide-in
+  await arrivalCard.getByRole('button', { name: 'Depois' }).click();
+  await arrivalCard.waitFor({ state: 'detached' });
+  if (await page.evaluate(() => window.__plantao.shift.current?.c.id) !== arr.cur) throw new Error('"Depois" changed the patient in the room');
+  // red arrival: blocking, then "Atender agora"
+  await page.evaluate(() => { const s = window.__plantao.shift; s.advance(s.upcoming()[0].arrivedAt - s.clock); });
+  await page.getByRole('tab', { name: /Anamnese/ }).click();
+  await nextQuestion();
+  await page.locator('.popup-wrap.blocking .popup.arrival').waitFor();
+  if (!(await arrivalCard.innerText()).includes(arr.redName)) throw new Error('red arrival popup shows the wrong patient');
+  if (SHOTS) { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/08-chegada-vermelha.png` }); } // after the slide-in
+  await arrivalCard.getByRole('button', { name: 'Atender agora' }).click();
+  const swapped = await page.evaluate((id) => {
+    const s = window.__plantao.shift;
+    const paused = s.encounters.find((e) => e.c.id === id);
+    return { current: s.current?.c.id, status: paused.status, asked: paused.asked.size, tests: [...paused.requested.keys()], inQueue: s.queue().includes(paused) };
+  }, arr.cur);
+  if (swapped.current !== arr.red || swapped.status !== 'paused' || !swapped.inQueue) throw new Error(`"Atender agora" did not swap patients: ${JSON.stringify(swapped)}`);
+  if (swapped.asked < arr.asked.length + 1 || arr.tests.some((t) => !swapped.tests.includes(t))) throw new Error(`paused patient lost progress: ${JSON.stringify({ arr, swapped })}`);
+  if (!(await page.locator('.qcard', { hasText: /pausad/i }).count())) throw new Error('the queue does not show the paused patient');
+  // a yellow arrival goes away on its own
+  await page.evaluate(() => { const s = window.__plantao.shift; s.advance(s.upcoming()[0].arrivedAt - s.clock); });
+  await page.getByRole('tab', { name: /Anamnese/ }).click();
+  await nextQuestion();
+  await arrivalCard.waitFor();
+  await arrivalCard.waitFor({ state: 'detached', timeout: 9000 });
+  if (await page.evaluate(() => window.__plantao.shift.current?.c.id) !== arr.red) throw new Error('an ignored arrival changed the patient in the room');
+  console.log('✔ arrival popups: details, non-blocking "Depois", auto-dismiss, red "Atender agora" pauses with progress kept');
+  await page.locator('.topbar .btn.ghost').first().click(); // ←: leave the shift
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
   // PICU scene
   if (SHOTS) {
     await page.locator('.unit').last().click();
