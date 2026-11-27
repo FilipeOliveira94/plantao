@@ -1,15 +1,16 @@
 // Plantão — main controller (menu, shift, encounter, feedback). UI text is pt-BR by design.
 import { UNITS, SPECIALTIES, TRIAGE, EXAMS, EXAM_CATS, UNIT_TYPES, ACTION_COST } from './data/catalog.js';
 import { Shift } from './game/shift.js';
+import { ShiftClock } from './game/clock.js';
 import { clockLabelAt } from './game/time.js';
 import { consultTarget } from './game/encounter.js';
 import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS, exportSave, encodeCode, parseImport, MAX_IMPORT_BYTES } from './game/progress.js';
 import { IsoScene } from './render/iso.js';
 import { sfx } from './audio/sfx.js';
 import { music } from './audio/music.js';
-import { h, mount, toast, modal } from './ui/dom.js';
+import { h, mount, toast, modal, modalOpen } from './ui/dom.js';
 import { createTalk } from './ui/talk.js';
-import { popup } from './ui/popup.js';
+import { popup, blockingPopupOpen } from './ui/popup.js';
 
 const app = document.getElementById('app');
 let state = load();
@@ -18,6 +19,7 @@ music.setMuted(state.settings.muted);
 music.setVolume(state.settings.musicVolume ?? 0.4);
 
 let shift = null;
+let clock = null; // real-time driver of the shift clock (P1-11)
 let scene = null;
 let ui = {};
 let tab = 'triage';
@@ -260,6 +262,7 @@ function showHelp() {
       h('li', {}, 'Escolha uma unidade e uma especialidade. Cada plantão traz pacientes de forma escalonada, com classificação de risco (Manchester).'),
       h('li', {}, 'Chame o paciente da fila. Comece pela triagem e pelos documentos (passagem de caso, contrarreferência).'),
       h('li', {}, 'Pergunte, examine e peça exames. Cada ação consome minutos do plantão; enquanto isso, a fila espera.'),
+      h('li', {}, 'O relógio também anda enquanto você pensa: com o paciente na sala, esse tempo conta na consulta. Use ⏸ Pausar para parar o relógio.'),
       h('li', {}, 'Exames de laboratório e imagem demoram: mande o paciente aguardar e atenda o próximo. Ele volta quando o resultado sair.'),
       h('li', {}, 'Os pacientes nem sempre sabem contar a história nem o nome dos remédios. Pergunte de novo, peça a receita, a caixinha.'),
       h('li', {}, 'Feche com diagnóstico e conduta. A nota considera acerto, itens-chave, exames desnecessários (Choosing Wisely), tempo de espera e janelas críticas.'),
@@ -276,6 +279,8 @@ function startShift(unit, specialty) {
   clearArrivals();
   shift = new Shift({ unit, specialty, completedCases: state.cases });
   if (!shift.encounters.length) { toast('Ainda não há casos para essa combinação.'); return; }
+  clock = new ShiftClock(shift);
+  clock.subscribe(onClockTick);
   music.play(unit.music);
   renderGame();
   toast(`Plantão iniciado: ${unit.name} (${unit.city}/${unit.uf}). ${unit.flavor}`, 6000);
@@ -307,8 +312,15 @@ function renderGame() {
 
 function renderAll() { renderTop(); renderQueue(); renderChart(); }
 
-function renderTop() {
+function renderTop({ ifChanged = false } = {}) {
   const lvl = levelOf(state.xp);
+  // a clock tick swaps only the clock face, so the volume slider and the buttons keep focus and drags
+  const face = ui.top.querySelector('.clock');
+  if (ifChanged && face && ui.topSig === JSON.stringify([shift.results.length, shift.over, shift.done, state.xp, state.settings.muted])) {
+    face.firstChild.textContent = shift.clockLabel;
+    return;
+  }
+  ui.topSig = JSON.stringify([shift.results.length, shift.over, shift.done, state.xp, state.settings.muted]);
   mount(ui.top,
     h('button', { class: 'btn ghost', onclick: confirmLeave, title: 'Sair do plantão' }, '←'),
     h('span', { class: 'unitname' }, shift.unit.name),
@@ -320,9 +332,61 @@ function renderTop() {
     // event effects (P1-09) stay on screen while they last
     ...shift.activeEffects().map((f) => h('span', { class: 'chip effect', title: f.detail }, f.label)),
     h('span', { class: `clock${shift.over ? ' over' : ''}`, title: `Relógio do plantão (termina às ${shift.endLabel})` }, shift.clockLabel, h('span', { class: 'clock-end' }, ` · fim ${shift.endLabel}`)),
+    h('button', { class: 'btn ghost pause-btn', onclick: showPause, disabled: shift.done, title: 'Pausar o relógio do plantão' }, '⏸ Pausar'),
     h('button', { class: 'btn ghost', onclick: toggleMute }, state.settings.muted ? '🔇' : '🔊'),
     musicSlider(),
   );
+}
+
+// ----------------------------------------------------------------------
+// Real-time clock (P1-11): the shift clock runs while the board is in play. It holds on the pause screen,
+// while any modal (feedback, help, confirmations, summary) or blocking popup is open, and in a hidden tab.
+// `?clock=manual` turns the timer off so automated tests step the clock themselves. It works only on a local
+// server: on the published site the timer always runs and no clock control is exposed.
+// ----------------------------------------------------------------------
+const CLOCK_INTERVAL_MS = 250;
+const localDev = ['localhost', '127.0.0.1'].includes(location.hostname);
+const manualClock = localDev && new URLSearchParams(location.search).get('clock') === 'manual';
+
+function syncClockHolds() {
+  if (!clock) return;
+  clock.setHold('modal', modalOpen());
+  clock.setHold('popup', blockingPopupOpen());
+  clock.setHold('hidden', document.hidden);
+}
+
+if (!manualClock) {
+  setInterval(() => {
+    if (!shift || clock?.shift !== shift) return;
+    syncClockHolds();
+    clock.update(performance.now());
+  }, CLOCK_INTERVAL_MS);
+}
+
+/** After each clock minute: messages, the top bar, and the queue and chart only when what they show changed. */
+function onClockTick(fired) {
+  if (!shift || clock?.shift !== shift) return;
+  handleEvents(fired);
+  renderTop({ ifChanged: true });
+  renderQueue({ ifChanged: true });
+  refreshChart();
+  if (shift.done && !shift.current) setTimeout(showShiftSummary, 400);
+}
+
+function showPause() {
+  if (!clock) return;
+  clock.hold('pause');
+  const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); m.close(); } };
+  const m = modal(h('div', {},
+    h('h2', {}, '⏸ Plantão pausado'),
+    h('p', { class: 'muted' }, `Relógio parado às ${shift.clockLabel}.`),
+    h('button', { class: 'btn primary', onclick: () => m.close() }, 'Continuar ▶'),
+  ), {
+    className: 'paused',
+    onClose: () => { document.removeEventListener('keydown', onKey, true); clock?.release('pause'); },
+  });
+  document.addEventListener('keydown', onKey, true);
+  m.box.querySelector('button').focus({ preventScroll: true });
 }
 
 function confirmLeave() {
@@ -351,8 +415,19 @@ function statusOf(enc) {
 
 const clockAt = clockLabelAt;
 
-function renderQueue() {
+/** "Aguardar próximo" (the fast-forward) shows when the room is free and nobody can be called yet. */
+function waitButtonShown(q) {
+  const waitingExams = shift.encounters.some((e) => e.status === 'awaiting_results' && e.pendingExams(shift.clock).length);
+  return !shift.current && !shift.over && (shift.upcoming().length || waitingExams) && !q.some((e) => statusOf(e).ready || e.status === 'waiting' || e.status === 'paused');
+}
+
+function renderQueue({ ifChanged = false } = {}) {
   const q = shift.queue();
+  // a clock tick redraws the queue only when what it shows changed, so focus and hover stay put
+  const showWait = waitButtonShown(q);
+  const sig = JSON.stringify([q.map((e) => [e.c.id, statusOf(e).text, !shift.current && !shift.over]), shift.upcoming().length, !!shift.current, showWait]);
+  if (ifChanged && sig === ui.queueSig) return;
+  ui.queueSig = sig;
   const cards = q.map((enc) => {
     const tri = TRIAGE[enc.c.triage.priority];
     const st = statusOf(enc);
@@ -366,8 +441,7 @@ function renderQueue() {
   });
   const upcoming = shift.upcoming().length;
   const children = cards.length ? cards : [h('div', { class: 'empty' }, upcoming ? 'Ninguém na fila agora.' : shift.current ? 'Último paciente em atendimento.' : 'Fila vazia.')];
-  const waitingExams = shift.encounters.some((e) => e.status === 'awaiting_results' && e.pendingExams(shift.clock).length);
-  if (!shift.current && !shift.over && (upcoming || waitingExams) && !q.some((e) => statusOf(e).ready || e.status === 'waiting' || e.status === 'paused')) {
+  if (showWait) {
     children.push(h('button', { class: 'btn', style: { alignSelf: 'center' }, onclick: () => { handleEvents(shift.waitForNext()); renderAll(); if (shift.done) setTimeout(showShiftSummary, 400); } }, '☕ Aguardar próximo'));
   }
   mount(ui.queue, children);
@@ -535,7 +609,32 @@ function say(enc, text, who = 'pt') {
 // ----------------------------------------------------------------------
 // Patient chart
 // ----------------------------------------------------------------------
+// Consultation chips in the chart head; a clock tick swaps them in place so the chart keeps its state.
+function consultChip(enc) {
+  const goal = consultTarget(enc.c);
+  return h('span', { class: `chip consult-chip${enc.minutesSpent > goal ? ' over' : ''}`, title: 'Tempo de consulta usado, contando o tempo pensando com o paciente na sala. Acima de 100% do alvo perde pontos.' }, `Consulta: ${Math.round((enc.minutesSpent / goal) * 100)}% do tempo-alvo`);
+}
+
+// the critical window counts action minutes only until P1-12 moves it to clock time
+function criticalChip(enc) {
+  const tc = enc.c.timeCritical;
+  return tc ? h('span', { class: 'chip critical-chip', style: { background: enc.actionMinutes > tc.minutes ? '#f6c1b8' : '#fde9b5' } }, `⏱ Janela crítica: ${Math.round((enc.actionMinutes / tc.minutes) * 100)}%`) : null;
+}
+
+/** What a clock tick can change in the chart: a full redraw when it does, else only the chips. */
+const chartSig = () => JSON.stringify([shift.current?.c.id ?? null, shift.current?.readyExams(shift.clock).length, shift.over, shift.done, shift.current ? null : shift.queue()[0]?.c.id]);
+
+function refreshChart() {
+  const enc = shift.current;
+  if (chartSig() !== ui.chartSig) { renderChart(); return; }
+  if (!enc) return;
+  ui.chart.querySelector('.consult-chip')?.replaceWith(consultChip(enc));
+  const tc = criticalChip(enc);
+  if (tc) ui.chart.querySelector('.critical-chip')?.replaceWith(tc);
+}
+
 function renderChart() {
+  ui.chartSig = chartSig();
   const enc = shift.current;
   if (!enc) {
     const next = shift.queue()[0];
@@ -554,7 +653,7 @@ function renderChart() {
   const c = enc.c;
   const tri = TRIAGE[c.triage.priority];
   const readyCount = enc.readyExams(shift.clock).length;
-  const tc = c.timeCritical ? h('span', { class: 'chip', style: { background: enc.minutesSpent > c.timeCritical.minutes ? '#f6c1b8' : '#fde9b5' } }, `⏱ Janela crítica: ${Math.round((enc.minutesSpent / c.timeCritical.minutes) * 100)}%`) : null;
+  const tc = criticalChip(enc);
 
   // which tabs this patient's chart has shown, and how many results were ready the last time Exames was open
   const seen = enc._tabs ||= { opened: new Set(), readySeen: 0 };
@@ -571,7 +670,7 @@ function renderChart() {
         h('div', { class: 'small muted' }, c.patient.companion ? `Acompanhante: ${c.patient.companion.name}` : 'Desacompanhado(a)', c.type === 'follow_up' ? ' · Consulta de retorno' : ''),
       ),
       tc,
-      h('span', { class: `chip${enc.minutesSpent > consultTarget(c) ? ' over' : ''}`, title: 'Tempo de consulta usado. Acima de 100% do alvo perde pontos.' }, `Consulta: ${Math.round((enc.minutesSpent / consultTarget(c)) * 100)}% do tempo-alvo`),
+      consultChip(enc),
     ),
     h('div', { class: 'tabs', role: 'tablist' }, CHART_TABS.map((t) => {
       const state = t.id === 'tests' && newResults && tab !== 'tests' ? 'new' : seen.opened.has(t.id) ? 'done' : 'unopened';
@@ -776,7 +875,7 @@ const QUEUE_SOON_TEXT = { impatient: 'quase impaciente', leave: 'quase indo embo
 function timeBreakdown(enc, r) {
   const t = r.time;
   const pct = (m) => Math.round((m / r.consultTarget) * 100);
-  const parts = [['questions', 'Anamnese', t.questions], ['physical', 'Exame físico', t.physical], ['orders', 'Pedidos de exame', t.orders]];
+  const parts = [['questions', 'Anamnese', t.questions], ['physical', 'Exame físico', t.physical], ['orders', 'Pedidos de exame', t.orders], ['thinking', 'Raciocínio', t.thinking]];
   const scale = Math.max(r.minutesSpent, r.consultTarget);
   const bar = h('div', { class: 'time-bar', role: 'img', 'aria-label': `Consulta: ${pct(r.minutesSpent)}% do tempo-alvo` },
     parts.map(([k, , m]) => (m ? h('span', { class: `seg ${k}`, style: { width: `${(m / scale) * 100}%` } }) : null)),
@@ -885,4 +984,14 @@ function showShiftSummary() {
 renderMenu();
 
 // exposed for automated tests
-window.__plantao = { get shift() { return shift; }, get state() { return state; }, get music() { return music.playing; } };
+window.__plantao = {
+  get shift() { return shift; }, get state() { return state; }, get music() { return music.playing; },
+};
+// with ?clock=manual the test drives real time: step(ms) passes it on unless something holds the clock.
+// Local server only (see manualClock).
+if (localDev) {
+  window.__plantao.clock = {
+    step: (ms) => { syncClockHolds(); return clock?.step(ms) ?? []; },
+    get paused() { syncClockHolds(); return !!clock?.paused; },
+  };
+}

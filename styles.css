@@ -184,6 +184,10 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .time-bar .seg, .time-breakdown .dot { background: var(--accent); }
 .time-bar .seg.physical, .time-breakdown .dot.physical { background: #ef7d22; }
 .time-bar .seg.orders, .time-breakdown .dot.orders { background: #3a7bd5; }
+.time-bar .seg.thinking, .time-breakdown .dot.thinking { background: #9b8bb4; }
+/* the pause screen hides the board, so pausing is not free thinking time */
+.modal-back.paused { background: var(--bg, #f4efe4); }
+.modal-back.paused .modal { max-width: 360px; text-align: center; }
 .time-bar .target { position: absolute; top: 0; bottom: 0; width: 2px; background: #c0392b; }
 .time-breakdown .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
 .queue-paid { margin: 4px 0 0; padding-left: 18px; }

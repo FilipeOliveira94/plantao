@@ -8,6 +8,7 @@ import {
 } from '../src/game/shift.js';
 import { UNITS, ACTION_COST, EXAMS } from '../src/data/catalog.js';
 import { applyShift } from '../src/game/progress.js';
+import { REAL_SECONDS_PER_MINUTE } from '../src/game/time.js';
 
 const UPA = UNITS.find((u) => u.type === 'upa');
 const make = (seed = 1) => new Shift({ unit: UPA, specialty: 'internal-medicine', seed });
@@ -273,4 +274,23 @@ test('companion_complaint is unfounded while a more urgent patient comes first',
   assert.equal(s.gradedSatisfaction, 100, 'but does not count');
   const shown = applyShift({ xp: 0, cases: {}, badges: [], states: [], shifts: 0 }, s);
   assert.deepEqual([shown.satisfaction, shown.gradedSatisfaction, shown.satisfactionBonus], [90, 100, 10]);
+});
+
+test('real time (P1-11) stuck on a delayed result is lost time, not thinking; otherwise it is thinking', () => {
+  const s = shiftWithEvent('supply_shortage', 1);
+  s.advance(1);
+  const enc = s.encounters[0];
+  s.call(enc);
+  const { rec } = s.requestExam('capillary_glucose');
+  const per = REAL_SECONDS_PER_MINUTE * 1000;
+  s.tick(per * (rec.delayedFrom - s.clock)); // the original wait: thinking, as without the event
+  const thinking = enc.time.thinking;
+  assert.equal(s.lostWithin(0, s.clock), 0);
+  s.tick(per * SUPPLY_SHORTAGE.extra); // the extra wait: lost, and not consultation time
+  assert.equal(s.clock, rec.readyAt);
+  assert.equal(enc.time.thinking, thinking);
+  assert.equal(s.lostWithin(0, s.clock), SUPPLY_SHORTAGE.extra);
+  s.tick(per * 3); // result in: thinking again
+  assert.equal(enc.time.thinking, thinking + 3);
+  assert.equal(s.lostWithin(0, s.clock), SUPPLY_SHORTAGE.extra);
 });

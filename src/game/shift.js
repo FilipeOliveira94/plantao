@@ -3,7 +3,7 @@
 import { UNIT_TYPES, TRIAGE, EXAMS } from '../data/catalog.js';
 import { casesFor } from '../data/cases/index.js';
 import { Encounter } from './encounter.js';
-import { SHIFT_MINUTES, TIME_SCALE, clockLabelAt } from './time.js';
+import { SHIFT_MINUTES, TIME_SCALE, REAL_SECONDS_PER_MINUTE, clockLabelAt } from './time.js';
 
 export { SHIFT_START_HOUR, SHIFT_MINUTES, REAL_SHIFT_MINUTES, clockLabelAt } from './time.js';
 // Internal minutes (see time.js): the shift lasts SHIFT_MINUTES, shown as 07:00 to 19:00, and patients
@@ -129,6 +129,7 @@ export class Shift {
     this.specialty = specialty;
     this.rnd = mulberry32(seed);
     this.clock = 0;
+    this.realMs = 0; // real time not yet turned into a clock minute (tick)
     this.labExtra = 0;
     this.effects = []; // active and past event effects: { id, until, label, detail, enc?, resolved? }
     this.messages = [];
@@ -232,6 +233,21 @@ export class Shift {
     this.loseTime(Math.max(this.clock, first.delayedFrom), to, first.delayedBy);
   }
 
+  /** The event whose delay holds the doctor right now, or null: the patient in the room has a result past the time
+   *  it would have been ready and no other result pending; or, with no one in the room and no one to call, some
+   *  result is late that way. */
+  blockedBy() {
+    const late = (r) => r.delayedFrom != null && r.delayedFrom <= this.clock && r.readyAt > this.clock;
+    if (this.current) {
+      const pending = this.current.pendingExams(this.clock).map(([, r]) => r);
+      return pending.length && pending.every(late) ? pending[0].delayedBy : null;
+    }
+    const canCall = this.queue().some((e) => e.status !== 'awaiting_results' || e.pendingExams(this.clock).length === 0);
+    if (canCall) return null;
+    for (const e of this.encounters) for (const [, r] of e.pendingExams(this.clock)) if (late(r)) return r.delayedBy;
+    return null;
+  }
+
   get clockLabel() { return clockLabelAt(this.clock); }
 
   get endsAt() { return SHIFT_MINUTES; }
@@ -279,6 +295,26 @@ export class Shift {
       }
     }
     return out;
+  }
+
+  /** Real time passing during play (P1-11): every REAL_SECONDS_PER_MINUTE adds one internal minute to the
+   *  clock, through advance, so waits, events and results move as with any action. With a patient in the room
+   *  that minute is also consultation time (thinking). Stops at the end of the shift. Returns the fired events. */
+  tick(realMs) {
+    if (this.over) { this.realMs = 0; return []; }
+    this.realMs += Math.max(0, realMs);
+    const per = REAL_SECONDS_PER_MINUTE * 1000;
+    const fired = [];
+    while (this.realMs >= per && !this.over) {
+      this.realMs -= per;
+      // a minute spent stuck on a result an event delayed (P1-09) is lost time, not thinking
+      const blocked = this.blockedBy();
+      if (blocked) this.loseTime(this.clock, this.clock + 1, blocked);
+      else this.current?.think(1);
+      fired.push(...this.advance(1));
+    }
+    if (this.over) this.realMs = 0;
+    return fired;
   }
 
   /** Changes shift satisfaction by `delta`, kept within 0..100, and logs why. `limit`: the wait threshold that caused
@@ -447,6 +483,7 @@ export class Shift {
     if (!times.length) return [];
     const minutes = Math.max(1, Math.min(Math.min(...times), SHIFT_MINUTES) - this.clock);
     this.current.roomWaits.push({ from: this.clock, to: this.clock + minutes });
+    this.realMs = 0; // like the fast-forward, the jump drops the part of a minute already ticking
     this.loseIdle(this.clock + minutes, pending);
     return this.advance(minutes);
   }
@@ -463,6 +500,7 @@ export class Shift {
     }
     if (!times.length) return [];
     const next = Math.min(Math.min(...times), SHIFT_MINUTES);
+    this.realMs = 0; // a fast-forward drops the part of a minute already ticking
     const minutes = Math.max(1, next - this.clock);
     this.loseIdle(this.clock + minutes, pending);
     return this.advance(minutes);
