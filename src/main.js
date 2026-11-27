@@ -339,10 +339,12 @@ function renderTop({ ifChanged = false } = {}) {
 // ----------------------------------------------------------------------
 // Real-time clock (P1-11): the shift clock runs while the board is in play. It holds on the pause screen,
 // while any modal (feedback, help, confirmations, summary) or blocking popup is open, and in a hidden tab.
-// `?clock=manual` turns the timer off so automated tests step the clock themselves.
+// `?clock=manual` turns the timer off so automated tests step the clock themselves. It works only on a local
+// server: on the published site the timer always runs and no clock control is exposed.
 // ----------------------------------------------------------------------
 const CLOCK_INTERVAL_MS = 250;
-const manualClock = new URLSearchParams(location.search).get('clock') === 'manual';
+const localDev = ['localhost', '127.0.0.1'].includes(location.hostname);
+const manualClock = localDev && new URLSearchParams(location.search).get('clock') === 'manual';
 
 function syncClockHolds() {
   if (!clock) return;
@@ -936,9 +938,12 @@ renderMenu();
 // exposed for automated tests
 window.__plantao = {
   get shift() { return shift; }, get state() { return state; }, get music() { return music.playing; },
-  // with ?clock=manual the test drives real time: step(ms) passes it on unless something holds the clock
-  clock: {
+};
+// with ?clock=manual the test drives real time: step(ms) passes it on unless something holds the clock.
+// Local server only (see manualClock).
+if (localDev) {
+  window.__plantao.clock = {
     step: (ms) => { syncClockHolds(); return clock?.step(ms) ?? []; },
     get paused() { syncClockHolds(); return !!clock?.paused; },
-  },
-};
+  };
+}
