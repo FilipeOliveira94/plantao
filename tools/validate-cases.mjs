@@ -2,7 +2,7 @@
 import { CASES } from '../src/data/cases/index.js';
 import { EXAMS, EXAM_CATS, UNIT_TYPES, UNITS, SPECIALTIES, TRIAGE } from '../src/data/catalog.js';
 import { LEVELS } from '../src/game/progress.js';
-import { consultTarget, focusedMinutes } from '../src/game/encounter.js';
+import { actionTarget, focusedMinutes } from '../src/game/encounter.js';
 
 const errors = [];
 const warn = [];
@@ -51,7 +51,7 @@ for (const c of CASES) {
   if (c.consultMinutes !== undefined && !(Number.isInteger(c.consultMinutes) && c.consultMinutes > 0)) err(id, `consultMinutes must be a positive integer: ${c.consultMinutes}`);
   else if (TRIAGE[c.triage?.priority] && c.questions && c.physical) {
     const focused = focusedMinutes(c);
-    if (focused > consultTarget(c)) err(id, `key items take ${focused} min, over the ${consultTarget(c)}-min consultation target`);
+    if (focused > actionTarget(c)) err(id, `key items take ${focused} min, over the ${actionTarget(c)}-min consultation target for actions`);
     if (c.timeCritical && focused > c.timeCritical.minutes) err(id, `key items take ${focused} min, over the ${c.timeCritical.minutes}-min time-critical window`);
   }
   if (c.type === 'follow_up' && !c.previousNote) warn.push(`[${id}] follow-up without previousNote`);

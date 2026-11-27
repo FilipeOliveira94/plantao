@@ -29,8 +29,11 @@ export function toast(text, ms = 4200) {
   setTimeout(() => t.remove(), ms);
 }
 
-export function modal(content, { onClose, closable = true } = {}) {
-  const back = h('div', { class: 'modal-back' });
+/** True while any modal is on screen (the shift clock holds while one is open). */
+export const modalOpen = () => !!document.querySelector('.modal-back');
+
+export function modal(content, { onClose, closable = true, className = '' } = {}) {
+  const back = h('div', { class: `modal-back ${className}`.trim() });
   const box = h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true' }, content);
   back.append(box);
   const close = () => { back.remove(); onClose?.(); };

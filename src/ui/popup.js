@@ -5,6 +5,9 @@
 // the tutorial (P2-04).
 import { h } from './dom.js';
 
+/** True while a blocking popup is up and not sliding out (the shift clock holds while one is open). */
+export const blockingPopupOpen = () => !!document.querySelector('.popup-wrap.blocking:not(.closing)');
+
 const OUT_MS = 180; // keep in step with the popup-out animation in styles.css
 let seq = 0;
 

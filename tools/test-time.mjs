@@ -35,8 +35,8 @@ test('consultation minutes by action add up to minutesSpent', () => {
   e.examine('p1');
   s.requestExam('ecg'); s.requestExam('cbc');
   const r = decide(e);
-  assert.deepEqual(r.time, { questions: 2 * ACTION_COST.question, physical: ACTION_COST.physical, orders: 2 * ACTION_COST.order });
-  assert.equal(r.time.questions + r.time.physical + r.time.orders, r.minutesSpent);
+  assert.deepEqual(r.time, { questions: 2 * ACTION_COST.question, physical: ACTION_COST.physical, orders: 2 * ACTION_COST.order, thinking: 0 });
+  assert.equal(r.time.questions + r.time.physical + r.time.orders + r.time.thinking, r.minutesSpent);
 });
 
 test('waiting in the room and in the waiting room are recorded as clock spans, not consultation time', () => {

@@ -45,7 +45,7 @@ try {
   const arrivalCard = page.locator('.popup.arrival:not(.out)');
   const dismissArrival = async () => { await arrivalCard.getByRole('button', { name: 'Depois' }).click(); };
   await page.addLocatorHandler(arrivalCard, dismissArrival, { noWaitAfter: true });
-  await page.goto(`http://localhost:${PORT}/index.html`);
+  await page.goto(`http://localhost:${PORT}/index.html?clock=manual`); // the test steps the clock itself (P1-11)
   // the menu states that the cases are AI-generated and links to the references table
   const refs = page.locator('.ai-notice a');
   if (!/docs\/REFERENCES\.md$/.test(await refs.getAttribute('href'))) throw new Error('menu notice does not link to docs/REFERENCES.md');
@@ -245,12 +245,12 @@ try {
             const txt = (k) => document.querySelector(`.modal .time-breakdown [data-k=${k}]`)?.textContent || '';
             const pc = (k) => Number(/(\d+)%/.exec(txt(k))?.[1]);
             return { r: { time: r.time, spent: r.minutesSpent, target: r.consultTarget, paid: r.queuePaid.length, waits: e.roomWaits.length },
-              q: pc('questions'), p: pc('physical'), o: pc('orders'), total: txt('total'), timeline: txt('timeline'), queue: txt('queue'),
+              q: pc('questions'), p: pc('physical'), o: pc('orders'), th: pc('thinking'), total: txt('total'), timeline: txt('timeline'), queue: txt('queue'),
               items: document.querySelectorAll('.modal .queue-paid li').length, mins: /\d+ min/.test(document.querySelector('.modal .time-breakdown').textContent) };
           });
           const { time: t, target } = tb.r;
           const pct = (m) => Math.round((m / target) * 100);
-          if (tb.q !== pct(t.questions) || tb.p !== pct(t.physical) || tb.o !== pct(t.orders) || t.questions + t.physical + t.orders !== tb.r.spent) throw new Error(`time breakdown parts: ${JSON.stringify(tb)}`);
+          if (tb.q !== pct(t.questions) || tb.p !== pct(t.physical) || tb.o !== pct(t.orders) || tb.th !== pct(t.thinking) || t.questions + t.physical + t.orders + t.thinking !== tb.r.spent) throw new Error(`time breakdown parts: ${JSON.stringify(tb)}`);
           if (!tb.total.includes(`${pct(tb.r.spent)}% do tempo-alvo`)) throw new Error(`time breakdown total: ${JSON.stringify(tb)}`);
           if (tb.mins) throw new Error(`time breakdown shows minutes: ${JSON.stringify(tb)}`);
           if (!/consultório \d\d:\d\d–\d\d:\d\d/.test(tb.timeline) || (tb.r.waits > 0) !== /aguardando resultado/.test(tb.timeline)) throw new Error(`timeline: ${JSON.stringify(tb)}`);
@@ -370,6 +370,62 @@ try {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/06-fim-com-pendentes.png` });
   console.log(`✔ shift end: ${endCase.unseen} unseen patients listed`);
   await page.getByRole('button', { name: /Voltar ao menu/ }).click();
+  // real-time clock (P1-11): stepped real time moves the clock and, with a patient in the room, the consultation;
+  // the pause screen, the feedback modal and a blocking popup hold it, and it runs again once each one closes
+  {
+    await page.locator('.unit').first().click();
+    await page.locator('.spec').first().click();
+    await page.getByRole('button', { name: /Começar plantão/ }).click();
+    await page.waitForSelector('.game');
+    const step = (ms) => page.evaluate((v) => {
+      const s = window.__plantao.shift;
+      const before = { clock: s.clock, spent: s.current?.minutesSpent ?? 0 };
+      window.__plantao.clock.step(v);
+      return { clock: s.clock - before.clock, spent: (s.current?.minutesSpent ?? 0) - before.spent, label: document.querySelector('.clock').textContent, chip: document.querySelector('.consult-chip')?.textContent ?? null };
+    }, ms);
+    const idle = await step(25000); // 2.5 internal minutes: the half minute carries over
+    if (idle.clock !== 2 || idle.spent !== 0 || !idle.label.startsWith('07:08')) throw new Error(`real time with the room free: ${JSON.stringify(idle)}`);
+    if ((await step(5000)).clock !== 1) throw new Error('the half minute of real time did not carry over');
+    // a tick swaps only the clock face: the volume slider keeps the focus
+    await page.locator('.topbar input[type=range]').focus();
+    await step(10000);
+    if (!(await page.locator('.topbar input[type=range]').evaluate((el) => el === document.activeElement))) throw new Error('a clock tick took the focus off the volume slider');
+    await page.locator('.qcard button:not([disabled])').first().click();
+    await page.getByRole('tab', { name: /Exames/ }).click();
+    const search = page.locator('.test-search');
+    await search.fill('ecg');
+    const chip0 = await page.locator('.consult-chip').textContent();
+    const think = await step(20000);
+    if (think.clock !== 2 || think.spent !== 2 || think.chip === chip0) throw new Error(`thinking in the room: ${JSON.stringify(think)} (chip was ${chip0})`);
+    if (await search.inputValue() !== 'ecg' || !(await search.evaluate((el) => el === document.activeElement))) throw new Error('a clock tick reset the test search box');
+    // pause screen: an opaque overlay; Escape resumes
+    await page.getByRole('button', { name: /Pausar/ }).click();
+    await page.waitForSelector('.modal-back.paused');
+    if ((await step(30000)).clock !== 0) throw new Error('the clock ran on the pause screen');
+    await page.keyboard.press('Escape');
+    if (await page.locator('.modal-back.paused').count()) throw new Error('Escape did not close the pause screen');
+    if ((await step(10000)).clock !== 1) throw new Error('the clock did not resume after the pause screen');
+    // a blocking popup holds the clock until it closes
+    await page.evaluate(async () => { const { popup } = await import('./src/ui/popup.js'); window.__p = popup(document.createTextNode('teste'), { blocking: true, actions: [{ label: 'Ok' }] }); });
+    if ((await step(30000)).clock !== 0) throw new Error('the clock ran under a blocking popup');
+    await page.keyboard.press('Escape');
+    if ((await step(10000)).clock !== 1) throw new Error('the clock did not resume after the blocking popup');
+    // feedback holds it; the breakdown shows the thinking share
+    const ids = await page.evaluate(() => { const e = window.__plantao.shift.current; return [e.c.diagnosis.correct, e.c.conduct.correct, e.time.thinking]; });
+    if (ids[2] !== 4) throw new Error(`thinking minutes: ${ids[2]}, expected 4`); // 2 + 1 after the pause + 1 after the popup
+    await page.getByRole('tab', { name: /Decisão/ }).click();
+    await page.locator(`input[name=dx][value="${ids[0]}"]`).check();
+    await page.locator(`input[name=cd][value="${ids[1]}"]`).check();
+    await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
+    await page.waitForSelector('.modal .time-breakdown');
+    if (!/Raciocínio\s*\d+%/.test(await page.locator('.modal .time-breakdown [data-k=thinking]').textContent())) throw new Error('breakdown has no thinking share');
+    if ((await step(30000)).clock !== 0) throw new Error('the clock ran on the feedback screen');
+    await page.locator('.modal .btn.primary').click();
+    if ((await step(10000)).clock !== 1) throw new Error('the clock did not resume after the feedback');
+    console.log('✔ real-time clock: ticks, thinking counts in the room, holds on pause, popup and feedback');
+    await page.getByRole('button', { name: '←' }).click();
+    await page.getByRole('button', { name: 'Sair' }).click();
+  }
   // waiting has consequences (P1-06): a green patient left waiting complains, then leaves unseen,
   // and the summary shows the departure and a lower satisfaction. UBS internal medicine always has the green cystitis case.
   // the green patient must wait while someone else is seen: restart until another patient is in the queue at 07:00
