@@ -44,6 +44,9 @@ export const COMPLAINT_CHANCE = 0.5;
 export const impatienceAt = (priority) => scaledTarget(priority) + IMPATIENCE_MARGIN[priority];
 /** Wait after which a patient of this priority leaves unseen, or null when they never leave. */
 export const leaveAt = (priority) => (CAN_LEAVE.includes(priority) ? scaledTarget(priority) + LEAVE_MARGIN : null);
+// A waiting patient this close (internal minutes) to getting impatient or leaving shows in the feedback as
+// about to change: roughly one consultation away.
+export const SOON_MARGIN = 10;
 /** XP added to (or taken from) the closing bonus for the shift's satisfaction. */
 export const satisfactionXp = (s) => (s >= 90 ? 10 : s >= 70 ? 0 : s >= 40 ? -10 : -20);
 
@@ -187,6 +190,7 @@ export class Shift {
     if (this.over || this.current) return false;
     this.current = enc;
     if (enc.firstSeenAt == null) enc.firstSeenAt = this.clock;
+    enc.roomSpans.push({ from: this.clock, to: null });
     enc.status = 'in_progress';
     return true;
   }
@@ -216,8 +220,40 @@ export class Shift {
   /** Sends the current patient to the waiting room until results are ready. */
   sendToWait() {
     if (!this.current) return;
+    this.closeSpan(this.current);
     this.current.status = 'awaiting_results';
     this.current = null;
+  }
+
+  closeSpan(enc) {
+    const span = enc.roomSpans.at(-1);
+    if (span && span.to == null) span.to = this.clock;
+  }
+
+  /** What the queue paid for one patient's consultation, for every other patient it touched:
+   *  `overdue` internal minutes past their scaled Manchester target (before first contact or leaving) while this
+   *  patient was in the room; `events` that happened to them meanwhile (impatient, complaint, left); and `soon`
+   *  ('impatient' | 'leave') for those still waiting within SOON_MARGIN of their next threshold. */
+  queuePaid(enc) {
+    const inRoom = (t) => enc.roomSpans.some((sp) => t > sp.from && t <= (sp.to ?? this.clock));
+    const now = Math.min(this.clock, SHIFT_MINUTES);
+    const paid = [];
+    for (const e of this.encounters) {
+      if (e === enc) continue;
+      const pr = e.c.triage.priority;
+      const due = e.arrivedAt + scaledTarget(pr);
+      const end = Math.min(e.firstSeenAt ?? Infinity, e.leftAt ?? Infinity, SHIFT_MINUTES);
+      const overdue = enc.roomSpans.reduce((sum, sp) => sum + Math.max(0, Math.min(sp.to ?? this.clock, end) - Math.max(sp.from, due)), 0);
+      const events = this.satisfactionLog.filter((l) => l.enc === e && inRoom(l.at)).map((l) => l.reason);
+      let soon = null;
+      if (e.status === 'waiting' && e.firstSeenAt == null && e.arrivedAt <= now) {
+        const wait = now - e.arrivedAt;
+        const next = !e.impatient ? ['impatient', impatienceAt(pr)] : leaveAt(pr) != null ? ['leave', leaveAt(pr)] : null;
+        if (next && next[1] - wait <= SOON_MARGIN && e.arrivedAt + next[1] < SHIFT_MINUTES) soon = next[0];
+      }
+      if (overdue > 0 || events.length || soon) paid.push({ name: e.c.patient.name, priority: pr, overdue, events, soon });
+    }
+    return paid.sort((a, b) => TRIAGE[a.priority].order - TRIAGE[b.priority].order || b.overdue - a.overdue);
   }
 
   /** Puts the current patient back in the queue to see someone else first. Everything they had is kept:
@@ -225,13 +261,16 @@ export class Shift {
   pause() {
     const enc = this.current;
     if (!enc) return null;
+    this.closeSpan(enc);
     enc.status = 'paused';
     this.current = null;
     return enc;
   }
 
   finish(enc, result) {
+    this.closeSpan(enc);
     enc.status = 'done';
+    result.queuePaid = this.queuePaid(enc);
     this.results.push({ enc, result });
     if (this.current === enc) this.current = null;
   }
@@ -242,7 +281,9 @@ export class Shift {
     if (!this.current || this.over) return [];
     const times = this.current.pendingExams(this.clock).map(([, r]) => r.readyAt);
     if (!times.length) return [];
-    return this.advance(Math.max(1, Math.min(Math.min(...times), SHIFT_MINUTES) - this.clock));
+    const minutes = Math.max(1, Math.min(Math.min(...times), SHIFT_MINUTES) - this.clock);
+    this.current.roomWaits.push({ from: this.clock, to: this.clock + minutes });
+    return this.advance(minutes);
   }
 
   /** Advances the clock to the next event (arrival or test result), never past the end of the shift. */

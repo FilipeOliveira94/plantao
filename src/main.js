@@ -727,6 +727,43 @@ function reportUrl(c, chosen) {
   return `${NEW_ISSUE_URL}?${new URLSearchParams({ title: `[Caso] ${c.id}: problema relatado`, body })}`;
 }
 
+const QUEUE_EVENT_TEXT = { impatient: 'ficou impaciente', complaint: 'reclamou', left: 'foi embora sem atendimento' };
+const QUEUE_SOON_TEXT = { impatient: 'quase impaciente', leave: 'quase indo embora' };
+
+/** Where the consultation time went (each part as a share of the target, never minutes: the clock is
+ *  fictitious), when the patient was in the room or waiting, and what the rest of the queue paid. */
+function timeBreakdown(enc, r) {
+  const t = r.time;
+  const pct = (m) => Math.round((m / r.consultTarget) * 100);
+  const parts = [['questions', 'Anamnese', t.questions], ['physical', 'Exame físico', t.physical], ['orders', 'Pedidos de exame', t.orders]];
+  const scale = Math.max(r.minutesSpent, r.consultTarget);
+  const bar = h('div', { class: 'time-bar', role: 'img', 'aria-label': `Consulta: ${pct(r.minutesSpent)}% do tempo-alvo` },
+    parts.map(([k, , m]) => (m ? h('span', { class: `seg ${k}`, style: { width: `${(m / scale) * 100}%` } }) : null)),
+    r.minutesSpent > r.consultTarget ? h('span', { class: 'target', style: { left: `${(r.consultTarget / scale) * 100}%` } }) : null);
+  // timeline: room spans, waits for a result inside them, and the waiting room between them
+  const span = (a, b) => `${clockAt(a)}–${clockAt(b)}`;
+  const steps = enc.roomSpans.flatMap((sp, i) => {
+    const waits = enc.roomWaits.filter((w) => w.from >= sp.from && w.to <= sp.to).map((w) => span(w.from, w.to));
+    const room = `consultório ${span(sp.from, sp.to)}${waits.length ? ` (aguardando resultado ${waits.join(', ')})` : ''}`;
+    const next = enc.roomSpans[i + 1];
+    return next ? [room, `recepção ${span(sp.to, next.from)}`] : [room];
+  });
+  const paid = r.queuePaid || [];
+  const queueLine = (p) => [
+    p.overdue > 0 ? 'passou do alvo' : null, ...p.events.map((ev) => QUEUE_EVENT_TEXT[ev]), p.soon ? QUEUE_SOON_TEXT[p.soon] : null,
+  ].filter(Boolean).join(', ');
+  return h('details', { class: 'time-breakdown', open: true },
+    h('summary', {}, h('b', {}, 'Para onde foi o tempo')),
+    bar,
+    h('ul', { class: 'score-lines' },
+      parts.map(([k, label, m]) => h('li', { 'data-k': k }, h('span', {}, h('i', { class: `dot ${k}` }), label), h('span', { class: 'muted' }, `${pct(m)}%`))),
+      h('li', { 'data-k': 'total' }, h('b', {}, 'Tempo de consulta'), h('b', { class: r.minutesSpent > r.consultTarget ? 'neg' : 'pos' }, `${pct(r.minutesSpent)}% do tempo-alvo`))),
+    h('p', { class: 'small muted', 'data-k': 'timeline' }, `Linha do tempo: ${steps.join(' → ')}.`),
+    h('div', { class: 'small', 'data-k': 'queue' }, h('b', {}, 'O que a fila pagou: '), paid.length
+      ? h('ul', { class: 'queue-paid' }, paid.map((p) => h('li', {}, `${p.name} (${TRIAGE[p.priority].label}): ${queueLine(p)}`)))
+      : 'ninguém passou do alvo da classificação enquanto você atendia.'));
+}
+
 function showFeedback(enc, r, earned, leveled) {
   const c = enc.c;
   const dxLabel = c.diagnosis.options.find((o) => o.id === c.diagnosis.correct).label;
@@ -736,6 +773,7 @@ function showFeedback(enc, r, earned, leveled) {
     h('h2', {}, r.dxOk && r.cdOk ? 'Muito bem!' : r.harmful ? 'Atenção: conduta com risco ao paciente' : 'Reveja este caso'),
     h('p', { class: 'muted' }, `${c.patient.name} · +${r.points} XP`),
     h('ul', { class: 'score-lines' }, r.lines.map((l) => h('li', {}, h('span', {}, l.label), h('span', { class: l.v > 0 ? 'pos' : l.v < 0 ? 'neg' : 'muted' }, l.v > 0 ? `+${l.v}` : String(l.v))))),
+    timeBreakdown(enc, r),
     h('p', {}, h('b', {}, 'Diagnóstico: '), dxLabel),
     h('p', {}, h('b', {}, 'Conduta esperada: '), cdLabel),
     c.timeCritical ? h('p', { class: 'small' }, '⏱ ', c.timeCritical.reason) : null,
