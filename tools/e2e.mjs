@@ -45,7 +45,7 @@ try {
   const arrivalCard = page.locator('.popup.arrival:not(.out)');
   const dismissArrival = async () => { await arrivalCard.getByRole('button', { name: 'Depois' }).click(); };
   await page.addLocatorHandler(arrivalCard, dismissArrival, { noWaitAfter: true });
-  // random event popups (P1-09, about one shift in six): the full-shift runs close them; the seeded check below covers them
+  // random event popups (P1-09, about one shift in six): the full-shift runs close them; the event check below covers them
   const eventCard = page.locator('.popup.event:not(.out)');
   await page.addLocatorHandler(eventCard, async () => { await eventCard.getByRole('button', { name: 'Entendi' }).click(); }, { noWaitAfter: true });
   await page.goto(`http://localhost:${PORT}/index.html`);
@@ -485,14 +485,9 @@ try {
   console.log('✔ arrival popups: details, non-blocking "Depois", auto-dismiss, red "Atender agora" pauses with progress kept');
   await page.locator('.topbar .btn.ghost').first().click(); // ←: leave the shift
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
-  // random events (P1-09): a seed whose shift has the system-down event shows its popup and the effect chip,
+  // random events (P1-09): a system-down event scheduled on the live shift shows its popup and the effect chip,
   // and each action costs extra shift time while it lasts
   await page.removeLocatorHandler(eventCard);
-  const { Shift } = await import('../src/game/shift.js');
-  const { UNITS: ALL_UNITS } = await import('../src/data/catalog.js');
-  let seed = 0;
-  while (new Shift({ unit: ALL_UNITS[0], specialty: ALL_UNITS[0].specialties[0], seed }).pendingEvents[0]?.id !== 'system_down') seed++;
-  await page.goto(`http://localhost:${PORT}/index.html?seed=${seed}`);
   await page.locator('.unit').first().click();
   await page.locator('.spec').first().click();
   await page.getByRole('button', { name: /Começar plantão/ }).click();
@@ -502,7 +497,9 @@ try {
   const evAt = await page.evaluate(() => {
     const s = window.__plantao.shift;
     for (const e of s.upcoming()) e.arrivedAt = s.endsAt - 1; // no arrival card in the way
-    const at = s.pendingEvents[0].at;
+    s.pendingEvents = []; // drop any rolled event: this check schedules its own
+    const at = s.clock + 20;
+    s.scheduleEvent('system_down', at);
     s.advance(at - 1 - s.clock);
     return at;
   });
@@ -524,7 +521,7 @@ try {
   await page.evaluate(() => { const s = window.__plantao.shift; s.advance(s.activeEffects()[0].until - s.clock); });
   await page.locator('.pane .opt').first().click();
   if (await chip.count()) throw new Error('the effect chip stays after the event ends');
-  console.log(`✔ random event: seed ${seed} fires "system_down" at ${evAt}, popup, chip and slower actions`);
+  console.log(`✔ random event: "system_down" at ${evAt}, popup, chip and slower actions`);
   await page.locator('.topbar .btn.ghost').first().click();
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
   // PICU scene

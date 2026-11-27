@@ -274,9 +274,7 @@ function showHelp() {
 function startShift(unit, specialty) {
   sfx.unlock();
   clearArrivals();
-  // debug: `?seed=N` replays a shift (arrivals, options, events); the e2e test uses it
-  const seedParam = new URLSearchParams(location.search).get('seed');
-  shift = new Shift({ unit, specialty, completedCases: state.cases, seed: /^\d{1,9}$/.test(seedParam ?? '') ? Number(seedParam) : Date.now() });
+  shift = new Shift({ unit, specialty, completedCases: state.cases });
   if (!shift.encounters.length) { toast('Ainda não há casos para essa combinação.'); return; }
   music.play(unit.music);
   renderGame();
