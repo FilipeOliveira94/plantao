@@ -1,6 +1,6 @@
 // Plantão — main controller (menu, shift, encounter, feedback). UI text is pt-BR by design.
 import { UNITS, SPECIALTIES, TRIAGE, EXAMS, EXAM_CATS, UNIT_TYPES, ACTION_COST } from './data/catalog.js';
-import { Shift } from './game/shift.js';
+import { Shift, clockLabelAt } from './game/shift.js';
 import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS, exportSave, encodeCode, parseImport, MAX_IMPORT_BYTES } from './game/progress.js';
 import { IsoScene } from './render/iso.js';
 import { sfx } from './audio/sfx.js';
@@ -312,7 +312,7 @@ function renderTop() {
     h('span', { class: 'spacer' }),
     h('span', { class: 'small muted' }, `${shift.results.length}/${shift.encounters.length} atendidos`),
     h('span', { class: 'small' }, `Nv ${lvl.number} · ${state.xp} XP`),
-    h('span', { class: 'clock', title: 'Relógio do plantão' }, shift.clockLabel),
+    h('span', { class: `clock${shift.over ? ' over' : ''}`, title: `Relógio do plantão (termina às ${shift.endLabel})` }, shift.clockLabel, h('span', { class: 'clock-end' }, ` · fim ${shift.endLabel}`)),
     h('button', { class: 'btn ghost', onclick: toggleMute }, state.settings.muted ? '🔇' : '🔊'),
     musicSlider(),
   );
@@ -339,14 +339,14 @@ function statusOf(enc) {
   return { text: `⏳ Esperando há ${wait} min` };
 }
 
-const clockAt = (m) => { const t = 7 * 60 + m; return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+const clockAt = clockLabelAt;
 
 function renderQueue() {
   const q = shift.queue();
   const cards = q.map((enc) => {
     const tri = TRIAGE[enc.c.triage.priority];
     const st = statusOf(enc);
-    const canCall = !shift.current && (enc.status !== 'awaiting_results' || st.ready);
+    const canCall = !shift.current && !shift.over && (enc.status !== 'awaiting_results' || st.ready);
     return h('div', { class: `qcard ${st.ready ? 'ready' : ''}`, style: { borderLeftColor: tri.color } },
       h('div', { class: 'nm' }, enc.c.patient.name),
       h('div', { class: 'small muted' }, `${enc.c.patient.age} · ${tri.label}${enc.c.type === 'follow_up' ? ' · Retorno' : ''}`),
@@ -357,14 +357,18 @@ function renderQueue() {
   const upcoming = shift.upcoming().length;
   const children = cards.length ? cards : [h('div', { class: 'empty' }, upcoming ? 'Ninguém na fila agora.' : shift.current ? 'Último paciente em atendimento.' : 'Fila vazia.')];
   const waitingExams = shift.encounters.some((e) => e.status === 'awaiting_results' && e.pendingExams(shift.clock).length);
-  if (!shift.current && (upcoming || waitingExams) && !q.some((e) => statusOf(e).ready || e.status === 'waiting')) {
-    children.push(h('button', { class: 'btn', style: { alignSelf: 'center' }, onclick: () => { handleEvents(shift.waitForNext()); renderAll(); } }, '☕ Aguardar próximo'));
+  if (!shift.current && !shift.over && (upcoming || waitingExams) && !q.some((e) => statusOf(e).ready || e.status === 'waiting')) {
+    children.push(h('button', { class: 'btn', style: { alignSelf: 'center' }, onclick: () => { handleEvents(shift.waitForNext()); renderAll(); if (shift.done) setTimeout(showShiftSummary, 400); } }, '☕ Aguardar próximo'));
   }
   mount(ui.queue, children);
 }
 
 function handleEvents(fired) {
   for (const ev of fired || []) toast(ev.text, 6500);
+  if (shift.over && !shift._overNotified) {
+    shift._overNotified = true;
+    toast(shift.current ? `⏰ ${shift.endLabel}: fim do turno. Conclua o atendimento atual; ninguém mais será chamado.` : `⏰ ${shift.endLabel}: fim do turno.`, 6500);
+  }
   // newly available results for waiting patients
   for (const e of shift.encounters) {
     if (e.status === 'awaiting_results' && !e._notified && e.pendingExams(shift.clock).length === 0) {
@@ -382,7 +386,7 @@ function handleEvents(fired) {
 
 function callPatient(enc) {
   const returning = enc.status === 'awaiting_results';
-  shift.call(enc);
+  if (!shift.call(enc)) return;
   enc._notified = true;
   sfx.call();
   scene.enter(enc.c.patient.look, enc.c.patient.companion);
@@ -413,8 +417,11 @@ function renderChart() {
       h('div', {},
         h('div', { style: { fontSize: '46px' } }, shift.unit.type === 'picu' ? '🛏️' : '🚪'),
         h('h2', {}, shift.done ? 'Plantão encerrado' : 'Consultório livre'),
-        h('p', { class: 'muted' }, next ? `Próximo da fila: ${next.c.patient.name} (${TRIAGE[next.c.triage.priority].label}).` : 'Aguardando pacientes.'),
-        next ? h('button', { class: 'btn primary', onclick: () => callPatient(next), disabled: next.status === 'awaiting_results' && !statusOf(next).ready }, 'Chamar próximo') : null,
+        shift.done
+          ? h('p', { class: 'muted' }, shift.unseen().length ? `${shift.unseen().length} paciente(s) ficaram sem atendimento.` : 'Todos os pacientes foram atendidos.')
+          : h('p', { class: 'muted' }, next ? `Próximo da fila: ${next.c.patient.name} (${TRIAGE[next.c.triage.priority].label}).` : 'Aguardando pacientes.'),
+        shift.done ? h('button', { class: 'btn primary', onclick: showShiftSummary }, 'Encerrar plantão') : null,
+        next && !shift.done ? h('button', { class: 'btn primary', onclick: () => callPatient(next), disabled: next.status === 'awaiting_results' && !statusOf(next).ready }, 'Chamar próximo') : null,
       )));
     return;
   }
@@ -472,7 +479,8 @@ const TAB_STATE_LABEL = { unopened: 'não aberta', done: 'já vista' };
 function footerFor(enc) {
   const pend = enc.pendingExams(shift.clock).length;
   return h('div', { class: 'footer-actions' },
-    pend ? h('button', { class: 'btn', onclick: () => sendToWait(enc) }, `🪑 Aguardar resultados na recepção (${pend})`) : null,
+    // after the end of the shift a patient sent out could not be called back, so they stay in the room
+    pend && !shift.over ? h('button', { class: 'btn', onclick: () => sendToWait(enc) }, `🪑 Aguardar resultados na recepção (${pend})`) : null,
     h('span', { class: 'spacer', style: { flex: 1 } }),
     h('button', { class: 'btn primary', onclick: () => { tab = 'decision'; renderChart(); } }, 'Diagnóstico e conduta →'),
   );
@@ -653,8 +661,11 @@ function showFeedback(enc, r, earned, leveled) {
 }
 
 function showShiftSummary() {
+  if (!shift || shift._summaryShown) return;
+  shift._summaryShown = true;
   const prev = levelOf(state.xp).number;
-  const { earned, bonus } = applyShift(state, shift);
+  const { earned, bonus, unseenPenalty } = applyShift(state, shift);
+  const unseen = shift.unseen();
   save(state);
   const leveled = levelOf(state.xp).number > prev;
   if (earned.length) sfx.badge();
@@ -665,7 +676,9 @@ function showShiftSummary() {
     h('p', { class: 'muted' }, `${finished.unit.name} · ${finished.unit.city}/${finished.unit.uf} · encerrado às ${finished.clockLabel}`),
     h('ul', { class: 'score-lines' },
       finished.results.map(({ enc, result }) => h('li', {}, h('span', {}, enc.c.patient.name), h('span', {}, '⭐'.repeat(result.stars) || '—', ` · +${result.points}`))),
-      h('li', {}, h('span', {}, 'Bônus de fechamento de plantão'), h('span', { class: 'pos' }, `+${bonus}`)),
+      unseen.map((enc) => h('li', { class: 'unseen' }, h('span', {}, enc.c.patient.name, ` (${TRIAGE[enc.c.triage.priority].label})`), h('span', { class: 'neg' }, 'não atendido'))),
+      unseen.length ? h('li', {}, h('span', {}, `Pacientes sem atendimento (${unseen.length})`), h('span', { class: 'neg' }, `-${unseenPenalty}`)) : null,
+      h('li', {}, h('span', {}, unseen.length ? 'Bônus de fechamento (após descontos, mínimo 0)' : 'Bônus de fechamento de plantão'), h('span', { class: bonus ? 'pos' : 'muted' }, `+${bonus}`)),
       h('li', {}, h('b', {}, 'Total'), h('b', {}, `+${total} XP`)),
     ),
     earned.length ? h('div', {}, h('h3', { style: { marginBottom: '8px' } }, 'Conquistas'), h('div', { class: 'badges' }, earned.map((id) => h('div', { class: 'badge new' }, h('span', { class: 'ic' }, BADGES[id].icon), h('div', {}, h('b', {}, BADGES[id].name)))))) : null,

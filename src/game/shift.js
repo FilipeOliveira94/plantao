@@ -5,6 +5,16 @@ import { casesFor } from '../data/cases/index.js';
 import { Encounter } from './encounter.js';
 
 export const SHIFT_START_HOUR = 7;
+// Game minutes in a shift (07:00 to 10:00) and the window in which patients arrive.
+// Five patients in three game hours keep a shift to about 10 to 15 minutes of real play.
+export const SHIFT_MINUTES = 180;
+export const ARRIVAL_WINDOW = 120;
+export const PATIENTS_PER_SHIFT = { default: 5, picu: 4 };
+
+export const clockLabelAt = (minutes) => {
+  const total = SHIFT_START_HOUR * 60 + minutes;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+};
 
 export function mulberry32(seed) {
   return function () {
@@ -47,15 +57,19 @@ export class Shift {
     // prefer cases not played yet
     const fresh = shuffle(eligible.filter((c) => !completedCases[c.id]), this.rnd);
     const seen = shuffle(eligible.filter((c) => completedCases[c.id]), this.rnd);
-    const n = unit.type === 'picu' ? 3 : 4;
+    const n = PATIENTS_PER_SHIFT[unit.type] ?? PATIENTS_PER_SHIFT.default;
+    // a pool smaller than the shift plays every case once: no repeats, same length and arrival window
     const picked = [...fresh, ...seen].slice(0, Math.min(n, eligible.length));
 
     // a separate stream, so shuffling options does not change arrivals or events for a given seed
     const optionRnd = mulberry32(seed ^ 0x5bd1e995);
-    let t = 0;
+    // the first patient is waiting at 07:00; the rest spread evenly over the arrival window, ±8 min
+    const step = picked.length > 1 ? ARRIVAL_WINDOW / (picked.length - 1) : 0;
+    let prev = 0;
     this.encounters = picked.map((c, i) => {
       const e = new Encounter(c, unit.type);
-      e.arrivedAt = i === 0 ? 0 : (t += 8 + Math.floor(this.rnd() * 25));
+      const jitter = Math.floor(this.rnd() * 17) - 8;
+      e.arrivedAt = i === 0 ? 0 : (prev = Math.min(ARRIVAL_WINDOW, Math.max(prev + 1, Math.round(i * step) + jitter)));
       e.dxOptions = shuffle(c.diagnosis.options, optionRnd);
       e.cdOptions = shuffle(c.conduct.options, optionRnd);
       return e;
@@ -66,11 +80,14 @@ export class Shift {
     this.current = null;
   }
 
-  get clockLabel() {
-    const total = SHIFT_START_HOUR * 60 + this.clock;
-    const h = Math.floor(total / 60) % 24, m = total % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-  }
+  get clockLabel() { return clockLabelAt(this.clock); }
+
+  get endsAt() { return SHIFT_MINUTES; }
+
+  get endLabel() { return clockLabelAt(SHIFT_MINUTES); }
+
+  /** True once the shift time has run out: no one else can be called. */
+  get over() { return this.clock >= SHIFT_MINUTES; }
 
   advance(minutes) {
     this.clock += minutes;
@@ -95,9 +112,11 @@ export class Shift {
   upcoming() { return this.encounters.filter((e) => e.arrivedAt > this.clock); }
 
   call(enc) {
+    if (this.over || this.current) return false;
     this.current = enc;
     if (enc.firstSeenAt == null) enc.firstSeenAt = this.clock;
     enc.status = 'in_progress';
+    return true;
   }
 
   /** Clinical action on the current patient (question/physical exam): advances the clock. */
@@ -135,8 +154,9 @@ export class Shift {
     if (this.current === enc) this.current = null;
   }
 
-  /** Advances the clock to the next event (arrival or test result). */
+  /** Advances the clock to the next event (arrival or test result), never past the end of the shift. */
   waitForNext() {
+    if (this.over) return [];
     const times = [];
     for (const e of this.encounters) {
       if (e.status === 'done') continue;
@@ -144,8 +164,13 @@ export class Shift {
       for (const [, r] of e.pendingExams(this.clock)) times.push(r.readyAt);
     }
     if (!times.length) return [];
-    return this.advance(Math.max(1, Math.min(...times) - this.clock));
+    const next = Math.min(Math.min(...times), SHIFT_MINUTES);
+    return this.advance(Math.max(1, next - this.clock));
   }
 
-  get done() { return this.encounters.every((e) => e.status === 'done'); }
+  /** Patients not finished: at the end of the shift these count against it. */
+  unseen() { return this.encounters.filter((e) => e.status !== 'done'); }
+
+  /** The shift closes when everyone is done, or when time is up and no one is in the room. */
+  get done() { return this.encounters.every((e) => e.status === 'done') || (this.over && !this.current); }
 }
