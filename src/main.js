@@ -1189,6 +1189,7 @@ function showShiftSummary() {
   if (tutorial) { showTutorialSummary(); return; }
   const prev = levelOf(state.xp).number;
   const { earned, bonus, unseenPenalty, satisfaction, gradedSatisfaction, satisfactionBonus } = applyShift(state, shift);
+  if (state.tutorial == null) state.tutorial = 'skipped'; // played a shift without it: stop offering it, as the v3 migration does
   const unseen = shift.unseen();
   save(state);
   const leveled = levelOf(state.xp).number > prev;
