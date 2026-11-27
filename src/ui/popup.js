@@ -14,10 +14,11 @@ let seq = 0;
 /**
  * @param {Node|Node[]} content
  * @param {{ actions?: { label: string, primary?: boolean, step?: string, onclick?: () => void }[], blocking?: boolean,
- *   timeout?: number, accent?: string, label?: string, className?: string, onTimeout?: () => void, onClose?: () => void }} opts
+ *   timeout?: number, accent?: string, label?: string, className?: string, dock?: 'bottom-left', onTimeout?: () => void, onClose?: () => void }} opts
+ *   dock: park the card in a corner instead of the top center (the tutorial coach, P2-04)
  * @returns {{ close: () => void, el: HTMLElement, blocking: boolean }} close() dismisses it with no action
  */
-export function popup(content, { actions = [], blocking = false, timeout = 0, accent, label, className = '', onTimeout, onClose } = {}) {
+export function popup(content, { actions = [], blocking = false, timeout = 0, accent, label, className = '', dock, onTimeout, onClose } = {}) {
   let closed = false;
   let timer = null;
   const returnFocus = blocking ? document.activeElement : null;
@@ -57,7 +58,7 @@ export function popup(content, { actions = [], blocking = false, timeout = 0, ac
     'aria-label': label,
     style: accent ? { borderLeftColor: accent } : null,
   }, body, buttons.length ? h('div', { class: 'popup-actions' }, buttons) : null);
-  const wrap = h('div', { class: `popup-wrap${blocking ? ' blocking' : ''}` }, card);
+  const wrap = h('div', { class: `popup-wrap${blocking ? ' blocking' : ''}${dock ? ` dock-${dock}` : ''}` }, card);
   document.body.append(wrap);
   body.id = `popup-${++seq}`;
   card.setAttribute('aria-describedby', body.id);

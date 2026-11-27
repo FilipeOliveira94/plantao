@@ -63,6 +63,121 @@ try {
   const refs = page.locator('.ai-notice a');
   if (!/docs\/REFERENCES\.md$/.test(await refs.getAttribute('href'))) throw new Error('menu notice does not link to docs/REFERENCES.md');
   if (await refs.getAttribute('target') !== '_blank' || !/noopener/.test(await refs.getAttribute('rel') || '')) throw new Error('references link must open in a new tab with rel=noopener');
+  // guided first shift (P2-04): a fresh save offers it inline; it follows the next step with a coach card, holds the
+  // clock while the coach is up, pays the case's XP on the first run only, and can be skipped and replayed from the menu
+  {
+    const coach = page.locator('.popup.coach:not(.out)');
+    const coachSays = async (re, what) => {
+      try { await page.waitForFunction((src) => new RegExp(src).test(document.querySelector('.popup.coach:not(.out) .coach-text')?.textContent ?? ''), re.source, { timeout: 3000 }); }
+      catch { throw new Error(`tutorial ${what}: coach says "${await coach.locator('.coach-text').textContent().catch(() => '')}", expected ${re}`); }
+    };
+    const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('plantao.save.v1') || '{}'));
+    if (!(await page.locator('.tutorial-offer').count())) throw new Error('a fresh save does not offer the guided first shift');
+    await page.locator('.tutorial-offer').getByRole('button', { name: 'Começar tutorial' }).click();
+    await page.waitForSelector('.game');
+    const setup = await page.evaluate(() => { const s = window.__plantao.shift; return { unit: s.unit.id, cases: s.encounters.map((e) => e.c.id), events: s.pendingEvents.length, strong: document.body.classList.contains('tutorial') }; });
+    if (JSON.stringify(setup) !== JSON.stringify({ unit: 'ubs-recife', cases: ['im-cystitis'], events: 0, strong: true })) throw new Error(`tutorial setup ${JSON.stringify(setup)}`);
+    await expectStep('call', 'tutorial start');
+    await coachSays(/primeiro plantão/, 'start');
+    if (SHOTS) { await page.waitForTimeout(400); await page.screenshot({ path: `${SHOTS}/20a-tutorial-call.png` }); }
+    // the clock holds while the coach is up: real time does not reach the shift
+    const held = await page.evaluate(() => { const before = window.__plantao.shift.clock; window.__plantao.clock.step(60000); return { paused: window.__plantao.clock.paused, moved: window.__plantao.shift.clock - before }; });
+    if (!held.paused || held.moved !== 0) throw new Error(`tutorial clock not held: ${JSON.stringify(held)}`);
+    await page.locator('[data-step=call]').click();
+    await expectStep('tab:triage', 'tutorial triage');
+    await coachSays(/triagem/, 'triage');
+    await page.getByRole('tab', { name: /Anamnese/ }).click();
+    await expectStep('tab:history', 'tutorial anamnese');
+    await coachSays(/Anamnese/, 'anamnese');
+    await page.locator('.pane .opt').first().click();
+    await expectStep('tab:physical', 'tutorial physical');
+    await coachSays(/Exame físico/, 'physical');
+    const before = await page.evaluate(() => window.__plantao.shift.clock);
+    await page.getByRole('tab', { name: /Exame físico/ }).click();
+    await page.locator('.pane .opt').first().click();
+    await expectStep('decide', 'tutorial decide');
+    await coachSays(/tempo real/, 'decide');
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/20b-tutorial-decide.png` });
+    // actions still cost clock time
+    if (await page.evaluate(() => window.__plantao.shift.clock) <= before) throw new Error('tutorial actions did not move the clock');
+    await page.locator('[data-step=decide]').click();
+    await expectStep('finish', 'tutorial finish');
+    await coachSays(/hipótese diagnóstica/, 'finish');
+    const xp0 = await page.evaluate(() => window.__plantao.state.xp);
+    const d = await page.evaluate(() => { const c = window.__plantao.shift.current.c; return { dx: c.diagnosis.correct, cd: c.conduct.correct }; });
+    await page.locator(`input[name=dx][value="${d.dx}"]`).check();
+    await page.locator(`input[name=cd][value="${d.cd}"]`).check();
+    await page.locator('[data-step=finish]').click();
+    await page.waitForSelector('.modal-back.feedback');
+    await expectStep('feedback-next', 'tutorial feedback');
+    // a modal hides the coach and carries the tutorial text itself
+    if (await coach.isVisible()) throw new Error('the coach should hide while the feedback modal is open');
+    if (!/sobe de nível/.test(await page.locator('.modal-back.feedback .coach-note').textContent())) throw new Error('the feedback does not explain XP on the first run');
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/20c-tutorial-feedback.png` });
+    const paid = await page.evaluate(() => ({ xp: window.__plantao.state.xp, pts: window.__plantao.shift.results[0].result.points }));
+    let sv = await saved();
+    if (paid.xp !== xp0 + paid.pts || sv.xp !== paid.xp || sv.tutorial !== 'done') throw new Error(`tutorial first run: ${JSON.stringify({ xp0, ...paid, saved: sv })}`);
+    if (sv.shifts !== 0 || Object.keys(sv.cases).length || sv.badges.length || sv.states.length) throw new Error(`the tutorial must pay XP only: ${JSON.stringify(sv)}`);
+    await page.locator('[data-step=feedback-next]').click();
+    await page.waitForSelector('.modal-back.summary');
+    await expectStep('summary-menu', 'tutorial summary');
+    if (!/Tutorial concluído[\s\S]*🧭 Tutorial do menu/.test(await page.locator('.modal-back.summary').textContent())) throw new Error('the tutorial summary does not say it is done and how to replay it');
+    if (await page.evaluate(() => window.__plantao.state.xp) !== paid.xp) throw new Error('the tutorial summary paid a closing bonus');
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/20d-tutorial-summary.png` });
+    await page.locator('[data-step=summary-menu]').click();
+    await page.waitForSelector('.menu');
+    if (await coach.count() || await page.evaluate(() => document.body.classList.contains('tutorial'))) throw new Error('coach or strong highlight left on in the menu');
+    // a reload no longer offers it; the menu button replays it, and a replay pays nothing
+    await page.reload();
+    if (await page.locator('.tutorial-offer').count()) throw new Error('the tutorial is offered again after it was done');
+    await page.getByRole('button', { name: '🧭 Tutorial' }).click();
+    await page.waitForSelector('.game');
+    if (await page.evaluate(() => window.__plantao.tutorial?.firstRun) !== false) throw new Error('a replay should not count as the first run');
+    await page.locator('[data-step=call]').click();
+    await page.locator('[data-step="tab:triage"]').waitFor();
+    await page.getByRole('tab', { name: /Decisão/ }).click();
+    await page.locator(`input[name=dx][value="${d.dx}"]`).check();
+    await page.locator(`input[name=cd][value="${d.cd}"]`).check();
+    await page.locator('[data-step=finish]').click();
+    await page.waitForSelector('.modal-back.feedback');
+    if (!/não dá XP/.test(await page.locator('.modal-back.feedback .coach-note').textContent())) throw new Error('the replay feedback does not say it pays no XP');
+    if ((await saved()).xp !== paid.xp) throw new Error('a tutorial replay paid XP');
+    // skip mid-shift from the coach card: back to the menu; a finished tutorial stays done
+    await page.locator('[data-step=feedback-next]').click();
+    await page.waitForSelector('.modal-back.summary');
+    await page.locator('.modal-back.summary').getByRole('button', { name: 'Começar um plantão aqui' }).click();
+    await page.waitForSelector('.game');
+    if (await coach.count() || await page.evaluate(() => document.body.classList.contains('tutorial') || window.__plantao.tutorial || window.__plantao.shift.encounters.length < 2)) throw new Error('"Começar um plantão aqui" did not start a normal shift');
+    await page.getByRole('button', { name: '←' }).click();
+    await page.getByRole('button', { name: 'Sair' }).click();
+    await page.getByRole('button', { name: '🧭 Tutorial' }).click();
+    await coach.waitFor();
+    await coach.getByRole('button', { name: 'Pular tutorial' }).click();
+    await page.waitForSelector('.menu');
+    if (await page.locator('.modal-back').count()) throw new Error('skipping the tutorial left a modal open');
+    if ((await saved()).tutorial !== 'done') throw new Error('skipping a replay downgraded the tutorial state');
+    // a fresh save: "Pular" on the offer, and "Pular tutorial" mid-shift, both save 'skipped'
+    await page.evaluate(() => localStorage.removeItem('plantao.save.v1'));
+    await page.reload();
+    await page.locator('.tutorial-offer').getByRole('button', { name: 'Pular' }).click();
+    if (await page.locator('.tutorial-offer').count() || (await saved()).tutorial !== 'skipped') throw new Error('"Pular" did not dismiss the offer');
+    await page.evaluate(() => localStorage.removeItem('plantao.save.v1'));
+    await page.reload();
+    await page.locator('.tutorial-offer').getByRole('button', { name: 'Começar tutorial' }).click();
+    await coach.getByRole('button', { name: 'Pular tutorial' }).click();
+    await page.waitForSelector('.menu');
+    sv = await saved();
+    if (sv.tutorial !== 'skipped' || sv.xp !== 0) throw new Error(`"Pular tutorial" mid-shift: ${JSON.stringify(sv)}`);
+    // a normal shift has no coach and the calm highlight
+    await page.locator('.unit').first().click();
+    await page.getByRole('button', { name: /Começar plantão/ }).click();
+    await page.waitForSelector('.game');
+    if (await coach.count() || await page.evaluate(() => document.body.classList.contains('tutorial'))) throw new Error('a normal shift shows the tutorial coach');
+    await page.getByRole('button', { name: '←' }).click();
+    await page.getByRole('button', { name: 'Sair' }).click();
+    await page.waitForSelector('.menu');
+    console.log('✔ guided first shift: offered on a fresh save, coach follows each step, clock held, XP on the first run only, skip and replay');
+  }
   // career screen and locked unit cards, at three points of the track
   const career = async (xp) => {
     await page.evaluate((v) => { localStorage.setItem('plantao.save.v1', JSON.stringify({ xp: v })); }, xp);
@@ -100,7 +215,7 @@ try {
 
   // save: the menu says progress lives in this browser; the v1 seed above was migrated
   if (!/só neste navegador/.test(await page.locator('.save-notice').textContent())) throw new Error('menu misses the browser-only save notice');
-  if (await page.evaluate(() => window.__plantao.state.version) !== 2) throw new Error('v1 save was not migrated to version 2');
+  if (await page.evaluate(() => window.__plantao.state.version) !== 3) throw new Error('v1 save was not migrated to version 3');
   // export as a code, reset, import the code back
   await page.getByRole('button', { name: /Exportar progresso/ }).click();
   const code = await page.locator('.modal .save-code').inputValue();

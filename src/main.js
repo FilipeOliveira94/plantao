@@ -13,6 +13,8 @@ import { createTalk } from './ui/talk.js';
 import { popup, blockingPopupOpen } from './ui/popup.js';
 import { nextStep, TAB_STEP, CALL_LABEL } from './game/nextstep.js';
 import { markNextStep, setNextStepEmphasis } from './ui/nextstep.js';
+import { TUTORIAL, tutorialPrompt } from './game/tutorial.js';
+import { createCoach, coachNote } from './ui/tutorial.js';
 
 const app = document.getElementById('app');
 let state = load();
@@ -21,6 +23,8 @@ music.setMuted(state.settings.muted);
 music.setVolume(state.settings.musicVolume ?? 0.4);
 
 let shift = null;
+// the guided first shift (P2-04) while it runs: { firstRun, coach }. firstRun: this run awards XP.
+let tutorial = null;
 let clock = null; // real-time driver of the shift clock (P1-11)
 let scene = null;
 let ui = {};
@@ -44,6 +48,7 @@ const firstName = (enc) => enc.c.patient.companion ? enc.c.patient.companion.nam
 let menuSel = { unit: null, spec: null };
 
 function renderMenu() {
+  stopTutorial();
   clearArrivals();
   scene = null;
   music.stop();
@@ -83,6 +88,7 @@ function renderMenu() {
         lvl.nextXp ? h('div', { class: 'small muted', style: { marginTop: '4px' } }, `Próximo nível em ${lvl.nextXp - state.xp} XP`) : null,
       ),
       h('div', { class: 'menu-actions' },
+        h('button', { class: 'btn', onclick: startTutorial }, '🧭 Tutorial'),
         h('button', { class: 'btn', onclick: showCareer }, '🎓 Carreira'),
         h('button', { class: 'btn', onclick: showBadges }, '🏅 Conquistas'),
         h('button', { class: 'btn', onclick: showHelp }, '❓ Como jogar'),
@@ -90,6 +96,7 @@ function renderMenu() {
         musicSlider(),
       ),
     ),
+    state.tutorial == null ? tutorialOffer() : null,
     h('p', { class: 'section-title' }, 'Escolha a unidade'),
     h('div', { class: 'units' }, unitCards),
     specs,
@@ -107,6 +114,17 @@ function renderMenu() {
     h('p', { class: 'disclaimer' },
       'Jogo educativo. Casos fictícios baseados em diretrizes clínicas citadas em cada atendimento. Não substitui julgamento clínico, protocolos institucionais nem a bula/prescrição. Doses e condutas podem mudar com atualizações das diretrizes.'),
   ));
+}
+
+/** First visit (P2-04): an inline card, never a modal, so the menu stays usable. */
+function tutorialOffer() {
+  return h('div', { class: 'tutorial-offer' },
+    h('div', {},
+      h('b', {}, '🧭 Primeiro plantão guiado'),
+      h('p', { class: 'small muted' }, 'Um atendimento simples, passo a passo, para conhecer a fila, a ficha, o relógio e a nota.')),
+    h('div', { class: 'menu-actions' },
+      h('button', { class: 'btn primary', onclick: startTutorial }, 'Começar tutorial'),
+      h('button', { class: 'btn ghost', onclick: () => { sfx.click(); state.tutorial = 'skipped'; save(state); renderMenu(); } }, 'Pular')));
 }
 
 function musicSlider() {
@@ -261,6 +279,7 @@ function showHelp() {
   modal(h('div', {},
     h('h2', {}, 'Como jogar'),
     h('ol', {},
+      h('li', {}, 'Primeira vez? O botão 🧭 Tutorial do menu faz um plantão guiado, passo a passo.'),
       h('li', {}, 'Escolha uma unidade e uma especialidade. Cada plantão traz pacientes de forma escalonada, com classificação de risco (Manchester).'),
       h('li', {}, 'Chame o paciente da fila. Comece pela triagem e pelos documentos (passagem de caso, contrarreferência).'),
       h('li', {}, 'Pergunte, examine e peça exames. Cada ação consome minutos do plantão; enquanto isso, a fila espera.'),
@@ -277,6 +296,7 @@ function showHelp() {
 // SHIFT
 // ======================================================================
 function startShift(unit, specialty) {
+  stopTutorial();
   sfx.unlock();
   clearArrivals();
   shift = new Shift({ unit, specialty, completedCases: state.cases });
@@ -286,6 +306,68 @@ function startShift(unit, specialty) {
   music.play(unit.music);
   renderGame();
   toast(`Plantão iniciado: ${unit.name} (${unit.city}/${unit.uf}). ${unit.flavor}`, 6000);
+}
+
+// ----------------------------------------------------------------------
+// Guided first shift (P2-04): a fixed easy case, a coach card that follows the next step, the strong
+// highlight, and a shift clock held while the coach is up (actions still cost clock time). The first
+// finished run awards the case's XP; replays award nothing. No stars, badges or shift count.
+// ----------------------------------------------------------------------
+function startTutorial() {
+  stopTutorial();
+  sfx.unlock();
+  sfx.click();
+  clearArrivals();
+  const unit = UNITS.find((u) => u.id === TUTORIAL.unitId);
+  shift = new Shift({ unit, specialty: TUTORIAL.specialty, caseIds: TUTORIAL.caseIds, events: false });
+  clock = new ShiftClock(shift);
+  clock.subscribe(onClockTick);
+  tutorial = { firstRun: state.tutorial !== 'done', coach: null };
+  syncClockHolds(); // hold before the first tick
+  music.play(unit.music);
+  renderGame();
+  tutorial.coach = createCoach({ onSkip: skipTutorial });
+  setNextStepEmphasis(true);
+  updateNextStep();
+}
+
+/** Closes the coach and the strong highlight. Called whenever the board leaves a shift. */
+function stopTutorial() {
+  if (!tutorial) return;
+  tutorial.coach?.close();
+  tutorial = null;
+  setNextStepEmphasis(false);
+  clock?.release('tutorial');
+}
+
+function skipTutorial() {
+  if (state.tutorial !== 'done') { state.tutorial = 'skipped'; save(state); }
+  for (const m of document.querySelectorAll('.modal-back')) m.remove();
+  shift = null;
+  renderMenu();
+}
+
+function showTutorialSummary() {
+  const finished = shift;
+  const { enc, result } = finished.results[0] ?? {};
+  const xp = tutorial?.firstRun && result ? result.points : 0;
+  const lvl = levelOf(state.xp);
+  const toMenu = () => { document.querySelector('.modal-back')?.remove(); shift = null; renderMenu(); };
+  modal(h('div', {},
+    h('h2', {}, '🧭 Tutorial concluído'),
+    coachNote(tutorialPrompt('summary-menu', tutorial)),
+    h('ul', { class: 'score-lines' },
+      enc ? h('li', {}, h('span', {}, enc.c.patient.name), h('span', {}, '⭐'.repeat(result.stars) || '—')) : null,
+      h('li', {}, h('b', {}, 'XP do tutorial'), h('b', {}, tutorial?.firstRun ? `+${xp} XP` : 'sem XP (já concluído antes)'))),
+    h('p', {}, h('b', {}, `Nível ${lvl.number} · ${lvl.title}`), ` · ${state.xp} XP`),
+    xpBar(lvl.progress),
+    lvl.nextXp ? h('p', { class: 'small muted' }, `Próximo nível em ${lvl.nextXp - state.xp} XP. Novos níveis desbloqueiam unidades.`) : null,
+    h('p', { class: 'small muted' }, 'Num plantão normal chegam vários pacientes, o relógio anda em tempo real e o fim do plantão dá um bônus de XP.'),
+    h('div', { class: 'menu-actions', style: { marginTop: '14px' } },
+      h('button', { class: 'btn primary', 'data-step': 'summary-menu', onclick: toMenu }, 'Voltar ao menu'),
+      h('button', { class: 'btn', onclick: () => { document.querySelector('.modal-back')?.remove(); startShift(finished.unit, finished.specialty); } }, 'Começar um plantão aqui'),
+    ),
+  ), { closable: false, className: 'summary' });
 }
 
 function renderGame() {
@@ -356,6 +438,7 @@ function syncClockHolds() {
   clock.setHold('modal', modalOpen());
   clock.setHold('popup', blockingPopupOpen());
   clock.setHold('hidden', document.hidden);
+  clock.setHold('tutorial', !!tutorial); // the guided first shift (P2-04): its coach is up the whole time
 }
 
 if (!manualClock) {
@@ -987,7 +1070,12 @@ function finishEncounter(enc) {
   const result = enc.score({ diagnosisId: decision.dx, conductId: decision.cd, now: shift.clock, excusedWait: shift.excusedWait(enc) });
   result.chosen = { dx: decision.dx, cd: decision.cd };
   shift.finish(enc, result);
-  const earned = applyCase(state, enc.c, result);
+  let earned = [];
+  if (tutorial) {
+    // the tutorial (P2-04): the first finished run pays the case's XP, nothing else; replays pay nothing
+    if (tutorial.firstRun) state.xp += result.points;
+    state.tutorial = 'done';
+  } else earned = applyCase(state, enc.c, result);
   save(state);
   const leveled = levelOf(state.xp).number > prevLevel;
   (result.dxOk && result.cdOk ? sfx.good : sfx.bad)();
@@ -1056,7 +1144,8 @@ function showFeedback(enc, r, earned, leveled) {
   const m = modal(h('div', {},
     h('div', { class: 'stars', 'aria-label': `${r.stars} de 3 estrelas` }, [1, 2, 3].map((i) => h('span', { class: i <= r.stars ? '' : 'off' }, '⭐'))),
     h('h2', {}, r.dxOk && r.cdOk ? 'Muito bem!' : r.harmful ? 'Atenção: conduta com risco ao paciente' : 'Reveja este caso'),
-    h('p', { class: 'muted' }, `${c.patient.name} · +${r.points} XP`),
+    h('p', { class: 'muted' }, tutorial && !tutorial.firstRun ? `${c.patient.name} · ${r.points} pontos (sem XP: tutorial já concluído)` : `${c.patient.name} · +${r.points} XP`),
+    tutorial ? coachNote(tutorialPrompt('feedback-next', tutorial)) : null,
     h('ul', { class: 'score-lines' }, r.lines.map((l) => h('li', {}, h('span', {}, l.label), h('span', { class: l.v > 0 ? 'pos' : l.v < 0 ? 'neg' : 'muted' }, l.v > 0 ? `+${l.v}` : String(l.v))))),
     timeBreakdown(enc, r),
     h('p', {}, h('b', {}, 'Diagnóstico: '), dxLabel),
@@ -1097,8 +1186,10 @@ function excusedNote(shown, graded) {
 function showShiftSummary() {
   if (!shift || shift._summaryShown) return;
   shift._summaryShown = true;
+  if (tutorial) { showTutorialSummary(); return; }
   const prev = levelOf(state.xp).number;
   const { earned, bonus, unseenPenalty, satisfaction, gradedSatisfaction, satisfactionBonus } = applyShift(state, shift);
+  if (state.tutorial == null) state.tutorial = 'skipped'; // played a shift without it: stop offering it, as the v3 migration does
   const unseen = shift.unseen();
   save(state);
   const leveled = levelOf(state.xp).number > prev;
@@ -1160,8 +1251,25 @@ function nextStepView() {
 }
 
 function updateNextStep() {
-  markNextStep(shift && ui.chart?.isConnected ? nextStep(nextStepView()) : null);
+  const step = shift && ui.chart?.isConnected ? nextStep(nextStepView()) : null;
+  markNextStep(step);
+  // the coach follows the highlight; a step with no prompt (help, a confirmation) keeps the last one
+  if (tutorial?.coach) {
+    const prompt = tutorialPrompt(step, tutorial);
+    if (prompt) tutorial.coach.show(prompt);
+    tutorial.coach.setHidden(modalOpen());
+  }
+  placeCoach();
 }
+
+// the coach card sits over the scene, just above the queue, so the queue stays visible (wide layout only)
+const wideLayout = matchMedia('(min-width: 901px)');
+function placeCoach() {
+  const top = tutorial && wideLayout.matches && ui.queue?.isConnected ? ui.queue.getBoundingClientRect().top : null;
+  const px = top == null ? 0 : Math.max(0, Math.round(innerHeight - top));
+  document.documentElement.style.setProperty('--coach-bottom', `${px}px`);
+}
+addEventListener('resize', placeCoach);
 
 let nextStepQueued = false;
 new MutationObserver(() => {
@@ -1175,8 +1283,9 @@ renderMenu();
 // exposed for automated tests
 window.__plantao = {
   get shift() { return shift; }, get state() { return state; }, get music() { return music.playing; },
-  // the guided first shift (P2-04) will call this; exposed so the stronger highlight can be checked
+  // exposed so the stronger highlight of the guided first shift (P2-04) can be checked
   setNextStepEmphasis,
+  get tutorial() { return tutorial && { firstRun: tutorial.firstRun }; },
 };
 // with ?clock=manual the test drives real time: step(ms) passes it on unless something holds the clock.
 // Local server only (see manualClock).

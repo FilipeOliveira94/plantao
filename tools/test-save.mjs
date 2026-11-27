@@ -13,7 +13,27 @@ const exported = (over = {}) => JSON.stringify({ ...JSON.parse(exportSave(fromSt
 test('a v1 save (no version) migrates and keeps every field', () => {
   const s = fromStored(JSON.stringify(V1));
   assert.equal(s.version, SAVE_VERSION);
-  assert.deepEqual({ ...s, version: undefined }, { ...V1, version: undefined });
+  // v3 (P2-04): someone who already played a shift is not offered the guided first shift
+  assert.deepEqual({ ...s, version: undefined }, { ...V1, tutorial: 'done', version: undefined });
+});
+
+test('v2 → v3 adds the tutorial state: done after a shift, null on a fresh career', () => {
+  assert.equal(SAVE_VERSION, 3);
+  assert.equal(fromStored(JSON.stringify({ ...V1, version: 2 })).tutorial, 'done');
+  assert.equal(fromStored(JSON.stringify({ ...V1, version: 2, shifts: 0 })).tutorial, null);
+  assert.equal(fromStored(JSON.stringify({ xp: 50 })).tutorial, null);
+  assert.equal(fromStored(null).tutorial, null);
+});
+
+test('the tutorial state round-trips and a bad one falls back on load', () => {
+  for (const t of ['done', 'skipped', null]) {
+    const s = fromStored(JSON.stringify({ ...V1, version: 3, tutorial: t }));
+    assert.equal(s.tutorial, t);
+    const r = parseImport(exportSave(s));
+    assert.ok(r.ok);
+    assert.equal(r.state.tutorial, t);
+  }
+  assert.equal(fromStored(JSON.stringify({ ...V1, version: 3, tutorial: 'maybe' })).tutorial, null);
 });
 
 test('an empty or broken stored save gives a fresh one', () => {
@@ -78,6 +98,8 @@ const rejects = {
   'wrong app': exported({ app: 'other' }),
   'no app': JSON.stringify(V1),
   'future version': exported({ version: SAVE_VERSION + 1 }),
+  'tutorial with an unknown state': exported({ tutorial: 'maybe' }),
+  'tutorial as boolean': exported({ tutorial: true }),
   'version 0': exported({ version: 0 }),
   'version as string': exported({ version: '2' }),
   'negative xp': exported({ xp: -1 }),
