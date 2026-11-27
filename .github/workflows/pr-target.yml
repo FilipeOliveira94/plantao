@@ -1,0 +1,32 @@
+name: PR target
+
+# Every PR merges into main. A PR stacked on another PR's branch fails this
+# check until it is retargeted to main; with automatic branch deletion on,
+# GitHub retargets it when the base PR merges. See plantao#88, which merged
+# into a branch that had already merged, so its changes never reached main.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+concurrency:
+  group: pr-target-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  target:
+    name: targets main
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check the base branch
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+        run: |
+          if [ "$BASE" != "main" ]; then
+            echo "::error::This PR targets '$BASE', not main. Retarget it to main before merging. GitHub retargets a stacked PR when '$BASE' merges; if this check stays red after that, re-run it."
+            exit 1
+          fi
+          echo "Targets main."
