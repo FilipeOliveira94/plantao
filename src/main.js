@@ -390,8 +390,11 @@ function liveBar(cls, label, draw, marks = []) {
   return el;
 }
 
+// called after each mount, so bars the redraw removed stop being tracked
+const pruneLive = () => { ui.live = (ui.live || []).filter(([el]) => el.isConnected); };
+
 function refreshLive() {
-  ui.live = (ui.live || []).filter(([el]) => el.isConnected);
+  pruneLive();
   for (const [el, draw] of ui.live) draw(el);
 }
 
@@ -433,7 +436,7 @@ function timed(fn) {
   if (shift.clock > from) {
     const jump = { from, to: shift.clock, hit: jumpImpact(shift, snap), at: performance.now() };
     ui.jump = jump;
-    setTimeout(() => { if (ui.jump === jump) { ui.jump = null; ui.top?.querySelector('.clock-jump')?.remove(); if (shift && jump.hit.length) renderQueue(); } }, JUMP_MS);
+    setTimeout(() => { if (ui.jump === jump) { ui.jump = null; ui.top?.querySelector('.clock-jump')?.remove(); ui.queue?.querySelectorAll('.qcard.hit').forEach((el) => el.classList.remove('hit')); } }, JUMP_MS);
   }
   return out;
 }
@@ -523,6 +526,7 @@ function renderQueue({ ifChanged = false } = {}) {
     children.push(h('button', { class: 'btn', style: { alignSelf: 'center' }, onclick: () => { handleEvents(timed(() => shift.waitForNext())); renderAll(); if (shift.done) setTimeout(showShiftSummary, 400); } }, '☕ Aguardar próximo'));
   }
   mount(ui.queue, children);
+  pruneLive();
 }
 
 function handleEvents(fired) {
@@ -782,6 +786,7 @@ function renderChart() {
     pane,
     footerFor(enc),
   );
+  pruneLive();
   pane.scrollTop = 0;
 }
 

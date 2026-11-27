@@ -2,6 +2,7 @@
 // The clock is fictitious (time.js), so the screen shows bars, percentages and clock times, never minutes.
 import { scaledTarget, impatienceAt, leaveAt } from './shift.js';
 import { consultTarget } from './encounter.js';
+import { SHIFT_MINUTES } from './time.js';
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 
@@ -17,7 +18,7 @@ export function consultBar(enc, cost = 0) {
 export function waitStage(enc, now) {
   if (enc.status === 'left') return 'left';
   if (enc.impatient) return 'impatient';
-  if (enc.firstSeenAt == null && enc.arrivedAt != null && now - enc.arrivedAt > scaledTarget(enc.c.triage.priority)) return 'late';
+  if (enc.firstSeenAt == null && enc.arrivedAt != null && Math.min(now, SHIFT_MINUTES) - enc.arrivedAt > scaledTarget(enc.c.triage.priority)) return 'late';
   return 'ok';
 }
 const STAGE_ORDER = ['ok', 'late', 'impatient', 'left'];
@@ -30,7 +31,8 @@ export function patienceBar(enc, now) {
   if (enc.firstSeenAt != null || enc.arrivedAt == null) return null;
   const pr = enc.c.triage.priority;
   const end = leaveAt(pr) ?? impatienceAt(pr);
-  const wait = Math.max(0, Math.min(now, enc.leftAt ?? now) - enc.arrivedAt);
+  // like Shift.checkWaiting, a wait stops counting when the patient leaves or the shift ends
+  const wait = Math.max(0, Math.min(now, enc.leftAt ?? now, SHIFT_MINUTES) - enc.arrivedAt);
   return {
     left: clamp01(1 - wait / end),
     target: clamp01(1 - scaledTarget(pr) / end),
