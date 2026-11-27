@@ -1,6 +1,7 @@
 // Plantão — main controller (menu, shift, encounter, feedback). UI text is pt-BR by design.
 import { UNITS, SPECIALTIES, TRIAGE, EXAMS, EXAM_CATS, UNIT_TYPES, ACTION_COST } from './data/catalog.js';
-import { Shift, clockLabelAt } from './game/shift.js';
+import { Shift } from './game/shift.js';
+import { clockLabelAt } from './game/time.js';
 import { consultTarget } from './game/encounter.js';
 import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS, exportSave, encodeCode, parseImport, MAX_IMPORT_BYTES } from './game/progress.js';
 import { IsoScene } from './render/iso.js';
@@ -336,8 +337,7 @@ function statusOf(enc) {
     const t = Math.max(...pend.map(([, r]) => r.readyAt));
     return { text: `🧪 Exames até ${clockAt(t)}` };
   }
-  const wait = shift.clock - enc.arrivedAt;
-  return { text: `⏳ Esperando há ${wait} min` };
+  return { text: `⏳ Chegou às ${clockAt(enc.arrivedAt)}${enc.impatient ? ' · 😤 impaciente' : ''}` };
 }
 
 const clockAt = clockLabelAt;
@@ -435,7 +435,7 @@ function renderChart() {
   const c = enc.c;
   const tri = TRIAGE[c.triage.priority];
   const readyCount = enc.readyExams(shift.clock).length;
-  const tc = c.timeCritical ? h('span', { class: 'chip', style: { background: enc.minutesSpent > c.timeCritical.minutes ? '#f6c1b8' : '#fde9b5' } }, `⏱ ${enc.minutesSpent}/${c.timeCritical.minutes} min`) : null;
+  const tc = c.timeCritical ? h('span', { class: 'chip', style: { background: enc.minutesSpent > c.timeCritical.minutes ? '#f6c1b8' : '#fde9b5' } }, `⏱ Janela crítica: ${Math.round((enc.minutesSpent / c.timeCritical.minutes) * 100)}%`) : null;
 
   // which tabs this patient's chart has shown, and how many results were ready the last time Exames was open
   const seen = enc._tabs ||= { opened: new Set(), readySeen: 0 };
@@ -452,7 +452,7 @@ function renderChart() {
         h('div', { class: 'small muted' }, c.patient.companion ? `Acompanhante: ${c.patient.companion.name}` : 'Desacompanhado(a)', c.type === 'follow_up' ? ' · Consulta de retorno' : ''),
       ),
       tc,
-      h('span', { class: `chip${enc.minutesSpent > consultTarget(c) ? ' over' : ''}`, title: 'Tempo de consulta / tempo-alvo. Acima do alvo perde pontos.' }, `${enc.minutesSpent} / ${consultTarget(c)} min de consulta`),
+      h('span', { class: `chip${enc.minutesSpent > consultTarget(c) ? ' over' : ''}`, title: 'Tempo de consulta usado. Acima de 100% do alvo perde pontos.' }, `Consulta: ${Math.round((enc.minutesSpent / consultTarget(c)) * 100)}% do tempo-alvo`),
     ),
     h('div', { class: 'tabs', role: 'tablist' }, CHART_TABS.map((t) => {
       const state = t.id === 'tests' && newResults && tab !== 'tests' ? 'new' : seen.opened.has(t.id) ? 'done' : 'unopened';
@@ -517,13 +517,13 @@ function paneFor(enc) {
       asked.length ? h('details', { class: 'asked', open: askedOpen, ontoggle: (e) => { askedOpen = e.target.open; } },
         h('summary', {}, `Já perguntado (${asked.length})`),
         h('ul', {}, asked.map((l) => h('li', {}, h('b', {}, l.q), ' ', enc.speakerFor(l.a).text)))) : null,
-      groups.length ? groups.map(([cat, qs]) => h('div', { class: 'opt-group' }, h('h5', {}, cat), h('div', { class: 'opts' }, qs.map((q) => h('button', { class: 'opt', onclick: () => doAsk(enc, q.id) }, q.q, h('span', { class: 'muted small' }, ` · ${ACTION_COST.question} min`)))))) : h('p', { class: 'muted' }, 'Sem mais perguntas relevantes.'),
+      groups.length ? groups.map(([cat, qs]) => h('div', { class: 'opt-group' }, h('h5', {}, cat), h('div', { class: 'opts' }, qs.map((q) => h('button', { class: 'opt', onclick: () => doAsk(enc, q.id) }, q.q))))) : h('p', { class: 'muted' }, 'Sem mais perguntas relevantes.'),
     ];
   }
   if (tab === 'physical') {
     return [
       ...c.physical.filter((p) => enc.examined.has(p.id)).map((p) => h('div', { class: 'finding' }, h('b', {}, p.label), p.finding)),
-      h('div', { class: 'opts', style: { marginTop: '8px' } }, c.physical.filter((p) => !enc.examined.has(p.id)).map((p) => h('button', { class: 'opt', onclick: () => doExamine(enc, p.id) }, '🩺 ', p.label, h('span', { class: 'muted small' }, ` · ${ACTION_COST.physical} min`)))),
+      h('div', { class: 'opts', style: { marginTop: '8px' } }, c.physical.filter((p) => !enc.examined.has(p.id)).map((p) => h('button', { class: 'opt', onclick: () => doExamine(enc, p.id) }, '🩺 ', p.label))),
     ];
   }
   if (tab === 'tests') {
@@ -573,7 +573,7 @@ function testGroups(enc) {
   },
   h('summary', {}, cat, h('span', { class: 'count' }, ids.length)),
   h('div', { class: 'opts' }, ids.map((id) => h('button', { class: 'opt', onclick: () => doRequest(enc, id) },
-    EXAMS[id].label, h('span', { class: 'muted small' }, ` · pedir ${ACTION_COST.order} min`, EXAMS[id].poc ? `, resultado em ${EXAMS[id].minutes} min` : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ', resultado em dias' : `, resultado em ~${EXAMS[id].minutes} min`)))))));
+    EXAMS[id].label, h('span', { class: 'muted small' }, EXAMS[id].poc ? ' · resultado na consulta' : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ' · resultado em dias' : ' · laboratório')))))));
 }
 
 function doAsk(enc, id) {
@@ -649,23 +649,41 @@ function reportUrl(c, chosen) {
   return `${NEW_ISSUE_URL}?${new URLSearchParams({ title: `[Caso] ${c.id}: problema relatado`, body })}`;
 }
 
-/** Where the encounter's minutes went, against the consultation target, and what the queue paid for it. */
-function timeBreakdown(r) {
+const QUEUE_EVENT_TEXT = { impatient: 'ficou impaciente', complaint: 'reclamou', left: 'foi embora sem atendimento' };
+const QUEUE_SOON_TEXT = { impatient: 'quase impaciente', leave: 'quase indo embora' };
+
+/** Where the consultation time went (each part as a share of the target, never minutes: the clock is
+ *  fictitious), when the patient was in the room or waiting, and what the rest of the queue paid. */
+function timeBreakdown(enc, r) {
   const t = r.time;
-  const row = (k, label, min) => h('li', { 'data-k': k }, h('span', {}, label), h('span', { class: 'muted' }, `${min} min`));
-  const waits = [t.roomWait && `aguardando no consultório ${t.roomWait} min`, t.queueWait && `na recepção até ser chamado de volta ${t.queueWait} min`].filter(Boolean);
+  const pct = (m) => Math.round((m / r.consultTarget) * 100);
+  const parts = [['questions', 'Anamnese', t.questions], ['physical', 'Exame físico', t.physical], ['orders', 'Pedidos de exame', t.orders]];
+  const scale = Math.max(r.minutesSpent, r.consultTarget);
+  const bar = h('div', { class: 'time-bar', role: 'img', 'aria-label': `Consulta: ${pct(r.minutesSpent)}% do tempo-alvo` },
+    parts.map(([k, , m]) => (m ? h('span', { class: `seg ${k}`, style: { width: `${(m / scale) * 100}%` } }) : null)),
+    r.minutesSpent > r.consultTarget ? h('span', { class: 'target', style: { left: `${(r.consultTarget / scale) * 100}%` } }) : null);
+  // timeline: room spans, waits for a result inside them, and the waiting room between them
+  const span = (a, b) => `${clockAt(a)}–${clockAt(b)}`;
+  const steps = enc.roomSpans.flatMap((sp, i) => {
+    const waits = enc.roomWaits.filter((w) => w.from >= sp.from && w.to <= sp.to).map((w) => span(w.from, w.to));
+    const room = `consultório ${span(sp.from, sp.to)}${waits.length ? ` (aguardando resultado ${waits.join(', ')})` : ''}`;
+    const next = enc.roomSpans[i + 1];
+    return next ? [room, `recepção ${span(sp.to, next.from)}`] : [room];
+  });
   const paid = r.queuePaid || [];
+  const queueLine = (p) => [
+    p.overdue > 0 ? 'passou do alvo' : null, ...p.events.map((ev) => QUEUE_EVENT_TEXT[ev]), p.soon ? QUEUE_SOON_TEXT[p.soon] : null,
+  ].filter(Boolean).join(', ');
   return h('details', { class: 'time-breakdown', open: true },
     h('summary', {}, h('b', {}, 'Para onde foi o tempo')),
+    bar,
     h('ul', { class: 'score-lines' },
-      row('questions', 'Anamnese', t.questions),
-      row('physical', 'Exame físico', t.physical),
-      row('orders', 'Pedidos de exame', t.orders),
-      h('li', { 'data-k': 'total' }, h('b', {}, 'Consulta'), h('b', { class: r.minutesSpent > r.consultTarget ? 'neg' : 'pos' }, `${r.minutesSpent} de ${r.consultTarget} min`))),
-    waits.length ? h('p', { class: 'small muted', 'data-k': 'waits' }, `Fora da consulta: ${waits.join(' · ')}.`) : null,
-    h('p', { class: 'small', 'data-k': 'queue' }, h('b', {}, 'O que a fila pagou: '), paid.length
-      ? paid.map((p) => `${p.name} (${TRIAGE[p.priority].label}) ${p.minutes} min além do alvo`).join('; ') + '.'
-      : 'ninguém passou do tempo-alvo da classificação enquanto você atendia.'));
+      parts.map(([k, label, m]) => h('li', { 'data-k': k }, h('span', {}, h('i', { class: `dot ${k}` }), label), h('span', { class: 'muted' }, `${pct(m)}%`))),
+      h('li', { 'data-k': 'total' }, h('b', {}, 'Tempo de consulta'), h('b', { class: r.minutesSpent > r.consultTarget ? 'neg' : 'pos' }, `${pct(r.minutesSpent)}% do tempo-alvo`))),
+    h('p', { class: 'small muted', 'data-k': 'timeline' }, `Linha do tempo: ${steps.join(' → ')}.`),
+    h('div', { class: 'small', 'data-k': 'queue' }, h('b', {}, 'O que a fila pagou: '), paid.length
+      ? h('ul', { class: 'queue-paid' }, paid.map((p) => h('li', {}, `${p.name} (${TRIAGE[p.priority].label}): ${queueLine(p)}`)))
+      : 'ninguém passou do alvo da classificação enquanto você atendia.'));
 }
 
 function showFeedback(enc, r, earned, leveled) {
@@ -677,7 +695,7 @@ function showFeedback(enc, r, earned, leveled) {
     h('h2', {}, r.dxOk && r.cdOk ? 'Muito bem!' : r.harmful ? 'Atenção: conduta com risco ao paciente' : 'Reveja este caso'),
     h('p', { class: 'muted' }, `${c.patient.name} · +${r.points} XP`),
     h('ul', { class: 'score-lines' }, r.lines.map((l) => h('li', {}, h('span', {}, l.label), h('span', { class: l.v > 0 ? 'pos' : l.v < 0 ? 'neg' : 'muted' }, l.v > 0 ? `+${l.v}` : String(l.v))))),
-    timeBreakdown(r),
+    timeBreakdown(enc, r),
     h('p', {}, h('b', {}, 'Diagnóstico: '), dxLabel),
     h('p', {}, h('b', {}, 'Conduta esperada: '), cdLabel),
     c.timeCritical ? h('p', { class: 'small' }, '⏱ ', c.timeCritical.reason) : null,
@@ -697,11 +715,19 @@ function showFeedback(enc, r, earned, leveled) {
   });
 }
 
+// " · 2 impacientes, 1 reclamação" for the satisfaction line, or nothing when no one waited too long.
+function impatientNote(s) {
+  const n = s.encounters.filter((e) => e.impatient).length;
+  const k = s.satisfactionLog.filter((l) => l.reason === 'complaint').length;
+  if (!n) return '';
+  return ` · ${n} impaciente${n > 1 ? 's' : ''}${k ? `, ${k} reclamaç${k > 1 ? 'ões' : 'ão'}` : ''}`;
+}
+
 function showShiftSummary() {
   if (!shift || shift._summaryShown) return;
   shift._summaryShown = true;
   const prev = levelOf(state.xp).number;
-  const { earned, bonus, unseenPenalty } = applyShift(state, shift);
+  const { earned, bonus, unseenPenalty, satisfaction, satisfactionBonus } = applyShift(state, shift);
   const unseen = shift.unseen();
   save(state);
   const leveled = levelOf(state.xp).number > prev;
@@ -713,9 +739,12 @@ function showShiftSummary() {
     h('p', { class: 'muted' }, `${finished.unit.name} · ${finished.unit.city}/${finished.unit.uf} · encerrado às ${finished.clockLabel}`),
     h('ul', { class: 'score-lines' },
       finished.results.map(({ enc, result }) => h('li', {}, h('span', {}, enc.c.patient.name), h('span', {}, '⭐'.repeat(result.stars) || '—', ` · +${result.points}`))),
-      unseen.map((enc) => h('li', { class: 'unseen' }, h('span', {}, enc.c.patient.name, ` (${TRIAGE[enc.c.triage.priority].label})`), h('span', { class: 'neg' }, 'não atendido'))),
+      unseen.map((enc) => h('li', { class: `unseen${enc.status === 'left' ? ' left' : ''}` }, h('span', {}, enc.c.patient.name, ` (${TRIAGE[enc.c.triage.priority].label})`),
+        h('span', { class: 'neg' }, enc.status === 'left' ? `foi embora sem atendimento às ${clockAt(enc.leftAt)}` : 'não atendido'))),
       unseen.length ? h('li', {}, h('span', {}, `Pacientes sem atendimento (${unseen.length})`), h('span', { class: 'neg' }, `-${unseenPenalty}`)) : null,
-      h('li', {}, h('span', {}, unseen.length ? 'Bônus de fechamento (após descontos, mínimo 0)' : 'Bônus de fechamento de plantão'), h('span', { class: bonus ? 'pos' : 'muted' }, `+${bonus}`)),
+      h('li', { class: 'satisfaction' }, h('span', {}, `Satisfação dos pacientes: ${satisfaction}/100${impatientNote(finished)}`),
+        h('span', { class: satisfactionBonus > 0 ? 'pos' : satisfactionBonus < 0 ? 'neg' : 'muted' }, satisfactionBonus < 0 ? `${satisfactionBonus}` : `+${satisfactionBonus}`)),
+      h('li', {}, h('span', {}, unseen.length || satisfactionBonus < 0 ? 'Bônus de fechamento (após descontos, mínimo 0)' : 'Bônus de fechamento de plantão'), h('span', { class: bonus ? 'pos' : 'muted' }, `+${bonus}`)),
       h('li', {}, h('b', {}, 'Total'), h('b', {}, `+${total} XP`)),
     ),
     earned.length ? h('div', {}, h('h3', { style: { marginBottom: '8px' } }, 'Conquistas'), h('div', { class: 'badges' }, earned.map((id) => h('div', { class: 'badge new' }, h('span', { class: 'ic' }, BADGES[id].icon), h('div', {}, h('b', {}, BADGES[id].name)))))) : null,

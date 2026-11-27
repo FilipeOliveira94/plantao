@@ -180,3 +180,10 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .modal .save-code + .menu-actions, .modal .menu-actions + .section-title { margin-top: 14px; }
 .save-code { width: 100%; box-sizing: border-box; font: 12px/1.4 ui-monospace, monospace; padding: 8px; border: 2px solid var(--ink); border-radius: 10px; background: var(--bg, #fff); color: var(--ink); resize: vertical; word-break: break-all; }
 .import-error { color: var(--accent-2); min-height: 1em; margin: 8px 0 0; }
+.time-bar { position: relative; display: flex; height: 10px; border-radius: 999px; background: #ece6d8; overflow: hidden; margin: 8px 0 2px; }
+.time-bar .seg, .time-breakdown .dot { background: var(--accent); }
+.time-bar .seg.physical, .time-breakdown .dot.physical { background: #ef7d22; }
+.time-bar .seg.orders, .time-breakdown .dot.orders { background: #3a7bd5; }
+.time-bar .target { position: absolute; top: 0; bottom: 0; width: 2px; background: #c0392b; }
+.time-breakdown .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.queue-paid { margin: 4px 0 0; padding-left: 18px; }

@@ -206,7 +206,7 @@ try {
           await page.locator('.test-cat[open] .opt').first().click();
           const after = await page.evaluate(() => { const s = window.__plantao.shift; const r = s.current.requested.get('capillary_glucose'); return { spent: s.current.minutesSpent, wait: r.readyAt - s.clock }; });
           if (after.spent !== before + 1 || after.wait <= 0) throw new Error(`test order cost: ${JSON.stringify({ before, ...after })}`);
-          if (!/\d+ \/ \d+ min de consulta/.test(await page.locator('.chart .chip', { hasText: 'min de consulta' }).textContent())) throw new Error('chart does not show consultation time against its target');
+          if (!/Consulta: \d+% do tempo-alvo/.test(await page.locator('.chart .chip', { hasText: 'tempo-alvo' }).textContent())) throw new Error('chart does not show consultation time against its target');
           await page.getByRole('button', { name: /Aguardar aqui/ }).click();
           if (await page.evaluate(() => window.__plantao.shift.current.minutesSpent) !== after.spent) throw new Error('waiting in the room counted as consultation time');
           if (!(await page.locator('.exam-row', { hasText: 'Glicemia capilar' }).getByText('Liberado').count())) throw new Error('point-of-care result not ready after waiting in the room');
@@ -234,19 +234,24 @@ try {
         await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
         await page.waitForSelector('.modal');
         {
-          // feedback shows where the minutes went: the parts add up to the consultation total, against its target
+          // feedback shows where the consultation went, as shares of the target (never minutes), the room
+          // timeline in clock times, and the queue's cost as one line per affected patient
           const tb = await page.evaluate(() => {
-            const { result: r } = window.__plantao.shift.results.at(-1);
+            const { enc: e, result: r } = window.__plantao.shift.results.at(-1);
             const txt = (k) => document.querySelector(`.modal .time-breakdown [data-k=${k}]`)?.textContent || '';
-            const min = (k) => Number(/(\d+) min/.exec(txt(k))?.[1]);
-            return { r: { time: r.time, spent: r.minutesSpent, target: r.consultTarget, paid: r.queuePaid.length }, q: min('questions'), p: min('physical'), o: min('orders'), total: txt('total'), waits: txt('waits'), queue: txt('queue') };
+            const pc = (k) => Number(/(\d+)%/.exec(txt(k))?.[1]);
+            return { r: { time: r.time, spent: r.minutesSpent, target: r.consultTarget, paid: r.queuePaid.length, waits: e.roomWaits.length },
+              q: pc('questions'), p: pc('physical'), o: pc('orders'), total: txt('total'), timeline: txt('timeline'), queue: txt('queue'),
+              items: document.querySelectorAll('.modal .queue-paid li').length, mins: /\d+ min/.test(document.querySelector('.modal .time-breakdown').textContent) };
           });
-          const { time: t } = tb.r;
-          if (tb.q !== t.questions || tb.p !== t.physical || tb.o !== t.orders || t.questions + t.physical + t.orders !== tb.r.spent) throw new Error(`time breakdown parts: ${JSON.stringify(tb)}`);
-          if (!tb.total.includes(`${tb.r.spent} de ${tb.r.target} min`)) throw new Error(`time breakdown total: ${JSON.stringify(tb)}`);
-          if (t.roomWait && !tb.waits.includes(`aguardando no consultório ${t.roomWait} min`)) throw new Error(`room wait missing: ${JSON.stringify(tb)}`);
-          if (!/O que a fila pagou/.test(tb.queue) || (tb.r.paid === 0) !== /ninguém passou/.test(tb.queue)) throw new Error(`queue cost: ${JSON.stringify(tb)}`);
-          if (!roomWaitSeen && t.roomWait > 0) roomWaitSeen = true;
+          const { time: t, target } = tb.r;
+          const pct = (m) => Math.round((m / target) * 100);
+          if (tb.q !== pct(t.questions) || tb.p !== pct(t.physical) || tb.o !== pct(t.orders) || t.questions + t.physical + t.orders !== tb.r.spent) throw new Error(`time breakdown parts: ${JSON.stringify(tb)}`);
+          if (!tb.total.includes(`${pct(tb.r.spent)}% do tempo-alvo`)) throw new Error(`time breakdown total: ${JSON.stringify(tb)}`);
+          if (tb.mins) throw new Error(`time breakdown shows minutes: ${JSON.stringify(tb)}`);
+          if (!/consultório \d\d:\d\d–\d\d:\d\d/.test(tb.timeline) || (tb.r.waits > 0) !== /aguardando resultado/.test(tb.timeline)) throw new Error(`timeline: ${JSON.stringify(tb)}`);
+          if (!/O que a fila pagou/.test(tb.queue) || tb.items !== tb.r.paid || (tb.r.paid === 0) !== /ninguém passou/.test(tb.queue)) throw new Error(`queue cost: ${JSON.stringify(tb)}`);
+          if (tb.r.waits > 0) roomWaitSeen = true;
         }
         if (!reportChecked) {
           // feedback links to a prefilled GitHub issue with the case id and the answer given
@@ -277,8 +282,8 @@ try {
   if (!menuChecked) throw new Error('test menu was never checked');
   if (!shuffledSeen) throw new Error('answer options were never shuffled in any encounter');
   console.log(`✔ options shuffled in ${shuffledSeen} encounters`);
-  if (!roomWaitSeen) throw new Error('no feedback showed the minutes waited in the room');
-  console.log('✔ feedback time breakdown matches the encounter totals');
+  if (!roomWaitSeen) throw new Error('no feedback showed a wait for a result in the room');
+  console.log('✔ feedback time breakdown matches the encounter, in shares and clock times');
   // the same seed gives the same option order
   const sameSeed = await page.evaluate(async () => {
     const { Shift } = await import('./src/game/shift.js');
@@ -332,13 +337,13 @@ try {
     return bad;
   });
   if (arrivals.length) throw new Error(arrivals.join('\n'));
-  // the shift has an end: after 10:00 no one else is called, the patient in the room can be finished,
+  // the shift has an end: after 19:00 (the fictitious 12-hour clock) no one else is called, the patient in the room can be finished,
   // and patients left unseen are listed in the summary and cost XP from the closing bonus
   await page.locator('.unit').first().click();
   await page.locator('.spec').first().click();
   await page.getByRole('button', { name: /Começar plantão/ }).click();
   await page.waitForSelector('.game');
-  if (!/fim 10:00/.test(await page.locator('.clock').textContent())) throw new Error('top bar does not show the end of the shift');
+  if (!/fim 19:00/.test(await page.locator('.clock').textContent())) throw new Error('top bar does not show the end of the shift');
   await page.locator('.qcard button:not([disabled])').first().click();
   const xpBefore = await page.evaluate(() => { const s = window.__plantao.shift; s.advance(s.endsAt - s.clock); return window.__plantao.state.xp; });
   await page.getByRole('tab', { name: /Anamnese/ }).click();
@@ -360,6 +365,57 @@ try {
   if (await page.evaluate(() => window.__plantao.state.xp) < xpBefore) throw new Error('XP went down at the end of the shift');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/06-fim-com-pendentes.png` });
   console.log(`✔ shift end: ${endCase.unseen} unseen patients listed`);
+  await page.getByRole('button', { name: /Voltar ao menu/ }).click();
+  // waiting has consequences (P1-06): a green patient left waiting complains, then leaves unseen,
+  // and the summary shows the departure and a lower satisfaction. UBS internal medicine always has the green cystitis case.
+  // the green patient must wait while someone else is seen: restart until another patient is in the queue at 07:00
+  for (let tries = 0; ; tries++) {
+    await page.locator('.unit').first().click();
+    await page.locator('.spec').first().click();
+    await page.getByRole('button', { name: /Começar plantão/ }).click();
+    await page.waitForSelector('.game');
+    if (await page.evaluate(() => window.__plantao.shift.encounters.find((e) => e.arrivedAt === 0).c.triage.priority !== 'green')) break;
+    if (tries >= 20) throw new Error('the green patient arrived first in 20 shifts');
+    await page.evaluate(() => { location.reload(); });
+    await page.waitForSelector('.unit');
+  }
+  const green = await page.evaluate(async () => {
+    const { impatienceAt, leaveAt } = await import('./src/game/shift.js');
+    const s = window.__plantao.shift;
+    const g = s.encounters.find((e) => e.c.triage.priority === 'green');
+    if (!g) return null;
+    g.arrivedAt = 0; // waiting from 07:00
+    s.waitRnd = () => 0; // every impatient patient complains, so the toast is deterministic
+    return { name: g.c.patient.name, impatientAt: impatienceAt('green'), leaveAt: leaveAt('green') };
+  });
+  if (!green) throw new Error('UBS internal medicine has no green patient');
+  await page.locator('.qcard', { hasNotText: green.name }).locator('button:not([disabled])').first().click();
+  await page.getByRole('tab', { name: /Anamnese/ }).click();
+  const askUntil = async (minute) => {
+    await page.evaluate((m) => { const s = window.__plantao.shift; s.advance(m - 1 - s.clock); }, minute);
+    await page.locator('.pane .opt').first().click(); // 2 game minutes: crosses the threshold through the UI
+  };
+  await askUntil(green.impatientAt);
+  await page.locator('.toast', { hasText: /reclamar da demora|perguntou de novo/ }).first().waitFor();
+  if (!await page.evaluate(() => window.__plantao.shift.encounters.find((e) => e.c.triage.priority === 'green').impatient)) throw new Error('green patient not impatient after its target + margin');
+  await askUntil(green.leaveAt);
+  await page.locator('.toast', { hasText: 'foi embora sem atendimento' }).first().waitFor();
+  if (await page.locator('.qcard', { hasText: green.name }).count()) throw new Error('a patient who left is still in the queue');
+  const waitCase = await page.evaluate(() => { const s = window.__plantao.shift; s.advance(s.endsAt - s.clock); return { dx: s.current.c.diagnosis.correct, cd: s.current.c.conduct.correct, satisfaction: s.satisfaction }; });
+  if (waitCase.satisfaction >= 100) throw new Error('satisfaction did not drop');
+  await page.getByRole('tab', { name: /Decisão/ }).click();
+  await page.locator(`input[name=dx][value="${waitCase.dx}"]`).check();
+  await page.locator(`input[name=cd][value="${waitCase.cd}"]`).check();
+  await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
+  await page.waitForSelector('.modal');
+  await page.locator('.modal .btn.primary').click();
+  await page.waitForSelector('text=Fim de plantão', { timeout: 3000 });
+  const leftLine = await page.locator('.modal li.unseen.left', { hasText: green.name }).textContent();
+  if (!leftLine.includes(green.name) || !/foi embora sem atendimento às \d\d:\d\d/.test(leftLine)) throw new Error(`unexpected departure line: ${leftLine}`);
+  const satLine = await page.locator('.modal li.satisfaction').textContent();
+  if (!satLine.includes(`Satisfação dos pacientes: ${waitCase.satisfaction}/100`) || !/impaciente/.test(satLine) || !/reclamaç/.test(satLine)) throw new Error(`unexpected satisfaction line: ${satLine}`);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/07-espera-satisfacao.png` });
+  console.log(`✔ waiting: ${green.name} complained and left, satisfaction ${waitCase.satisfaction}/100`);
   await page.getByRole('button', { name: /Voltar ao menu/ }).click();
   // PICU scene
   if (SHOTS) {
