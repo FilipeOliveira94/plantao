@@ -1,6 +1,7 @@
 // Plantão — main controller (menu, shift, encounter, feedback). UI text is pt-BR by design.
 import { UNITS, SPECIALTIES, TRIAGE, EXAMS, EXAM_CATS, UNIT_TYPES, ACTION_COST } from './data/catalog.js';
 import { Shift, clockLabelAt } from './game/shift.js';
+import { consultTarget } from './game/encounter.js';
 import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS, exportSave, encodeCode, parseImport, MAX_IMPORT_BYTES } from './game/progress.js';
 import { IsoScene } from './render/iso.js';
 import { sfx } from './audio/sfx.js';
@@ -375,6 +376,11 @@ function handleEvents(fired) {
       e._notified = true; sfx.result(); toast(`Resultados de ${e.c.patient.name} disponíveis.`);
     }
   }
+  // results ready for the patient in the room
+  const cur = shift.current;
+  for (const [id, r] of cur ? cur.readyExams(shift.clock) : []) {
+    if (!r._notified) { r._notified = true; sfx.result(); toast(`Resultado liberado: ${EXAMS[id].label}.`); }
+  }
   // new high-priority arrivals
   for (const e of shift.encounters) {
     if (!e._arrivalNotified && e.arrivedAt <= shift.clock) {
@@ -387,6 +393,7 @@ function handleEvents(fired) {
 function callPatient(enc) {
   const returning = enc.status === 'awaiting_results';
   if (!shift.call(enc)) return;
+  for (const [, r] of enc.readyExams(shift.clock)) r._notified = true; // shown in the chart, no toast
   enc._notified = true;
   sfx.call();
   scene.enter(enc.c.patient.look, enc.c.patient.companion);
@@ -445,7 +452,7 @@ function renderChart() {
         h('div', { class: 'small muted' }, c.patient.companion ? `Acompanhante: ${c.patient.companion.name}` : 'Desacompanhado(a)', c.type === 'follow_up' ? ' · Consulta de retorno' : ''),
       ),
       tc,
-      h('span', { class: 'chip' }, `${enc.minutesSpent} min no atendimento`),
+      h('span', { class: `chip${enc.minutesSpent > consultTarget(c) ? ' over' : ''}`, title: 'Tempo de consulta / tempo-alvo. Acima do alvo perde pontos.' }, `${enc.minutesSpent} / ${consultTarget(c)} min de consulta`),
     ),
     h('div', { class: 'tabs', role: 'tablist' }, CHART_TABS.map((t) => {
       const state = t.id === 'tests' && newResults && tab !== 'tests' ? 'new' : seen.opened.has(t.id) ? 'done' : 'unopened';
@@ -477,8 +484,12 @@ const COUNT_LABEL = { history: 'perguntas feitas', physical: 'itens examinados' 
 const TAB_STATE_LABEL = { unopened: 'não aberta', done: 'já vista' };
 
 function footerFor(enc) {
-  const pend = enc.pendingExams(shift.clock).length;
+  const pending = enc.pendingExams(shift.clock);
+  const pend = pending.length;
+  const nextReady = pend ? Math.min(...pending.map(([, r]) => r.readyAt)) : null;
   return h('div', { class: 'footer-actions' },
+    // waiting in the room passes shift time, not consultation time
+    pend && !shift.over ? h('button', { class: 'btn', onclick: () => waitInRoom(enc) }, `⏳ Aguardar aqui (até ${clockAt(Math.min(nextReady, shift.endsAt))})`) : null,
     // after the end of the shift a patient sent out could not be called back, so they stay in the room
     pend && !shift.over ? h('button', { class: 'btn', onclick: () => sendToWait(enc) }, `🪑 Aguardar resultados na recepção (${pend})`) : null,
     h('span', { class: 'spacer', style: { flex: 1 } }),
@@ -562,7 +573,7 @@ function testGroups(enc) {
   },
   h('summary', {}, cat, h('span', { class: 'count' }, ids.length)),
   h('div', { class: 'opts' }, ids.map((id) => h('button', { class: 'opt', onclick: () => doRequest(enc, id) },
-    EXAMS[id].label, h('span', { class: 'muted small' }, EXAMS[id].poc ? ` · ${EXAMS[id].minutes} min, na hora` : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ' · resultado em dias' : ` · ~${EXAMS[id].minutes} min`)))))));
+    EXAMS[id].label, h('span', { class: 'muted small' }, ` · pedir ${ACTION_COST.order} min`, EXAMS[id].poc ? `, resultado em ${EXAMS[id].minutes} min` : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ', resultado em dias' : `, resultado em ~${EXAMS[id].minutes} min`)))))));
 }
 
 function doAsk(enc, id) {
@@ -586,9 +597,15 @@ function doExamine(enc, id) {
 function doRequest(enc, id) {
   const { rec, fired } = shift.requestExam(id);
   sfx.click();
-  if (rec.readyAt <= shift.clock) sfx.result();
+  if (rec.readyAt <= shift.clock) { rec._notified = true; sfx.result(); }
   else toast(`${EXAMS[id].label} solicitado. Previsão: ${clockAt(rec.readyAt)}.`);
   handleEvents(fired);
+  renderAll();
+}
+
+function waitInRoom(enc) {
+  sfx.click();
+  handleEvents(shift.waitInRoom());
   renderAll();
 }
 
