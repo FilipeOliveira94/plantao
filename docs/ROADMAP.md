@@ -75,6 +75,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P1-10](https://github.com/FilipeOliveira94/plantao/issues/72) | Plausible and clearly wrong distractors | Each question gets one correct option, two plausible distractors and one or two clearly wrong ones. `docs/MEDICAL-CONTENT.md` defines both kinds, each distractor is tagged in the case data, and `validate-cases` checks the mix. Applied to every case, one PR per specialty. | Hi/- | Md/- | P1-03 |
 | [P1-11](https://github.com/FilipeOliveira94/plantao/issues/94) | Real-time shift clock | The shift clock also ticks in real time during play, so thinking costs time as well as actions. Real time counts against the consultation budget and the patience of waiting patients. Pauses in the menu, on feedback and on a pause button; "Aguardar próximo" fast-forwards. A simulated moderate player sees every patient within 15 real minutes; a slow one runs out of shift. The E2E test controls the clock. The P2-03 feedback breakdown gains a "thinking" share: consultation time not spent on actions. | Med/Med | Md/Md | P1-06 |
 | [P1-12](https://github.com/FilipeOliveira94/plantao/issues/95) | Time-critical windows in clock time | Retune each case's `timeCritical` window as clock time that includes thinking, reachable with moderate effort. Real clinical times stay in the case and feedback text as teaching content; update `docs/MEDICAL-CONTENT.md`. Cases stay "pending" in `REVIEW-STATUS.md`. | Hi/- | Sm/- | P1-11 |
+| [P1-13](https://github.com/FilipeOliveira94/plantao/issues/96) | Waiting penalty in scaled minutes | The case score's waiting penalty compares the first-contact wait, in internal minutes and net of P1-09's `excusedWait`, with P1-06's `impatienceAt` instead of the shown Manchester target. A moderate player who sees patients in priority order is not penalized; a patient left well past target is. Unit tests cover each priority at, just past and well past the scaled target. | Med/Med | Sm/Sm | P1-06 |
 
 ## P2: A clear shift screen
 
@@ -158,7 +159,7 @@ Each note was checked against the open issues. Where an issue already covered it
 ## Suggested order
 
 1. Quick wins that fix what the playtest noticed first: P1-01, P1-02, P2-05, P2-06, P3-02, P0-01, P0-02, P4-06.
-2. Make time matter: P1-04, P1-05, P1-06, P1-11, P1-12, then P2-02, P2-03 and P2-12 to show it.
+2. Make time matter: P1-04, P1-05, P1-06, P1-11, P1-12, P1-13, then P2-02, P2-03 and P2-12 to show it.
 3. Make the screen lead the player: P2-01, P2-07, P2-04, then P2-08.
 4. Keep the player: P3-12, P3-01, P3-04, P3-14, P3-09, P3-03, P3-05, P3-10, P3-11. P3-13 comes after the MVP.
 5. Content fairness, in parallel as review capacity allows: P1-03, P1-10, P3-06, P6-01.
