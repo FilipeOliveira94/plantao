@@ -1,6 +1,5 @@
 // Runtime state of a single encounter: what was asked, examined and ordered, plus final scoring.
 import { EXAMS, ACTION_COST, TRIAGE } from '../data/catalog.js';
-import { shownMinutes } from './time.js';
 
 export const DEFAULT_EXAM_RESULT = 'Sem alterações significativas.';
 
@@ -158,19 +157,19 @@ export class Encounter {
     // Waiting time vs. triage target
     const waited = this.firstSeenAt != null ? this.firstSeenAt - this.arrivedAt : 0;
     const target = TRIAGE[c.triage.priority].target;
-    if (waited > target + 15) add(-Math.min(40, Math.round((waited - target) / 5)), `Espera acima do alvo da classificação (${shownMinutes(waited)} min)`);
+    if (waited > target + 15) add(-Math.min(40, Math.round((waited - target) / 5)), 'Espera acima do alvo da classificação');
 
     // Time-critical cases
     if (c.timeCritical) {
       if (this.minutesSpent <= c.timeCritical.minutes) add(25, 'Decisão dentro da janela crítica');
-      else add(-30, `Decisão fora da janela crítica (${shownMinutes(this.minutesSpent)} min > ${shownMinutes(c.timeCritical.minutes)} min)`);
+      else add(-30, 'Decisão fora da janela crítica');
     }
 
     // Consultation time vs. target: unfocused questions, exams and test orders push it over
     const goal = consultTarget(c);
     if (this.minutesSpent > goal) {
       const over = this.minutesSpent - goal;
-      add(-Math.min(OVERTIME_CAP, over * OVERTIME_POINTS_PER_MINUTE), `Consulta acima do tempo-alvo (${shownMinutes(this.minutesSpent)} min de ${shownMinutes(goal)} min)`);
+      add(-Math.min(OVERTIME_CAP, over * OVERTIME_POINTS_PER_MINUTE), `Consulta acima do tempo-alvo (${Math.round((this.minutesSpent / goal) * 100)}% do alvo)`);
     }
 
     const max = 100 + 60 + 60 + (c.timeCritical ? 25 : 0);

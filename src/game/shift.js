@@ -3,7 +3,7 @@
 import { UNIT_TYPES, TRIAGE, EXAMS } from '../data/catalog.js';
 import { casesFor } from '../data/cases/index.js';
 import { Encounter } from './encounter.js';
-import { SHIFT_MINUTES, TIME_SCALE, clockLabelAt, durationLabel } from './time.js';
+import { SHIFT_MINUTES, TIME_SCALE, clockLabelAt } from './time.js';
 
 export { SHIFT_START_HOUR, SHIFT_MINUTES, REAL_SHIFT_MINUTES, clockLabelAt } from './time.js';
 // Internal minutes (see time.js): the shift lasts SHIFT_MINUTES, shown as 07:00 to 19:00, and patients
@@ -49,7 +49,7 @@ export const satisfactionXp = (s) => (s >= 90 ? 10 : s >= 70 ? 0 : s >= 40 ? -10
 
 const familyOf = (enc) => (enc.c.patient.companion ? `A família de ${enc.c.patient.name}` : enc.c.patient.name);
 const COMPLAINTS = [
-  (enc, wait) => `Recepção: “${familyOf(enc)} veio reclamar da demora. Já são ${durationLabel(wait)} de espera.”`,
+  (enc) => `Recepção: “${familyOf(enc)} está aguardando desde as ${clockLabelAt(enc.arrivedAt)} e veio reclamar da demora.”`,
   (enc) => `Enfermagem: “${familyOf(enc)} perguntou de novo quanto falta. O clima na sala de espera está pesado.”`,
 ];
 const leftText = (enc) => `Recepção: “${familyOf(enc)} cansou de esperar e foi embora sem atendimento.”`;

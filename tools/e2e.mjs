@@ -205,7 +205,7 @@ try {
           await page.locator('.test-cat[open] .opt').first().click();
           const after = await page.evaluate(() => { const s = window.__plantao.shift; const r = s.current.requested.get('capillary_glucose'); return { spent: s.current.minutesSpent, wait: r.readyAt - s.clock }; });
           if (after.spent !== before + 1 || after.wait <= 0) throw new Error(`test order cost: ${JSON.stringify({ before, ...after })}`);
-          if (!/\d+ \/ \d+ min de consulta/.test(await page.locator('.chart .chip', { hasText: 'min de consulta' }).textContent())) throw new Error('chart does not show consultation time against its target');
+          if (!/Consulta: \d+% do tempo-alvo/.test(await page.locator('.chart .chip', { hasText: 'tempo-alvo' }).textContent())) throw new Error('chart does not show consultation time against its target');
           await page.getByRole('button', { name: /Aguardar aqui/ }).click();
           if (await page.evaluate(() => window.__plantao.shift.current.minutesSpent) !== after.spent) throw new Error('waiting in the room counted as consultation time');
           if (!(await page.locator('.exam-row', { hasText: 'Glicemia capilar' }).getByText('Liberado').count())) throw new Error('point-of-care result not ready after waiting in the room');

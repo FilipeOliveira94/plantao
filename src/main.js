@@ -1,7 +1,7 @@
 // Plantão — main controller (menu, shift, encounter, feedback). UI text is pt-BR by design.
 import { UNITS, SPECIALTIES, TRIAGE, EXAMS, EXAM_CATS, UNIT_TYPES, ACTION_COST } from './data/catalog.js';
 import { Shift } from './game/shift.js';
-import { clockLabelAt, shownMinutes, durationLabel } from './game/time.js';
+import { clockLabelAt } from './game/time.js';
 import { consultTarget } from './game/encounter.js';
 import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS, exportSave, encodeCode, parseImport, MAX_IMPORT_BYTES } from './game/progress.js';
 import { IsoScene } from './render/iso.js';
@@ -337,8 +337,7 @@ function statusOf(enc) {
     const t = Math.max(...pend.map(([, r]) => r.readyAt));
     return { text: `🧪 Exames até ${clockAt(t)}` };
   }
-  const wait = shift.clock - enc.arrivedAt;
-  return { text: `⏳ Esperando há ${durationLabel(wait)}` };
+  return { text: `⏳ Chegou às ${clockAt(enc.arrivedAt)}${enc.impatient ? ' · 😤 impaciente' : ''}` };
 }
 
 const clockAt = clockLabelAt;
@@ -436,7 +435,7 @@ function renderChart() {
   const c = enc.c;
   const tri = TRIAGE[c.triage.priority];
   const readyCount = enc.readyExams(shift.clock).length;
-  const tc = c.timeCritical ? h('span', { class: 'chip', style: { background: enc.minutesSpent > c.timeCritical.minutes ? '#f6c1b8' : '#fde9b5' } }, `⏱ ${shownMinutes(enc.minutesSpent)}/${shownMinutes(c.timeCritical.minutes)} min`) : null;
+  const tc = c.timeCritical ? h('span', { class: 'chip', style: { background: enc.minutesSpent > c.timeCritical.minutes ? '#f6c1b8' : '#fde9b5' } }, `⏱ Janela crítica: ${Math.round((enc.minutesSpent / c.timeCritical.minutes) * 100)}%`) : null;
 
   // which tabs this patient's chart has shown, and how many results were ready the last time Exames was open
   const seen = enc._tabs ||= { opened: new Set(), readySeen: 0 };
@@ -453,7 +452,7 @@ function renderChart() {
         h('div', { class: 'small muted' }, c.patient.companion ? `Acompanhante: ${c.patient.companion.name}` : 'Desacompanhado(a)', c.type === 'follow_up' ? ' · Consulta de retorno' : ''),
       ),
       tc,
-      h('span', { class: `chip${enc.minutesSpent > consultTarget(c) ? ' over' : ''}`, title: 'Tempo de consulta / tempo-alvo. Acima do alvo perde pontos.' }, `${shownMinutes(enc.minutesSpent)} / ${shownMinutes(consultTarget(c))} min de consulta`),
+      h('span', { class: `chip${enc.minutesSpent > consultTarget(c) ? ' over' : ''}`, title: 'Tempo de consulta usado. Acima de 100% do alvo perde pontos.' }, `Consulta: ${Math.round((enc.minutesSpent / consultTarget(c)) * 100)}% do tempo-alvo`),
     ),
     h('div', { class: 'tabs', role: 'tablist' }, CHART_TABS.map((t) => {
       const state = t.id === 'tests' && newResults && tab !== 'tests' ? 'new' : seen.opened.has(t.id) ? 'done' : 'unopened';
@@ -518,13 +517,13 @@ function paneFor(enc) {
       asked.length ? h('details', { class: 'asked', open: askedOpen, ontoggle: (e) => { askedOpen = e.target.open; } },
         h('summary', {}, `Já perguntado (${asked.length})`),
         h('ul', {}, asked.map((l) => h('li', {}, h('b', {}, l.q), ' ', enc.speakerFor(l.a).text)))) : null,
-      groups.length ? groups.map(([cat, qs]) => h('div', { class: 'opt-group' }, h('h5', {}, cat), h('div', { class: 'opts' }, qs.map((q) => h('button', { class: 'opt', onclick: () => doAsk(enc, q.id) }, q.q, h('span', { class: 'muted small' }, ` · ${shownMinutes(ACTION_COST.question)} min`)))))) : h('p', { class: 'muted' }, 'Sem mais perguntas relevantes.'),
+      groups.length ? groups.map(([cat, qs]) => h('div', { class: 'opt-group' }, h('h5', {}, cat), h('div', { class: 'opts' }, qs.map((q) => h('button', { class: 'opt', onclick: () => doAsk(enc, q.id) }, q.q))))) : h('p', { class: 'muted' }, 'Sem mais perguntas relevantes.'),
     ];
   }
   if (tab === 'physical') {
     return [
       ...c.physical.filter((p) => enc.examined.has(p.id)).map((p) => h('div', { class: 'finding' }, h('b', {}, p.label), p.finding)),
-      h('div', { class: 'opts', style: { marginTop: '8px' } }, c.physical.filter((p) => !enc.examined.has(p.id)).map((p) => h('button', { class: 'opt', onclick: () => doExamine(enc, p.id) }, '🩺 ', p.label, h('span', { class: 'muted small' }, ` · ${shownMinutes(ACTION_COST.physical)} min`)))),
+      h('div', { class: 'opts', style: { marginTop: '8px' } }, c.physical.filter((p) => !enc.examined.has(p.id)).map((p) => h('button', { class: 'opt', onclick: () => doExamine(enc, p.id) }, '🩺 ', p.label))),
     ];
   }
   if (tab === 'tests') {
@@ -574,7 +573,7 @@ function testGroups(enc) {
   },
   h('summary', {}, cat, h('span', { class: 'count' }, ids.length)),
   h('div', { class: 'opts' }, ids.map((id) => h('button', { class: 'opt', onclick: () => doRequest(enc, id) },
-    EXAMS[id].label, h('span', { class: 'muted small' }, ` · pedir ${shownMinutes(ACTION_COST.order)} min`, EXAMS[id].poc ? `, resultado em ${durationLabel(EXAMS[id].minutes)}` : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ', resultado em dias' : `, resultado em ~${durationLabel(Math.round(EXAMS[id].minutes * UNIT_TYPES[shift.unit.type].labDelayMultiplier))}`)))))));
+    EXAMS[id].label, h('span', { class: 'muted small' }, EXAMS[id].poc ? ' · resultado na consulta' : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ' · resultado em dias' : ' · laboratório')))))));
 }
 
 function doAsk(enc, id) {

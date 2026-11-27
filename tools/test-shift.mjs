@@ -7,7 +7,7 @@ import {
   Shift, scaledTarget, IMPATIENCE_MARGIN, LEAVE_MARGIN, SATISFACTION_PENALTY, impatienceAt, leaveAt, satisfactionXp,
 } from '../src/game/shift.js';
 import { applyShift } from '../src/game/progress.js';
-import { clockLabelAt, durationLabel, shownMinutes, SHIFT_MINUTES, REAL_SHIFT_MINUTES } from '../src/game/time.js';
+import { clockLabelAt, shownMinutes, SHIFT_MINUTES, REAL_SHIFT_MINUTES } from '../src/game/time.js';
 import { UNITS, TRIAGE } from '../src/data/catalog.js';
 
 const UPA = UNITS.find((u) => u.type === 'upa');
@@ -31,11 +31,10 @@ test('thresholds: impatient past target + margin, leaving only for green and blu
   assert.deepEqual(['red', 'orange', 'yellow'].map(impatienceAt), [20, 27.5, 45]);
 });
 
-test('the clock and durations show a fictitious 12-hour shift', () => {
+test('the clock shows a fictitious 12-hour shift', () => {
   assert.equal(clockLabelAt(0), '07:00');
   assert.equal(clockLabelAt(SHIFT_MINUTES), '19:00');
   assert.equal(clockLabelAt(15), '08:00');
-  assert.deepEqual([2, 10, 15, 20, 0.5].map(durationLabel), ['8 min', '40 min', '1 h', '1 h 20 min', '2 min']);
   assert.equal(shownMinutes(SHIFT_MINUTES), REAL_SHIFT_MINUTES);
 });
 

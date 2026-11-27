@@ -73,13 +73,15 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P1-08](https://github.com/FilipeOliveira94/plantao/issues/16) | Commit to a hypothesis before lab and imaging | Before the first non-bedside test, the player records a working diagnosis; feedback compares it with the final one. When tests are ordered, the screen says when the patient comes back (clock time and a countdown on the queue card) and offers the next patient, so the player moves on while results are pending. Finishing asks for confirmation and is final. | Med/- | Md/- | none |
 | [P1-09](https://github.com/FilipeOliveira94/plantao/issues/17) | Random events that change the shift | Give operational effects to the cosmetic events (no beds delays a transfer, system down slows each action, a complaint lowers satisfaction) and show the effect on screen. No event changes clinical options. | Med/- | Sm/- | P1-04 |
 | [P1-10](https://github.com/FilipeOliveira94/plantao/issues/72) | Plausible and clearly wrong distractors | Each question gets one correct option, two plausible distractors and one or two clearly wrong ones. `docs/MEDICAL-CONTENT.md` defines both kinds, each distractor is tagged in the case data, and `validate-cases` checks the mix. Applied to every case, one PR per specialty. | Hi/- | Md/- | P1-03 |
+| [P1-11](https://github.com/FilipeOliveira94/plantao/issues/94) | Real-time shift clock | The shift clock also ticks in real time during play, so thinking costs time as well as actions. Real time counts against the consultation budget and the patience of waiting patients. Pauses in the menu, on feedback and on a pause button; "Aguardar próximo" fast-forwards. A simulated moderate player sees every patient within 15 real minutes; a slow one runs out of shift. The E2E test controls the clock. | Med/- | Md/- | P1-06 |
+| [P1-12](https://github.com/FilipeOliveira94/plantao/issues/95) | Time-critical windows in clock time | Retune each case's `timeCritical` window as clock time that includes thinking, reachable with moderate effort. Real clinical times stay in the case and feedback text as teaching content; update `docs/MEDICAL-CONTENT.md`. Cases stay "pending" in `REVIEW-STATUS.md`. | Hi/- | Sm/- | P1-11 |
 
 ## P2: A clear shift screen
 
 | ID | Issue | Scope | Expected/Seen Risk | Expected/Seen Size | Depends on |
 | --- | --- | --- | --- | --- | --- |
 | [P2-01](https://github.com/FilipeOliveira94/plantao/issues/18) | Always show the next step | One highlighted primary action per state: call the patient, read triage, results ready, decide. Empty states say what to do. Result toasts are clickable. | Lo/- | Md/- | none |
-| [P2-02](https://github.com/FilipeOliveira94/plantao/issues/19) | Time on screen | Per-patient timer against its budget, queue cards with a wait bar against the Manchester target, and a visible "+2 min" on the clock after each action, with who in the queue was affected. | Lo/- | Md/- | P1-05 |
+| [P2-02](https://github.com/FilipeOliveira94/plantao/issues/19) | Time on screen | Per-patient timer against its budget, queue cards with a wait bar against the Manchester target, and a visible "+2 min" on the clock after each action, with who in the queue was affected. Time is shown as bars and clock times, not minutes (the 12-hour clock is fictitious): a patience bar from `enc.impatient` and the margins in `shift.js`, a consultation budget bar, and exam progress. | Lo/- | Md/- | P1-05 |
 | [P2-03](https://github.com/FilipeOliveira94/plantao/issues/20) | Time breakdown in feedback | The feedback screen shows where the minutes went (history, physical exam, tests, waiting for results) and what the queue paid for it. | Lo/- | Sm/- | none |
 | [P2-04](https://github.com/FilipeOliveira94/plantao/issues/21) | Guided first shift | A short tutorial on the first shift: one easy case with step-by-step prompts, skippable, replayable from the menu. | Lo/- | Md/- | P2-01 |
 | [P2-05](https://github.com/FilipeOliveira94/plantao/issues/22) | Test menu by category | Group tests the way a request form does (hematology, biochemistry, blood gas, cultures, urine, cardiology, rapid tests, X-ray, ultrasound, CT, procedures), with collapsible groups and a search box. | Lo/Lo | Sm/Sm | none |
@@ -156,7 +158,7 @@ Each note was checked against the open issues. Where an issue already covered it
 ## Suggested order
 
 1. Quick wins that fix what the playtest noticed first: P1-01, P1-02, P2-05, P2-06, P3-02, P0-01, P0-02, P4-06.
-2. Make time matter: P1-04, P1-05, P1-06, then P2-02, P2-03 and P2-12 to show it.
+2. Make time matter: P1-04, P1-05, P1-06, P1-11, P1-12, then P2-02, P2-03 and P2-12 to show it.
 3. Make the screen lead the player: P2-01, P2-07, P2-04, then P2-08.
 4. Keep the player: P3-12, P3-01, P3-04, P3-14, P3-09, P3-03, P3-05, P3-10, P3-11. P3-13 comes after the MVP.
 5. Content fairness, in parallel as review capacity allows: P1-03, P1-10, P3-06, P6-01.
