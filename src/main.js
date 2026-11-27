@@ -653,7 +653,7 @@ function reportUrl(c, chosen) {
 function timeBreakdown(r) {
   const t = r.time;
   const row = (k, label, min) => h('li', { 'data-k': k }, h('span', {}, label), h('span', { class: 'muted' }, `${min} min`));
-  const waits = [t.roomWait && `aguardando no consultório ${t.roomWait} min`, t.queueWait && `aguardando resultados na recepção ${t.queueWait} min`].filter(Boolean);
+  const waits = [t.roomWait && `aguardando no consultório ${t.roomWait} min`, t.queueWait && `na recepção até ser chamado de volta ${t.queueWait} min`].filter(Boolean);
   const paid = r.queuePaid || [];
   return h('details', { class: 'time-breakdown', open: true },
     h('summary', {}, h('b', {}, 'Para onde foi o tempo')),
