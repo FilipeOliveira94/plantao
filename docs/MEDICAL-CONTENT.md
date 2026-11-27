@@ -23,7 +23,7 @@ All player-facing text (patient speech, findings, options, teaching notes) is in
   type: 'new' | 'follow_up',
   settings: ['ubs', 'upa', 'hospital', 'picu'], // where the case may appear
   difficulty: 1..3,
-  timeCritical?: { minutes, reason },        // decision window (minutes of clinical actions)
+  timeCritical?: { minutes, reason },        // decision window in consultation minutes, thinking included; see below
   patient: {
     name, age: '4 meses', sex: 'F' | 'M',
     look: { skin, hair, shirt, build: 'adult' | 'elder' | 'child' | 'infant', inBed? },
@@ -48,6 +48,10 @@ All player-facing text (patient speech, findings, options, teaching notes) is in
 }
 ```
 
+### Time-critical windows
+
+`timeCritical.minutes` is game balance, not a clinical claim. It counts consultation time: the internal minutes the doctor spends with the patient in the room, on actions and on thinking (real time in the room, P1-11). Waiting for a result and time a random event takes do not count. The shift clock runs on a compressed scale (`src/game/time.js`), so the window cannot match a real deadline. Put the real one ("ECG em até 10 min", "alteplase até 4 h 30 min") in `reason`, with the case's references behind it. `npm run validate` requires the key items plus the thinking allowance (`THINKING_ALLOWANCE` in `src/game/encounter.js`) to fit the window, so a focused player at a moderate pace can make it.
+
 ## Scoring (src/game/encounter.js)
 
 | Item | Points |
@@ -57,7 +61,7 @@ All player-facing text (patient speech, findings, options, teaching notes) is in
 | Key items found (questions, physical exam, tests) | up to +60, proportional |
 | Unnecessary test | −10 each (extra −20 if risky) |
 | Wait beyond the Manchester target (+15 min tolerance) | down to −40 |
-| Time-critical window met / missed (consultation minutes) | +25 / −30 |
+| Time-critical window met / missed (consultation time, thinking included) | +25 / −30 |
 | Consultation time over the target (triage default until P6-07 sets per-case targets) | −2 per minute, down to −40 |
 
 ## Checklist before opening a case PR

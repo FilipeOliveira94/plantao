@@ -8,7 +8,7 @@ export default [
     type: 'new',
     settings: ['picu'],
     difficulty: 3,
-    timeCritical: { minutes: 15, reason: 'No choque séptico pediátrico, antibiótico e ressuscitação volêmica devem começar na primeira hora; cada atraso aumenta a mortalidade.' },
+    timeCritical: { minutes: 30, reason: 'No choque séptico pediátrico, antibiótico e ressuscitação volêmica devem começar na primeira hora; cada atraso aumenta a mortalidade.' },
     patient: {
       name: 'Davi Martins', age: '3 anos', sex: 'M',
       look: { skin: '#e9c3a0', hair: '#7a4a24', shirt: '#cdd5df', build: 'child', inBed: true },
@@ -230,7 +230,7 @@ export default [
     type: 'new',
     settings: ['picu'],
     difficulty: 3,
-    timeCritical: { minutes: 10, reason: 'No estado de mal epiléptico, benzodiazepínico deve ser dado até 5 min de crise; quanto mais longa a crise, mais refratária ela fica.' },
+    timeCritical: { minutes: 25, reason: 'No estado de mal epiléptico, benzodiazepínico deve ser dado até 5 min de crise; quanto mais longa a crise, mais refratária ela fica.' },
     patient: {
       name: 'Laura Bezerra', age: '2 anos', sex: 'F',
       look: { skin: '#b07a55', hair: '#1c120c', shirt: '#cdd5df', build: 'child', inBed: true },
@@ -306,7 +306,7 @@ export default [
     type: 'new',
     settings: ['picu'],
     difficulty: 3,
-    timeCritical: { minutes: 15, reason: 'Na cardiopatia com fluxo sistêmico dependente do canal arterial, a prostaglandina E1 deve ser iniciada de imediato, sem aguardar o ecocardiograma, para evitar uma deterioração rápida e muitas vezes irreversível.' },
+    timeCritical: { minutes: 30, reason: 'Na cardiopatia com fluxo sistêmico dependente do canal arterial, a prostaglandina E1 deve ser iniciada de imediato, sem aguardar o ecocardiograma, para evitar uma deterioração rápida e muitas vezes irreversível.' },
     patient: {
       name: 'RN de Jaqueline (Arthur)', age: '6 dias', sex: 'M',
       look: { skin: '#e2b896', hair: '#4a3020', shirt: '#cdd5df', build: 'infant', inBed: true },
@@ -393,7 +393,7 @@ export default [
     type: 'new',
     settings: ['picu'],
     difficulty: 3,
-    timeCritical: { minutes: 15, reason: 'Na síndrome colinérgica, a atropina deve ser administrada rapidamente após o diagnóstico clínico: a broncorreia e o broncoespasmo levam à insuficiência respiratória.' },
+    timeCritical: { minutes: 25, reason: 'Na síndrome colinérgica, a atropina deve ser administrada rapidamente após o diagnóstico clínico: a broncorreia e o broncoespasmo levam à insuficiência respiratória.' },
     patient: {
       name: 'Kauã Oliveira', age: '2 anos e 6 meses', sex: 'M',
       look: { skin: '#8d5a3b', hair: '#1d1410', shirt: '#cdd5df', build: 'child', inBed: true },

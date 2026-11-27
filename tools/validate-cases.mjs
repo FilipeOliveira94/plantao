@@ -2,7 +2,7 @@
 import { CASES } from '../src/data/cases/index.js';
 import { EXAMS, EXAM_CATS, UNIT_TYPES, UNITS, SPECIALTIES, TRIAGE } from '../src/data/catalog.js';
 import { LEVELS } from '../src/game/progress.js';
-import { actionTarget, focusedMinutes } from '../src/game/encounter.js';
+import { actionTarget, focusedMinutes, THINKING_ALLOWANCE } from '../src/game/encounter.js';
 
 const errors = [];
 const warn = [];
@@ -47,12 +47,13 @@ for (const c of CASES) {
   if (!c.teaching || c.teaching.length < 80) err(id, 'teaching missing or too short');
   if (!c.references?.length) err(id, 'no references');
   // Time fit (game balance, not clinical validation): the key items must fit the case's consultation
-  // target and its time-critical window, or a focused player could not avoid the penalty.
+  // target and its time-critical window, or a focused player could not avoid the penalty. The window counts
+  // consultation time with thinking (P1-12), so the key items plus the thinking allowance must fit it.
   if (c.consultMinutes !== undefined && !(Number.isInteger(c.consultMinutes) && c.consultMinutes > 0)) err(id, `consultMinutes must be a positive integer: ${c.consultMinutes}`);
   else if (TRIAGE[c.triage?.priority] && c.questions && c.physical) {
     const focused = focusedMinutes(c);
     if (focused > actionTarget(c)) err(id, `key items take ${focused} min, over the ${actionTarget(c)}-min consultation target for actions`);
-    if (c.timeCritical && focused > c.timeCritical.minutes) err(id, `key items take ${focused} min, over the ${c.timeCritical.minutes}-min time-critical window`);
+    if (c.timeCritical && focused + THINKING_ALLOWANCE > c.timeCritical.minutes) err(id, `key items take ${focused} min plus ${THINKING_ALLOWANCE} of thinking, over the ${c.timeCritical.minutes}-min time-critical window`);
   }
   if (c.type === 'follow_up' && !c.previousNote) warn.push(`[${id}] follow-up without previousNote`);
 
