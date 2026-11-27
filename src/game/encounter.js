@@ -18,6 +18,7 @@ export const OVERTIME_CAP = 40;
 // patient turns impatient (impatienceAt, P1-06), per internal minute past it, up to the cap. Game balance.
 export const WAIT_POINTS_PER_MINUTE = 1;
 export const WAIT_CAP = 40;
+const EPS = 1e-6;
 
 /** Target for the consultation's actions: the case's own `consultMinutes`, else the triage default. */
 export const actionTarget = (c) => c.consultMinutes ?? CONSULT_TARGET_MINUTES[c.triage.priority];
@@ -188,7 +189,8 @@ export class Encounter {
     // `excusedWait`: minutes of that wait a random event took from the doctor (Shift.excusedWait), not held against them
     const waited = this.firstSeenAt != null ? Math.max(0, this.firstSeenAt - this.arrivedAt - excusedWait) : 0;
     const overWait = waited - impatienceAt(c.triage.priority);
-    if (overWait > 0) add(-Math.min(WAIT_CAP, Math.ceil(overWait * WAIT_POINTS_PER_MINUTE)), 'Espera acima do alvo da classificação');
+    // EPS: real-time steps leave float noise on the wait; a wait that is the threshold to the eye costs nothing
+    if (overWait > EPS) add(-Math.min(WAIT_CAP, Math.ceil(overWait * WAIT_POINTS_PER_MINUTE - EPS)), 'Espera acima do alvo da classificação');
 
     // Time-critical cases
     if (c.timeCritical) {

@@ -31,6 +31,8 @@ for (const p of Object.keys(TRIAGE)) {
     assert.equal(waitPoints(p, target), 0, 'at the scaled target');
     assert.equal(waitPoints(p, target + 1), 0, 'just past the scaled target, before impatience');
     assert.equal(waitPoints(p, limit), 0, 'at impatienceAt');
+    assert.equal(waitPoints(p, limit + 1e-9), 0, 'float noise at impatienceAt');
+    assert.equal(waitPoints(p, limit + 1 + 1e-9), -WAIT_POINTS_PER_MINUTE, 'float noise past a whole minute');
     assert.equal(waitPoints(p, limit + 0.25), -1, 'a fractional minute past impatienceAt (real-time clock)');
     assert.equal(waitPoints(p, limit + 1), -WAIT_POINTS_PER_MINUTE, 'one minute past impatienceAt');
     assert.equal(waitPoints(p, limit + 10), -10 * WAIT_POINTS_PER_MINUTE);
