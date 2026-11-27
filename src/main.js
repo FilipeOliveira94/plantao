@@ -274,9 +274,9 @@ function showHelp() {
 function startShift(unit, specialty) {
   sfx.unlock();
   clearArrivals();
-  // `?seed=N` replays a shift (arrivals, options, events); the e2e test uses it
-  const seed = Number.parseInt(new URLSearchParams(location.search).get('seed'), 10);
-  shift = new Shift({ unit, specialty, completedCases: state.cases, seed: Number.isFinite(seed) ? seed : Date.now() });
+  // debug: `?seed=N` replays a shift (arrivals, options, events); the e2e test uses it
+  const seedParam = new URLSearchParams(location.search).get('seed');
+  shift = new Shift({ unit, specialty, completedCases: state.cases, seed: /^\d{1,9}$/.test(seedParam ?? '') ? Number(seedParam) : Date.now() });
   if (!shift.encounters.length) { toast('Ainda não há casos para essa combinação.'); return; }
   music.play(unit.music);
   renderGame();
@@ -840,8 +840,9 @@ function showFeedback(enc, r, earned, leveled) {
 function impatientNote(s) {
   const n = s.encounters.filter((e) => e.impatient).length;
   const k = s.satisfactionLog.filter((l) => l.reason === 'complaint').length;
-  if (!n) return '';
-  return ` · ${n} impaciente${n > 1 ? 's' : ''}${k ? `, ${k} reclamaç${k > 1 ? 'ões' : 'ão'}` : ''}`;
+  // complaints include a companion's complaint from a random event (P1-09), which needs no impatient patient
+  const parts = [n && `${n} impaciente${n > 1 ? 's' : ''}`, k && `${k} reclamaç${k > 1 ? 'ões' : 'ão'}`].filter(Boolean);
+  return parts.length ? ` · ${parts.join(', ')}` : '';
 }
 
 function showShiftSummary() {

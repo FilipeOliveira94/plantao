@@ -48,13 +48,16 @@ test('a UBS never gets lab_delay (its lab results come only at the follow-up vis
   }
 });
 
-test('a seed gives the same events, and events do not change arrivals or options', () => {
+test('a seed gives the same events, and the event roll draws from its own stream', () => {
   const sig = (s) => s.pendingEvents.map((e) => `${e.id}@${e.at}`).join();
   for (let seed = 0; seed < 50; seed++) assert.equal(sig(make(seed)), sig(make(seed)));
-  const a = make(7); const b = make(7);
-  b.pendingEvents = [];
-  assert.deepEqual(a.encounters.map((e) => e.arrivedAt), b.encounters.map((e) => e.arrivedAt));
-  assert.equal(optionsOf(a), optionsOf(b));
+  // seed 1 rolls an event; its cases, arrivals and option order match main before P1-09 (fixture from that code)
+  const s = make(1);
+  assert.equal(s.pendingEvents.length, 1);
+  assert.deepEqual(s.encounters.map((e) => [e.c.id, e.arrivedAt, e.dxOptions[0].id]), [
+    ['im-hypertensive-pseudocrisis', 0, 'hsa'], ['im-stemi', 32, 'drge'], ['im-leptospirosis-warning-signs', 64, 'pac'],
+    ['im-cap', 89, 'pac'], ['im-dengue-warning-signs', 120, 'dengue_d'],
+  ]);
 });
 
 test('an event fires once, when the clock reaches it, as a popup event with its text', () => {
