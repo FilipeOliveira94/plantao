@@ -11,6 +11,8 @@ import { music } from './audio/music.js';
 import { h, mount, toast, modal, modalOpen } from './ui/dom.js';
 import { createTalk } from './ui/talk.js';
 import { popup, blockingPopupOpen } from './ui/popup.js';
+import { nextStep, TAB_STEP, CALL_LABEL } from './game/nextstep.js';
+import { markNextStep, setNextStepEmphasis } from './ui/nextstep.js';
 
 const app = document.getElementById('app');
 let state = load();
@@ -458,7 +460,7 @@ function showPause() {
   const m = modal(h('div', {},
     h('h2', {}, '⏸ Plantão pausado'),
     h('p', { class: 'muted' }, `Relógio parado às ${shift.clockLabel}.`),
-    h('button', { class: 'btn primary', onclick: () => m.close() }, 'Continuar ▶'),
+    h('button', { class: 'btn primary', 'data-step': 'continue', onclick: () => m.close() }, 'Continuar ▶'),
   ), {
     className: 'paused',
     onClose: () => { document.removeEventListener('keydown', onKey, true); clock?.release('pause'); },
@@ -493,6 +495,12 @@ function statusOf(enc) {
 
 const clockAt = clockLabelAt;
 
+/** A patient in the queue can be called unless their tests are still running (paused patients always can). */
+const callable = (enc) => enc.status !== 'awaiting_results' || enc.pendingExams(shift.clock).length === 0;
+/** The patient "Chamar próximo" calls: the first callable one, in queue order. */
+const firstCallable = (q = shift.queue()) => q.find(callable) ?? null;
+const callKind = (enc) => (enc.status === 'paused' ? 'paused' : enc.status === 'awaiting_results' ? 'results' : 'waiting');
+
 /** "Aguardar próximo" (the fast-forward) shows when the room is free and nobody can be called yet. */
 function waitButtonShown(q) {
   const waitingExams = shift.encounters.some((e) => e.status === 'awaiting_results' && e.pendingExams(shift.clock).length);
@@ -520,13 +528,22 @@ function renderQueue({ ifChanged = false } = {}) {
       h('button', { class: 'btn small', disabled: !canCall, onclick: () => callPatient(enc) }, 'Chamar'),
     );
   });
-  const upcoming = shift.upcoming().length;
-  const children = cards.length ? cards : [h('div', { class: 'empty' }, upcoming ? 'Ninguém na fila agora.' : shift.current ? 'Último paciente em atendimento.' : 'Fila vazia.')];
+  const children = cards.length ? cards : [h('div', { class: 'empty' }, emptyQueueText(showWait))];
   if (showWait) {
-    children.push(h('button', { class: 'btn', style: { alignSelf: 'center' }, onclick: () => { handleEvents(timed(() => shift.waitForNext())); renderAll(); if (shift.done) setTimeout(showShiftSummary, 400); } }, '☕ Aguardar próximo'));
+    children.push(h('button', { class: 'btn', 'data-step': 'wait-next', style: { alignSelf: 'center' }, onclick: () => { handleEvents(timed(() => shift.waitForNext())); renderAll(); if (shift.done) setTimeout(showShiftSummary, 400); } }, '☕ Aguardar próximo'));
   }
   mount(ui.queue, children);
   pruneLive();
+}
+
+// what to do when no one is waiting (P2-01)
+function emptyQueueText(showWait) {
+  if (shift.done) return 'Fila vazia. Encerre o plantão para ver o resumo.';
+  if (shift.current) {
+    if (shift.over) return 'Fila vazia. Conclua o atendimento atual para encerrar o plantão.';
+    return shift.upcoming().length ? 'Ninguém na fila agora. Siga com o atendimento; novos pacientes chegam ao longo do plantão.' : 'Fila vazia. Este é o último paciente do plantão.';
+  }
+  return showWait ? 'Ninguém para chamar agora. Use ☕ Aguardar próximo para adiantar o relógio.' : 'Fila vazia.';
 }
 
 function handleEvents(fired) {
@@ -540,13 +557,13 @@ function handleEvents(fired) {
   // newly available results for waiting patients
   for (const e of shift.encounters) {
     if ((e.status === 'awaiting_results' || e.status === 'paused') && !e._notified && e.pendingExams(shift.clock).length === 0) {
-      e._notified = true; sfx.result(); toast(`Resultados de ${e.c.patient.name} disponíveis.`);
+      e._notified = true; sfx.result(); toast(`Resultados de ${e.c.patient.name} disponíveis. Clique para abrir.`, 6500, { onClick: () => openResults(e) });
     }
   }
   // results ready for the patient in the room
   const cur = shift.current;
   for (const [id, r] of cur ? cur.readyExams(shift.clock) : []) {
-    if (!r._notified) { r._notified = true; sfx.result(); toast(`Resultado liberado: ${EXAMS[id].label}.`); }
+    if (!r._notified) { r._notified = true; sfx.result(); toast(`Resultado liberado: ${EXAMS[id].label}. Clique para abrir.`, 6500, { onClick: () => openResults(cur) }); }
   }
   // an open arrival card whose patient is no longer waiting (left unseen, P1-06) has nothing to offer
   if (arrivalPopup && arrivalPopup.enc.status !== 'waiting') arrivalPopup.close();
@@ -614,7 +631,7 @@ function showEvent(ev) {
     className: 'event',
     timeout: EVENT_AUTO_CLOSE_MS,
     label: 'Imprevisto no plantão',
-    actions: [{ label: 'Entendi' }],
+    actions: [{ label: 'Entendi', step: 'event-ok' }],
     onClose: () => { if (eventPopup === own) { eventPopup = null; showNextNotice(); } },
   });
   eventPopup = own;
@@ -639,9 +656,10 @@ function showNextArrival() {
     timeout: urgent ? 0 : ARRIVAL_AUTO_CLOSE_MS,
     accent: tri.color,
     label: `Novo paciente: ${enc.c.patient.name}`,
+    // the primary answer follows the next-step rule: attend when urgent or the room is free, else keep the consultation
     actions: [
-      { label: 'Atender agora', primary: true, onclick: () => attendNow(enc) },
-      { label: 'Depois' },
+      { label: 'Atender agora', primary: urgent || !shift.current, step: 'attend', onclick: () => attendNow(enc) },
+      { label: 'Depois', primary: !urgent && !!shift.current, step: 'later' },
     ],
     onClose: () => { if (arrivalPopup === own) { arrivalPopup = null; showNextNotice(); } },
   });
@@ -652,17 +670,31 @@ function showNextArrival() {
 /** "Atender agora": the patient in the room goes back to the queue with everything kept, and the new one comes in. */
 function attendNow(enc) {
   if (!shift || shift.over || enc.status !== 'waiting') return;
-  const cur = shift.current;
-  if (cur) {
-    cur._resume = { tab, decision: { ...decision } }; // chart state, restored when they are called again
-    cur._notified = cur.pendingExams(shift.clock).length === 0; // toast their results if they come in meanwhile
-    scene.exit();
-    shift.pause();
-  }
+  setAsideCurrent();
   callPatient(enc);
 }
 
-function callPatient(enc) {
+/** The patient in the room goes back to the queue (paused) with their chart state kept. */
+function setAsideCurrent() {
+  const cur = shift.current;
+  if (!cur) return;
+  cur._resume = { tab, decision: { ...decision } }; // chart state, restored when they are called again
+  cur._notified = cur.pendingExams(shift.clock).length === 0; // toast their results if they come in meanwhile
+  scene.exit();
+  shift.pause();
+}
+
+/** A result toast was clicked: show that patient's Exames tab, calling them in if needed (P2-01).
+ *  Someone else in the room is set aside with everything kept, like "Atender agora". */
+function openResults(enc) {
+  if (!shift || !shift.encounters.includes(enc) || modalOpen() || blockingPopupOpen()) return;
+  if (shift.current === enc) { sfx.page(); tab = 'tests'; renderChart(); return; }
+  if (shift.over || !['awaiting_results', 'paused'].includes(enc.status) || !callable(enc)) return;
+  setAsideCurrent();
+  callPatient(enc, { openTab: 'tests' });
+}
+
+function callPatient(enc, { openTab } = {}) {
   const returning = enc.status === 'awaiting_results';
   const resume = enc.status === 'paused' ? enc._resume : null;
   if (!shift.call(enc)) return;
@@ -672,7 +704,7 @@ function callPatient(enc) {
   enc._notified = true;
   sfx.call();
   scene.enter(enc.c.patient.look, enc.c.patient.companion);
-  tab = resume?.tab ?? (returning ? 'tests' : 'triage');
+  tab = openTab ?? resume?.tab ?? (returning ? 'tests' : 'triage');
   decision = resume?.decision ?? { dx: null, cd: null };
   testQuery = ''; openTestCats.clear(); askedOpen = false;
   ui.talk.clear();
@@ -720,7 +752,7 @@ function criticalChip(enc) {
 }
 
 /** What a clock tick can change in the chart: a full redraw when it does, else only the chips. */
-const chartSig = () => JSON.stringify([shift.current?.c.id ?? null, shift.current?.readyExams(shift.clock).length, shift.over, shift.done, shift.current ? null : shift.queue()[0]?.c.id]);
+const chartSig = () => JSON.stringify([shift.current?.c.id ?? null, shift.current?.readyExams(shift.clock).length, shift.over, shift.done, shift.current ? null : [firstCallable()?.c.id, firstCallable()?.status, waitButtonShown(shift.queue())]]);
 
 function refreshChart() {
   const enc = shift.current;
@@ -736,17 +768,16 @@ function renderChart() {
   ui.hoverCost = 0; // the hovered button is gone; a new hover sets it again
   const enc = shift.current;
   if (!enc) {
-    const next = shift.queue()[0];
+    const next = shift.done ? null : firstCallable();
     mount(ui.chart, h('div', { class: 'pane', style: { gridRow: '1 / -1', display: 'grid', placeItems: 'center', textAlign: 'center' } },
       h('div', {},
         h('div', { style: { fontSize: '46px' } }, shift.unit.type === 'picu' ? '🛏️' : '🚪'),
         h('h2', {}, shift.done ? 'Plantão encerrado' : 'Consultório livre'),
-        shift.done
-          ? h('p', { class: 'muted' }, shift.unseen().length ? `${shift.unseen().length} paciente(s) ficaram sem atendimento.` : 'Todos os pacientes foram atendidos.')
-          : h('p', { class: 'muted' }, next ? `Próximo da fila: ${next.c.patient.name} (${TRIAGE[next.c.triage.priority].label}).` : 'Aguardando pacientes.'),
-        shift.done ? h('button', { class: 'btn primary', onclick: showShiftSummary }, 'Encerrar plantão') : null,
-        next && !shift.done ? h('button', { class: 'btn primary', onclick: () => callPatient(next), disabled: next.status === 'awaiting_results' && !statusOf(next).ready }, 'Chamar próximo') : null,
+        h('p', { class: 'muted free-room-hint' }, freeRoomText(next)),
+        shift.done ? h('button', { class: 'btn', 'data-step': 'end-shift', onclick: showShiftSummary }, 'Encerrar plantão') : null,
+        next ? h('button', { class: 'btn', 'data-step': 'call', onclick: () => callPatient(next) }, CALL_LABEL[callKind(next)]) : null,
       )));
+    pruneLive();
     return;
   }
   const c = enc.c;
@@ -774,7 +805,7 @@ function renderChart() {
     h('div', { class: 'tabs', role: 'tablist' }, CHART_TABS.map((t) => {
       const state = t.id === 'tests' && newResults && tab !== 'tests' ? 'new' : seen.opened.has(t.id) ? 'done' : 'unopened';
       return h('button', {
-        class: `tab ${state} ${tab === t.id ? 'active' : ''}`, role: 'tab', 'aria-selected': String(tab === t.id),
+        class: `tab ${state} ${tab === t.id ? 'active' : ''}`, role: 'tab', 'aria-selected': String(tab === t.id), 'data-step': TAB_STEP[t.id],
         'aria-label': [t.label, counts[t.id] ? `${counts[t.id]} ${COUNT_LABEL[t.id]}` : null, state === 'new' ? `${newResults} resultado${newResults > 1 ? 's' : ''} novo${newResults > 1 ? 's' : ''}` : TAB_STATE_LABEL[state]].filter(Boolean).join(', '), style: `--tab: ${t.color}`,
         onclick: () => { sfx.page(); tab = t.id; renderChart(); },
       },
@@ -788,6 +819,16 @@ function renderChart() {
   );
   pruneLive();
   pane.scrollTop = 0;
+}
+
+// what to do with the room free (P2-01)
+function freeRoomText(next) {
+  if (shift.done) return shift.unseen().length ? `${shift.unseen().length} paciente(s) ficaram sem atendimento. Encerre o plantão para ver o resumo.` : 'Todos os pacientes foram atendidos. Encerre o plantão para ver o resumo.';
+  if (next) {
+    const who = `${next.c.patient.name} (${TRIAGE[next.c.triage.priority].label})`;
+    return { waiting: `Próximo da fila: ${who}. Chame para começar o atendimento.`, results: `Os resultados de ${who} saíram. Chame para vê-los.`, paused: `${who} está com o atendimento pausado. Chame para continuar de onde parou.` }[callKind(next)];
+  }
+  return waitButtonShown(shift.queue()) ? 'Ninguém para chamar agora. Use ☕ Aguardar próximo, na fila, para adiantar o relógio.' : 'Aguardando pacientes.';
 }
 
 // Chart tabs: each has its own color and icon. State: unopened (faded stripe and a dot), new (unseen results, a +N pill) or done (opened, solid stripe).
@@ -807,11 +848,11 @@ function footerFor(enc) {
   const nextReady = pend ? Math.min(...pending.map(([, r]) => r.readyAt)) : null;
   return h('div', { class: 'footer-actions' },
     // waiting in the room passes shift time, not consultation time
-    pend && !shift.over ? h('button', { class: 'btn', onclick: () => waitInRoom(enc) }, `⏳ Aguardar aqui (até ${clockAt(Math.min(nextReady, shift.endsAt))})`) : null,
+    pend && !shift.over ? h('button', { class: 'btn', 'data-step': 'wait-here', onclick: () => waitInRoom(enc) }, `⏳ Aguardar aqui (até ${clockAt(Math.min(nextReady, shift.endsAt))})`) : null,
     // after the end of the shift a patient sent out could not be called back, so they stay in the room
-    pend && !shift.over ? h('button', { class: 'btn', onclick: () => sendToWait(enc) }, `🪑 Aguardar resultados na recepção (${pend})`) : null,
+    pend && !shift.over ? h('button', { class: 'btn', 'data-step': 'send-wait', onclick: () => sendToWait(enc) }, `🪑 Aguardar resultados na recepção (${pend})`) : null,
     h('span', { class: 'spacer', style: { flex: 1 } }),
-    h('button', { class: 'btn primary', onclick: () => { tab = 'decision'; renderChart(); } }, 'Diagnóstico e conduta →'),
+    h('button', { class: 'btn', 'data-step': 'decide', onclick: () => { tab = 'decision'; renderChart(); } }, 'Diagnóstico e conduta →'),
   );
 }
 
@@ -835,13 +876,14 @@ function paneFor(enc) {
       asked.length ? h('details', { class: 'asked', open: askedOpen, ontoggle: (e) => { askedOpen = e.target.open; } },
         h('summary', {}, `Já perguntado (${asked.length})`),
         h('ul', {}, asked.map((l) => h('li', {}, h('b', {}, l.q), ' ', enc.speakerFor(l.a).text)))) : null,
-      groups.length ? groups.map(([cat, qs]) => h('div', { class: 'opt-group' }, h('h5', {}, cat), h('div', { class: 'opts' }, qs.map((q) => h('button', { class: 'opt', ...previewCost(ACTION_COST.question), onclick: () => doAsk(enc, q.id) }, q.q))))) : h('p', { class: 'muted' }, 'Sem mais perguntas relevantes.'),
+      groups.length ? groups.map(([cat, qs]) => h('div', { class: 'opt-group' }, h('h5', {}, cat), h('div', { class: 'opts' }, qs.map((q) => h('button', { class: 'opt', ...previewCost(ACTION_COST.question), onclick: () => doAsk(enc, q.id) }, q.q))))) : h('p', { class: 'muted' }, 'Sem mais perguntas relevantes. Siga para o exame físico ou para a decisão.'),
     ];
   }
   if (tab === 'physical') {
     return [
       ...c.physical.filter((p) => enc.examined.has(p.id)).map((p) => h('div', { class: 'finding' }, h('b', {}, p.label), p.finding)),
       h('div', { class: 'opts', style: { marginTop: '8px' } }, c.physical.filter((p) => !enc.examined.has(p.id)).map((p) => h('button', { class: 'opt', ...previewCost(ACTION_COST.physical), onclick: () => doExamine(enc, p.id) }, '🩺 ', p.label))),
+      c.physical.every((p) => enc.examined.has(p.id)) ? h('p', { class: 'muted' }, 'Exame físico completo. Siga para os exames ou para a decisão.') : null,
     ];
   }
   if (tab === 'tests') {
@@ -872,7 +914,7 @@ function paneFor(enc) {
       enc.dxOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'dx', value: o.id, checked: decision.dx === o.id, onchange: () => { decision.dx = o.id; } }), h('span', {}, o.label))),
       h('h5', { class: 'section-title', style: { marginTop: '16px' } }, 'Conduta'),
       enc.cdOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'cd', value: o.id, checked: decision.cd === o.id, onchange: () => { decision.cd = o.id; } }), h('span', {}, o.label))),
-      h('div', { style: { marginTop: '14px' } }, h('button', { class: 'btn primary', onclick: () => finishEncounter(enc) }, '✔ Finalizar atendimento')),
+      h('div', { style: { marginTop: '14px' } }, h('button', { class: 'btn', 'data-step': 'finish', onclick: () => finishEncounter(enc) }, '✔ Finalizar atendimento')),
     ];
   }
   return null;
@@ -933,6 +975,7 @@ function sendToWait(enc) {
   say(enc, 'Tá bom, vou aguardar lá fora.');
   scene.exit();
   shift.sendToWait();
+  enc._notified = false; // calling them set it: toast their results when they come in
   ui.talk.clearLater(1200);
   renderAll();
 }
@@ -1023,8 +1066,9 @@ function showFeedback(enc, r, earned, leveled) {
     h('p', { class: 'small report-case' }, h('a', { href: reportUrl(c, r.chosen), target: '_blank', rel: 'noopener noreferrer' }, '⚠️ Relatar um problema neste caso'), ' (abre uma issue pública no GitHub; precisa de conta)'),
     earned.length ? h('div', { style: { marginTop: '12px' } }, h('h3', { style: { marginBottom: '8px' } }, 'Nova conquista!'), h('div', { class: 'badges' }, earned.map((id) => h('div', { class: 'badge new' }, h('span', { class: 'ic' }, BADGES[id].icon), h('div', {}, h('b', {}, BADGES[id].name), h('div', { class: 'small muted' }, BADGES[id].desc)))))) : null,
     leveled ? h('p', { style: { fontWeight: 800, marginTop: '12px' } }, `🎉 Subiu para o nível ${levelOf(state.xp).number}: ${levelOf(state.xp).title}!`) : null,
-    h('div', { class: 'menu-actions', style: { marginTop: '16px' } }, h('button', { class: 'btn primary', onclick: () => m.close() }, shift.done ? 'Encerrar plantão' : 'Próximo paciente')),
+    h('div', { class: 'menu-actions', style: { marginTop: '16px' } }, h('button', { class: 'btn primary', 'data-step': 'feedback-next', onclick: () => m.close() }, shift.done ? 'Encerrar plantão' : 'Próximo paciente')),
   ), {
+    className: 'feedback',
     onClose: () => {
       scene.exit();
       ui.talk.clear();
@@ -1076,17 +1120,62 @@ function showShiftSummary() {
     earned.length ? h('div', {}, h('h3', { style: { marginBottom: '8px' } }, 'Conquistas'), h('div', { class: 'badges' }, earned.map((id) => h('div', { class: 'badge new' }, h('span', { class: 'ic' }, BADGES[id].icon), h('div', {}, h('b', {}, BADGES[id].name)))))) : null,
     leveled ? h('p', { style: { fontWeight: 800 } }, `🎉 Nível ${levelOf(state.xp).number}: ${levelOf(state.xp).title}! Novas unidades podem ter sido desbloqueadas.`) : null,
     h('div', { class: 'menu-actions', style: { marginTop: '14px' } },
-      h('button', { class: 'btn primary', onclick: () => { document.querySelector('.modal-back')?.remove(); shift = null; renderMenu(); } }, 'Voltar ao menu'),
+      h('button', { class: 'btn primary', 'data-step': 'summary-menu', onclick: () => { document.querySelector('.modal-back')?.remove(); shift = null; renderMenu(); } }, 'Voltar ao menu'),
       h('button', { class: 'btn', onclick: () => { document.querySelector('.modal-back')?.remove(); startShift(finished.unit, finished.specialty); } }, 'Novo plantão aqui'),
     ),
-  ), { closable: false });
+  ), { closable: false, className: 'summary' });
 }
+
+// ----------------------------------------------------------------------
+// Next step (P2-01): one highlighted action per state. The rules are in game/nextstep.js; this builds their
+// snapshot of the screen. Any change to the page moves the highlight (one pass per microtask).
+// ----------------------------------------------------------------------
+function nextStepView() {
+  const modalIs = (cls) => !!document.querySelector(`.modal-back.${cls}`);
+  const overlay = modalIs('paused') ? 'pause' : modalIs('summary') ? 'summary' : modalIs('feedback') ? 'feedback' : modalOpen() ? 'other'
+    : eventPopup ? 'event' : arrivalPopup ? 'arrival' : null;
+  const enc = shift.current;
+  const q = shift.queue();
+  const next = firstCallable(q);
+  const seen = enc?._tabs;
+  return {
+    overlay,
+    arrivalUrgent: !!arrivalPopup?.blocking,
+    done: shift.done,
+    over: shift.over,
+    room: enc ? {
+      tab,
+      opened: [...(seen?.opened ?? [])],
+      newResults: Math.max(0, enc.readyExams(shift.clock).length - (seen?.readySeen ?? 0)),
+      asked: enc.asked.size,
+      examined: enc.examined.size,
+      canAsk: enc.availableQuestions.some((x) => !enc.asked.has(x.id)),
+      canExamine: enc.c.physical.some((p) => !enc.examined.has(p.id)),
+      pending: enc.pendingExams(shift.clock).length,
+    } : null,
+    next: next ? callKind(next) : null,
+    canWait: waitButtonShown(q),
+  };
+}
+
+function updateNextStep() {
+  markNextStep(shift && ui.chart?.isConnected ? nextStep(nextStepView()) : null);
+}
+
+let nextStepQueued = false;
+new MutationObserver(() => {
+  if (nextStepQueued) return;
+  nextStepQueued = true;
+  queueMicrotask(() => { nextStepQueued = false; updateNextStep(); });
+}).observe(document.body, { childList: true, subtree: true });
 
 renderMenu();
 
 // exposed for automated tests
 window.__plantao = {
   get shift() { return shift; }, get state() { return state; }, get music() { return music.playing; },
+  // the guided first shift (P2-04) will call this; exposed so the stronger highlight can be checked
+  setNextStepEmphasis,
 };
 // with ?clock=manual the test drives real time: step(ms) passes it on unless something holds the clock.
 // Local server only (see manualClock).
