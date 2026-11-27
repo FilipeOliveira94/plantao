@@ -36,7 +36,9 @@ export class Encounter {
     this.minutesSpent = 0;
     this.arrivedAt = null; // shift clock
     this.firstSeenAt = null;
-    this.status = 'waiting'; // waiting | in_progress | awaiting_results | done
+    this.status = 'waiting'; // waiting | in_progress | awaiting_results | done | left
+    this.impatient = false; // waited past the Manchester target plus a margin (Shift.checkWaiting)
+    this.leftAt = null; // shift clock when a low-priority patient gave up and left unseen
     this.log = [];
     // display order of the answer options; Shift shuffles them once per encounter
     this.dxOptions = caseData.diagnosis.options;
@@ -155,19 +157,19 @@ export class Encounter {
     // Waiting time vs. triage target
     const waited = this.firstSeenAt != null ? this.firstSeenAt - this.arrivedAt : 0;
     const target = TRIAGE[c.triage.priority].target;
-    if (waited > target + 15) add(-Math.min(40, Math.round((waited - target) / 5)), `Espera acima do alvo da classificação (${waited} min)`);
+    if (waited > target + 15) add(-Math.min(40, Math.round((waited - target) / 5)), 'Espera acima do alvo da classificação');
 
     // Time-critical cases
     if (c.timeCritical) {
       if (this.minutesSpent <= c.timeCritical.minutes) add(25, 'Decisão dentro da janela crítica');
-      else add(-30, `Decisão fora da janela crítica (${this.minutesSpent} min > ${c.timeCritical.minutes} min)`);
+      else add(-30, 'Decisão fora da janela crítica');
     }
 
     // Consultation time vs. target: unfocused questions, exams and test orders push it over
     const goal = consultTarget(c);
     if (this.minutesSpent > goal) {
       const over = this.minutesSpent - goal;
-      add(-Math.min(OVERTIME_CAP, over * OVERTIME_POINTS_PER_MINUTE), `Consulta acima do tempo-alvo (${this.minutesSpent} min de ${goal} min)`);
+      add(-Math.min(OVERTIME_CAP, over * OVERTIME_POINTS_PER_MINUTE), `Consulta acima do tempo-alvo (${Math.round((this.minutesSpent / goal) * 100)}% do alvo)`);
     }
 
     const max = 100 + 60 + 60 + (c.timeCritical ? 25 : 0);

@@ -1,5 +1,5 @@
 // Test catalog and care units. Labels are player-facing and stay in pt-BR.
-// Times are in game minutes. "poc" = point-of-care (immediate result, patient stays in the room);
+// Times are internal game minutes, shown to the player 4x on the 12-hour clock (src/game/time.js). "poc" = point-of-care (immediate result, patient stays in the room);
 // other tests send the patient to the waiting room until the result is ready.
 // "cat" groups tests the way a request form does; EXAM_CATS sets the menu order.
 
@@ -114,6 +114,7 @@ export const SPECIALTIES = {
 };
 
 // Manchester Triage System priorities, with target time in minutes.
+// Manchester targets in minutes as shown on the 12-hour clock; the engine divides them by TIME_SCALE.
 export const TRIAGE = {
   red: { label: 'Emergência', target: 0, color: '#d93a3a', order: 0 },
   orange: { label: 'Muito urgente', target: 10, color: '#ef7d22', order: 1 },
