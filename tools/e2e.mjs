@@ -135,6 +135,7 @@ try {
   let musicChecked = false;
   let shuffledSeen = 0;
   let roomWaitSeen = false;
+  let criticalChecked = false;
   for (let u = 0; u < units; u++) {
     await page.locator('.unit').nth(u).click();
     const specs = await page.locator('.spec').count();
@@ -196,6 +197,15 @@ try {
         const p = page.locator('.pane .opt').first();
         if (await p.count()) await p.click();
         if (u === 0 && s === 0 && SHOTS) await page.screenshot({ path: `${SHOTS}/02-atendimento.png` });
+        if (!criticalChecked && await page.evaluate(() => !!window.__plantao.shift.current.c.timeCritical)) {
+          // the critical-window chip counts consultation time, thinking included (P1-12)
+          criticalChecked = true;
+          await page.evaluate(async () => { const { REAL_SECONDS_PER_MINUTE } = await import('./src/game/time.js'); window.__plantao.clock.step(2 * REAL_SECONDS_PER_MINUTE * 1000); });
+          const exp = await page.evaluate(() => { const e = window.__plantao.shift.current; return { pct: Math.round((e.minutesSpent / e.c.timeCritical.minutes) * 100), thinking: e.time.thinking }; });
+          const chip = await page.locator('.chart .critical-chip').textContent();
+          if (exp.thinking < 2 || chip !== `⏱ Janela crítica: ${exp.pct}%`) throw new Error(`critical chip "${chip}" does not count thinking: ${JSON.stringify(exp)}`);
+          console.log(`✔ critical-window chip counts thinking: ${chip}`);
+        }
         if (!menuChecked) {
           menuChecked = true;
           // test menu: groups start collapsed, search is accent-insensitive and opens the matching group
@@ -287,6 +297,7 @@ try {
   if (!reportChecked) throw new Error('report link was never checked');
   if (!tabsChecked) throw new Error('tab states were never checked');
   if (!menuChecked) throw new Error('test menu was never checked');
+  if (!criticalChecked) throw new Error('no time-critical case was played');
   if (!shuffledSeen) throw new Error('answer options were never shuffled in any encounter');
   console.log(`✔ options shuffled in ${shuffledSeen} encounters`);
   if (!roomWaitSeen) throw new Error('no feedback showed a wait for a result in the room');

@@ -713,10 +713,10 @@ function previewCost(cost) {
   return { onmouseenter: set(cost), onfocus: set(cost), onmouseleave: set(0), onblur: set(0) };
 }
 
-// the critical window counts action minutes only until P1-12 moves it to clock time
+// the critical window counts consultation time, thinking included, like the score (P1-12)
 function criticalChip(enc) {
   const tc = enc.c.timeCritical;
-  return tc ? h('span', { class: 'chip critical-chip', style: { background: enc.actionMinutes > tc.minutes ? '#f6c1b8' : '#fde9b5' } }, `⏱ Janela crítica: ${Math.round((enc.actionMinutes / tc.minutes) * 100)}%`) : null;
+  return tc ? h('span', { class: 'chip critical-chip', style: { background: enc.minutesSpent > tc.minutes ? '#f6c1b8' : '#fde9b5' } }, `⏱ Janela crítica: ${Math.round((enc.minutesSpent / tc.minutes) * 100)}%`) : null;
 }
 
 /** What a clock tick can change in the chart: a full redraw when it does, else only the chips. */

@@ -1,5 +1,6 @@
 // Runtime state of a single encounter: what was asked, examined and ordered, plus final scoring.
-import { EXAMS, ACTION_COST, TRIAGE } from '../data/catalog.js';
+import { EXAMS, ACTION_COST } from '../data/catalog.js';
+import { impatienceAt } from './waiting.js';
 
 export const DEFAULT_EXAM_RESULT = 'Sem alterações significativas.';
 
@@ -13,6 +14,11 @@ export const THINKING_ALLOWANCE = 10;
 // Points lost per minute over the target, and the cap.
 export const OVERTIME_POINTS_PER_MINUTE = 2;
 export const OVERTIME_CAP = 40;
+// Waiting before the first call (P1-13): the case loses points once the wait passes the point where the
+// patient turns impatient (impatienceAt, P1-06), per internal minute past it, up to the cap. Game balance.
+export const WAIT_POINTS_PER_MINUTE = 1;
+export const WAIT_CAP = 40;
+const EPS = 1e-6;
 
 /** Target for the consultation's actions: the case's own `consultMinutes`, else the triage default. */
 export const actionTarget = (c) => c.consultMinutes ?? CONSULT_TARGET_MINUTES[c.triage.priority];
@@ -85,8 +91,7 @@ export class Encounter {
     return { ...sp, text: m[1].includes(',') ? text : text.slice(m[0].length) };
   }
 
-  /** Consultation minutes spent on actions, without thinking. `timeCritical` windows use these until P1-12
-   *  moves them to clock time. */
+  /** Consultation minutes spent on actions, without thinking. */
   get actionMinutes() { return this.minutesSpent - this.time.thinking; }
 
   /** One internal minute of real time with this patient in the room. */
@@ -182,12 +187,13 @@ export class Encounter {
     // Waiting time vs. triage target
     // `excusedWait`: minutes of that wait a random event took from the doctor (Shift.excusedWait), not held against them
     const waited = this.firstSeenAt != null ? Math.max(0, this.firstSeenAt - this.arrivedAt - excusedWait) : 0;
-    const target = TRIAGE[c.triage.priority].target;
-    if (waited > target + 15) add(-Math.min(40, Math.round((waited - target) / 5)), 'Espera acima do alvo da classificação');
+    const overWait = waited - impatienceAt(c.triage.priority);
+    // EPS: real-time steps leave float noise on the wait; a wait that is the threshold to the eye costs nothing
+    if (overWait > EPS) add(-Math.min(WAIT_CAP, Math.ceil(overWait * WAIT_POINTS_PER_MINUTE - EPS)), 'Espera acima do alvo da classificação');
 
-    // Time-critical cases
+    // Time-critical cases: the window counts consultation time, thinking included (P1-12)
     if (c.timeCritical) {
-      if (this.actionMinutes <= c.timeCritical.minutes) add(25, 'Decisão dentro da janela crítica');
+      if (this.minutesSpent <= c.timeCritical.minutes) add(25, 'Decisão dentro da janela crítica');
       else add(-30, 'Decisão fora da janela crítica');
     }
 
@@ -206,7 +212,7 @@ export class Encounter {
       points: Math.max(0, pts), lines, stars, dxOk, dxAcceptable, cdOk,
       harmful: !!cdOpt?.harmful, unnecessaryCount: unnecessary.length,
       keyHit, keyTotal, questionsAsked: this.asked.size, minutesSpent: this.minutesSpent,
-      waited, consultTarget: goal, time: { ...this.time }, timeCriticalOk: c.timeCritical ? this.actionMinutes <= c.timeCritical.minutes : null,
+      waited, consultTarget: goal, time: { ...this.time }, timeCriticalOk: c.timeCritical ? this.minutesSpent <= c.timeCritical.minutes : null,
       noUnnecessary: unnecessary.length === 0 && this.requested.size > 0,
     };
   }

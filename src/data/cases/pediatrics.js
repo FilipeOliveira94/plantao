@@ -437,7 +437,7 @@ export default [
     type: 'new',
     settings: ['upa', 'hospital'],
     difficulty: 2,
-    timeCritical: { minutes: 14, reason: 'Na anafilaxia, a adrenalina intramuscular é a droga de primeira linha e deve ser aplicada imediatamente: a prescrição precoce é essencial para reverter o quadro.' },
+    timeCritical: { minutes: 25, reason: 'Na anafilaxia, a adrenalina intramuscular é a droga de primeira linha e deve ser aplicada imediatamente: a prescrição precoce é essencial para reverter o quadro.' },
     patient: {
       name: 'Miguel Santos', age: '6 anos', sex: 'M',
       look: { skin: '#a8714f', hair: '#1d1410', shirt: '#e85d75', build: 'child' },
