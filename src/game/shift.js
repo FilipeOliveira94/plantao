@@ -224,13 +224,18 @@ export class Shift {
     return Math.min(100, this.satisfaction - this.satisfactionLog.filter((l) => this.excusedBy(l)).reduce((sum, l) => sum + l.delta, 0));
   }
 
-  /** Records the time lost if the doctor idles from the clock to `to`, waiting on results an event delayed: only
-   *  the part after the earliest of them would have been ready. Call before advancing, so waits see it. */
+  /** Records the time lost if the doctor idles from the clock to `to`, waiting on `recs` (the results pending
+   *  before the wait): each minute in which every result still pending is one an event delayed past the time it
+   *  would have been ready. Same rule as a real-time minute (blockedBy). Call before advancing, so waits see it. */
   loseIdle(to, recs) {
-    const late = recs.filter((r) => r.delayedFrom != null && r.delayedFrom < to && r.readyAt >= to);
-    if (!late.length) return;
-    const first = late.reduce((a, b) => (b.delayedFrom < a.delayedFrom ? b : a));
-    this.loseTime(Math.max(this.clock, first.delayedFrom), to, first.delayedBy);
+    for (let t = this.clock; t < to; t++) {
+      const pending = recs.filter((r) => r.readyAt > t);
+      if (pending.length && pending.every((r) => r.delayedFrom != null && r.delayedFrom <= t)) {
+        const last = this.lostSpans.at(-1);
+        if (last && last.to === t && last.event === pending[0].delayedBy) last.to = t + 1;
+        else this.loseTime(t, t + 1, pending[0].delayedBy);
+      }
+    }
   }
 
   /** The event whose delay holds the doctor right now, or null: the patient in the room has a result past the time

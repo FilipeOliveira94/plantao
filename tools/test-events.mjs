@@ -294,3 +294,16 @@ test('real time (P1-11) stuck on a delayed result is lost time, not thinking; ot
   assert.equal(enc.time.thinking, thinking + 3);
   assert.equal(s.lostWithin(0, s.clock), SUPPLY_SHORTAGE.extra);
 });
+
+test('waiting on a delayed result and a normal one: lost only once the normal one is in', () => {
+  const s = shiftWithEvent('lab_delay', 5);
+  s.advance(1);
+  s.call(s.encounters[0]);
+  const tropo = s.requestExam('troponin').rec; // ordered before the event: not delayed
+  s.advance(5 - s.clock); // the lab breaks down
+  const crp = s.requestExam('crp').rec; // delayed
+  assert.equal(tropo.delayedFrom, undefined);
+  assert.ok(crp.delayedFrom < tropo.readyAt && tropo.readyAt < crp.readyAt);
+  while (s.current.pendingExams(s.clock).length) s.waitInRoom();
+  assert.equal(s.lostWithin(0, s.clock), crp.readyAt - tropo.readyAt);
+});
