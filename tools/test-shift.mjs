@@ -133,8 +133,8 @@ test('satisfaction changes the closing bonus, never a case score, and the bonus 
 test('waits stop counting at the end of the shift', () => {
   const s = shiftWith(['green', 'yellow']);
   const [green, yellow] = s.encounters;
-  green.arrivedAt = 150; // at 10:00 has waited 30 min: impatient only after 45, leaves after 60
-  yellow.arrivedAt = 160; // at 10:00 has waited 20 min: impatient only after 30
+  green.arrivedAt = 150; // at 19:00 has waited 30 min: impatient only after 45, leaves after 60
+  yellow.arrivedAt = 160; // at 19:00 has waited 20 min: impatient only after 30
   s.advance(400); // a consultation running far past the end of the shift
   assert.equal(green.status, 'waiting');
   assert.ok(!green.impatient && !yellow.impatient);

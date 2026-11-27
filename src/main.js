@@ -574,7 +574,7 @@ function testGroups(enc) {
   },
   h('summary', {}, cat, h('span', { class: 'count' }, ids.length)),
   h('div', { class: 'opts' }, ids.map((id) => h('button', { class: 'opt', onclick: () => doRequest(enc, id) },
-    EXAMS[id].label, h('span', { class: 'muted small' }, ` · pedir ${shownMinutes(ACTION_COST.order)} min`, EXAMS[id].poc ? `, resultado em ${durationLabel(EXAMS[id].minutes)}` : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ', resultado em dias' : `, resultado em ~${durationLabel(EXAMS[id].minutes)}`)))))));
+    EXAMS[id].label, h('span', { class: 'muted small' }, ` · pedir ${shownMinutes(ACTION_COST.order)} min`, EXAMS[id].poc ? `, resultado em ${durationLabel(EXAMS[id].minutes)}` : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ', resultado em dias' : `, resultado em ~${durationLabel(Math.round(EXAMS[id].minutes * UNIT_TYPES[shift.unit.type].labDelayMultiplier))}`)))))));
 }
 
 function doAsk(enc, id) {
