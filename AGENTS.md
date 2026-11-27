@@ -24,7 +24,7 @@ npm run test:e2e                 # Playwright: plays every shift
 
 ## Current state (v0.1, MVP)
 
-23 cases (8 internal medicine, 8 pediatrics, 7 PICU), 5 units, Manchester-ordered queue, tests that take time, random events, follow-up visit with counter-referral, handoff notes, XP/levels/achievements, a guided first shift (tutorial, save schema v3), isometric Canvas 2D scene, WebAudio sounds and chiptune background music per unit.
+23 cases (8 internal medicine, 8 pediatrics, 7 PICU), 5 units, Manchester-ordered queue, tests that take time, random events, follow-up visit with counter-referral, a working hypothesis before lab and imaging, a confirmed and final finish, handoff notes, XP/levels/achievements, a guided first shift (tutorial, save schema v3), isometric Canvas 2D scene, WebAudio sounds and chiptune background music per unit.
 
 ## Roadmap
 

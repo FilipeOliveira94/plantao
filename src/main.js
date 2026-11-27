@@ -29,7 +29,8 @@ let clock = null; // real-time driver of the shift clock (P1-11)
 let scene = null;
 let ui = {};
 let tab = 'triage';
-let decision = { dx: null, cd: null };
+// dx and cd: the final choice on the Decisão tab; hx: the working hypothesis picked but not yet recorded (P1-08)
+let decision = { dx: null, cd: null, hx: null };
 let testQuery = '';
 const openTestCats = new Set();
 let askedOpen = false; // "Já perguntado" stays open across re-renders
@@ -789,7 +790,7 @@ function callPatient(enc, { openTab } = {}) {
   sfx.call();
   scene.enter(enc.c.patient.look, enc.c.patient.companion);
   tab = openTab ?? resume?.tab ?? (returning ? 'tests' : 'triage');
-  decision = resume?.decision ?? { dx: null, cd: null };
+  decision = resume?.decision ?? { dx: null, cd: null, hx: null };
   testQuery = ''; openTestCats.clear(); askedOpen = false;
   ui.talk.clear();
   if (enc.c.patient.look.inBed && shift.unit.type === 'picu') sfx.alarm();
@@ -934,7 +935,7 @@ function footerFor(enc) {
     // waiting in the room passes shift time, not consultation time
     pend && !shift.over ? h('button', { class: 'btn', 'data-step': 'wait-here', onclick: () => waitInRoom(enc) }, `⏳ Aguardar aqui (até ${clockAt(Math.min(nextReady, shift.endsAt))})`) : null,
     // after the end of the shift a patient sent out could not be called back, so they stay in the room
-    pend && !shift.over ? h('button', { class: 'btn', 'data-step': 'send-wait', onclick: () => sendToWait(enc) }, `🪑 Aguardar resultados na recepção (${pend})`) : null,
+    pend && !shift.over ? h('button', { class: 'btn', 'data-step': 'send-wait', onclick: () => sendToWait(enc) }, `🪑 Aguardar na recepção (volta às ${clockAt(Math.max(...pending.map(([, r]) => r.readyAt)))})`) : null,
     h('span', { class: 'spacer', style: { flex: 1 } }),
     h('button', { class: 'btn', 'data-step': 'decide', onclick: () => { tab = 'decision'; renderChart(); } }, 'Diagnóstico e conduta →'),
   );
@@ -985,6 +986,8 @@ function paneFor(enc) {
     const fill = () => mount(list, testGroups(enc));
     fill();
     return [
+      hypothesisPanel(enc),
+      returnNote(enc),
       reqRows.length ? h('div', { style: { marginBottom: '14px' } }, h('h5', { class: 'section-title' }, 'Solicitados'), reqRows) : null,
       h('input', { type: 'search', class: 'test-search', placeholder: 'Buscar exame (ex.: ECG, urina, lactato)', 'aria-label': 'Buscar exame', value: testQuery,
         oninput: (e) => { testQuery = e.target.value; fill(); } }),
@@ -994,14 +997,50 @@ function paneFor(enc) {
   }
   if (tab === 'decision') {
     return [
+      enc.hypothesis ? h('p', { class: 'small hx-recorded' }, '📝 Hipótese de trabalho: ', h('b', {}, dxLabel(enc, enc.hypothesis.dx)), ` (registrada às ${clockAt(enc.hypothesis.at)})`) : null,
       h('h5', { class: 'section-title' }, 'Hipótese diagnóstica principal'),
       enc.dxOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'dx', value: o.id, checked: decision.dx === o.id, onchange: () => { decision.dx = o.id; } }), h('span', {}, o.label))),
       h('h5', { class: 'section-title', style: { marginTop: '16px' } }, 'Conduta'),
       enc.cdOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'cd', value: o.id, checked: decision.cd === o.id, onchange: () => { decision.cd = o.id; } }), h('span', {}, o.label))),
-      h('div', { style: { marginTop: '14px' } }, h('button', { class: 'btn', 'data-step': 'finish', onclick: () => finishEncounter(enc) }, '✔ Finalizar atendimento')),
+      h('div', { style: { marginTop: '14px' } }, h('button', { class: 'btn', 'data-step': 'finish', onclick: () => confirmFinish(enc) }, '✔ Finalizar atendimento')),
     ];
   }
   return null;
+}
+
+const dxLabel = (enc, id) => enc.c.diagnosis.options.find((o) => o.id === id)?.label;
+/** No working hypothesis yet, and a lab or imaging test this unit offers is still orderable (P1-08). */
+const needsHypothesis = (enc) => !enc.hypothesis && UNIT_TYPES[shift.unit.type].exams.some((id) => enc.needsHypothesis(id));
+
+// Working hypothesis (P1-08): picked from the case's diagnosis options before the first lab or imaging test,
+// then fixed. Recording it costs no consultation time.
+function hypothesisPanel(enc) {
+  const hx = enc.hypothesis;
+  if (hx) return h('p', { class: 'hx-recorded' }, '📝 Hipótese de trabalho: ', h('b', {}, dxLabel(enc, hx.dx)), h('span', { class: 'small muted' }, ` · registrada às ${clockAt(hx.at)}`));
+  if (!needsHypothesis(enc)) return null;
+  return h('div', { class: 'hx-panel' },
+    h('h5', { class: 'section-title' }, '📝 Hipótese de trabalho'),
+    h('p', { class: 'small muted' }, 'Antes de pedir exames de laboratório ou de imagem, registre o diagnóstico mais provável até aqui. Depois de registrada, ela não muda. Testes de beira de leito não precisam.'),
+    enc.dxOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'hx', value: o.id, checked: decision.hx === o.id, onchange: () => { decision.hx = o.id; } }), h('span', {}, o.label))),
+    h('button', { class: 'btn', 'data-step': 'hypothesis', onclick: () => recordHypothesis(enc) }, 'Registrar hipótese'));
+}
+
+function recordHypothesis(enc) {
+  if (!decision.hx) { toast('Escolha uma hipótese de trabalho.'); return; }
+  if (!shift.recordHypothesis(decision.hx)) return;
+  sfx.click();
+  toast('Hipótese registrada. Exames de laboratório e de imagem liberados.');
+  renderChart();
+}
+
+// When the patient comes back from the waiting room, and who to see meanwhile (P1-08). Clock times only.
+function returnNote(enc) {
+  const pending = enc.pendingExams(shift.clock);
+  if (!pending.length || shift.over) return null;
+  const back = clockAt(Math.max(...pending.map(([, r]) => r.readyAt)));
+  const next = firstCallable();
+  return h('p', { class: 'small return-note', role: 'status' }, `🕒 Resultados até ${back}. `,
+    next ? `Mande aguardar na recepção e atenda ${next.c.patient.name} enquanto isso.` : 'Ninguém para chamar agora: aguarde aqui ou na recepção.');
 }
 
 const fold = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -1017,8 +1056,11 @@ function testGroups(enc) {
     ontoggle: (e) => { if (!q) { if (e.target.open) openTestCats.add(cat); else openTestCats.delete(cat); } },
   },
   h('summary', {}, cat, h('span', { class: 'count' }, ids.length)),
-  h('div', { class: 'opts' }, ids.map((id) => h('button', { class: 'opt', ...previewCost(ACTION_COST.order), onclick: () => doRequest(enc, id) },
-    EXAMS[id].label, h('span', { class: 'muted small' }, EXAMS[id].poc ? ' · resultado na consulta' : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ' · resultado em dias' : ' · laboratório')))))));
+  h('div', { class: 'opts' }, ids.map((id) => {
+    const locked = enc.needsHypothesis(id);
+    return h('button', { class: `opt${locked ? ' locked' : ''}`, disabled: locked, title: locked ? 'Registre a hipótese de trabalho antes' : null, ...(locked ? {} : previewCost(ACTION_COST.order)), onclick: () => doRequest(enc, id) },
+      locked ? '🔒 ' : null, EXAMS[id].label, h('span', { class: 'muted small' }, EXAMS[id].poc ? ' · resultado na consulta' : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ' · resultado em dias' : ' · laboratório')));
+  }))));
 }
 
 function doAsk(enc, id) {
@@ -1040,7 +1082,8 @@ function doExamine(enc, id) {
 }
 
 function doRequest(enc, id) {
-  const { rec, fired } = timed(() => shift.requestExam(id));
+  const { rec, fired, blocked } = timed(() => shift.requestExam(id));
+  if (blocked) { toast('Registre a hipótese de trabalho antes de pedir exames de laboratório ou de imagem.'); return; }
   sfx.click();
   if (rec.readyAt <= shift.clock) { rec._notified = true; sfx.result(); }
   else toast(`${EXAMS[id].label} solicitado. Previsão: ${clockAt(rec.readyAt)}.`);
@@ -1064,11 +1107,28 @@ function sendToWait(enc) {
   renderAll();
 }
 
-function finishEncounter(enc) {
+/** Finishing is final, so it asks first (P1-08): the choice, results still out, and that it cannot be reopened. */
+function confirmFinish(enc) {
   if (!decision.dx || !decision.cd) { toast('Escolha a hipótese diagnóstica e a conduta.'); return; }
+  const pend = enc.pendingExams(shift.clock).length;
+  const m = modal(h('div', {},
+    h('h2', {}, 'Finalizar atendimento?'),
+    h('p', {}, h('b', {}, 'Diagnóstico: '), dxLabel(enc, decision.dx)),
+    h('p', {}, h('b', {}, 'Conduta: '), enc.c.conduct.options.find((o) => o.id === decision.cd)?.label),
+    pend ? h('p', { class: 'small pending-warn' }, `⚠️ ${pend} exame${pend > 1 ? 's' : ''} ainda sem resultado.`) : null,
+    h('p', { class: 'small muted' }, 'Depois de confirmar, o atendimento termina e não pode ser reaberto.'),
+    h('div', { class: 'menu-actions' },
+      h('button', { class: 'btn primary', 'data-step': 'finish-confirm', onclick: () => { m.close(); finishEncounter(enc); } }, '✔ Confirmar'),
+      h('button', { class: 'btn', onclick: () => m.close() }, 'Voltar')),
+  ), { className: 'confirm-finish' });
+  m.box.querySelector('button:last-child').focus({ preventScroll: true });
+}
+
+function finishEncounter(enc) {
+  if (!decision.dx || !decision.cd || enc.status === 'done') return;
   const prevLevel = levelOf(state.xp).number;
   const result = enc.score({ diagnosisId: decision.dx, conductId: decision.cd, now: shift.clock, excusedWait: shift.excusedWait(enc) });
-  result.chosen = { dx: decision.dx, cd: decision.cd };
+  result.chosen = { dx: decision.dx, cd: decision.cd, hx: enc.hypothesis?.dx ?? null };
   shift.finish(enc, result);
   let earned = [];
   if (tutorial) {
@@ -1089,6 +1149,7 @@ function reportUrl(c, chosen) {
     `**Caso:** \`${c.id}\` (${SPECIALTIES[c.specialty].label})`,
     `**Unidade:** ${shift.unit.name} (\`${shift.unit.type}\`)`,
     `**Meu diagnóstico:** \`${chosen.dx}\` (${c.diagnosis.options.find((o) => o.id === chosen.dx)?.label})`,
+    ...(chosen.hx ? [`**Minha hipótese de trabalho:** \`${chosen.hx}\` (${c.diagnosis.options.find((o) => o.id === chosen.hx)?.label})`] : []),
     `**Minha conduta:** \`${chosen.cd}\` (${c.conduct.options.find((o) => o.id === chosen.cd)?.label})`,
     '',
     '**O que está errado, confuso ou desatualizado?**',
@@ -1139,7 +1200,7 @@ function timeBreakdown(enc, r) {
 
 function showFeedback(enc, r, earned, leveled) {
   const c = enc.c;
-  const dxLabel = c.diagnosis.options.find((o) => o.id === c.diagnosis.correct).label;
+  const correctDx = c.diagnosis.options.find((o) => o.id === c.diagnosis.correct).label;
   const cdLabel = c.conduct.options.find((o) => o.id === c.conduct.correct).label;
   const m = modal(h('div', {},
     h('div', { class: 'stars', 'aria-label': `${r.stars} de 3 estrelas` }, [1, 2, 3].map((i) => h('span', { class: i <= r.stars ? '' : 'off' }, '⭐'))),
@@ -1148,7 +1209,8 @@ function showFeedback(enc, r, earned, leveled) {
     tutorial ? coachNote(tutorialPrompt('feedback-next', tutorial)) : null,
     h('ul', { class: 'score-lines' }, r.lines.map((l) => h('li', {}, h('span', {}, l.label), h('span', { class: l.v > 0 ? 'pos' : l.v < 0 ? 'neg' : 'muted' }, l.v > 0 ? `+${l.v}` : String(l.v))))),
     timeBreakdown(enc, r),
-    h('p', {}, h('b', {}, 'Diagnóstico: '), dxLabel),
+    hypothesisNote(enc, r),
+    h('p', {}, h('b', {}, 'Diagnóstico: '), correctDx),
     h('p', {}, h('b', {}, 'Conduta esperada: '), cdLabel),
     c.timeCritical ? h('p', { class: 'small' }, '⏱ ', c.timeCritical.reason) : null,
     h('div', { class: 'teach' }, c.teaching),
@@ -1166,6 +1228,15 @@ function showFeedback(enc, r, earned, leveled) {
       if (shift.done) setTimeout(showShiftSummary, 400);
     },
   });
+}
+
+// The working hypothesis against the final diagnosis (P1-08): how it compared, and whether the player kept it.
+const HX_MATCH = { correct: 'era o diagnóstico correto', acceptable: 'era um diagnóstico aceitável', different: 'não era o diagnóstico' };
+function hypothesisNote(enc, r) {
+  const hx = r.hypothesis;
+  if (!hx) return null;
+  return h('p', { class: 'hx-note' }, h('b', {}, 'Hipótese de trabalho: '), dxLabel(enc, hx.dx), ` (registrada às ${clockAt(hx.at)}): ${HX_MATCH[hx.match]}; `,
+    hx.kept ? 'você a manteve no diagnóstico final.' : `no diagnóstico final você escolheu ${dxLabel(enc, r.chosen.dx)}.`);
 }
 
 // " · 2 impacientes, 1 reclamação" for the satisfaction line, or nothing when no one waited too long.
@@ -1224,7 +1295,7 @@ function showShiftSummary() {
 // ----------------------------------------------------------------------
 function nextStepView() {
   const modalIs = (cls) => !!document.querySelector(`.modal-back.${cls}`);
-  const overlay = modalIs('paused') ? 'pause' : modalIs('summary') ? 'summary' : modalIs('feedback') ? 'feedback' : modalOpen() ? 'other'
+  const overlay = modalIs('paused') ? 'pause' : modalIs('summary') ? 'summary' : modalIs('feedback') ? 'feedback' : modalIs('confirm-finish') ? 'confirm' : modalOpen() ? 'other'
     : eventPopup ? 'event' : arrivalPopup ? 'arrival' : null;
   const enc = shift.current;
   const q = shift.queue();
@@ -1244,6 +1315,7 @@ function nextStepView() {
       canAsk: enc.availableQuestions.some((x) => !enc.asked.has(x.id)),
       canExamine: enc.c.physical.some((p) => !enc.examined.has(p.id)),
       pending: enc.pendingExams(shift.clock).length,
+      needsHypothesis: needsHypothesis(enc),
     } : null,
     next: next ? callKind(next) : null,
     canWait: waitButtonShown(q),

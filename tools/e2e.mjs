@@ -4,6 +4,7 @@
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { clockLabelAt } from '../src/game/time.js';
 
 const require = createRequire(import.meta.url);
 let chromium;
@@ -108,6 +109,9 @@ try {
     await page.locator(`input[name=dx][value="${d.dx}"]`).check();
     await page.locator(`input[name=cd][value="${d.cd}"]`).check();
     await page.locator('[data-step=finish]').click();
+    await expectStep('finish-confirm', 'tutorial finish confirmation');
+    await coachSays(/não pode ser reaberto/, 'finish-confirm');
+    await page.locator('[data-step=finish-confirm]').click();
     await page.waitForSelector('.modal-back.feedback');
     await expectStep('feedback-next', 'tutorial feedback');
     // a modal hides the coach and carries the tutorial text itself
@@ -139,6 +143,7 @@ try {
     await page.locator(`input[name=dx][value="${d.dx}"]`).check();
     await page.locator(`input[name=cd][value="${d.cd}"]`).check();
     await page.locator('[data-step=finish]').click();
+    await page.locator('[data-step=finish-confirm]').click(); // finishing asks for confirmation (P1-08)
     await page.waitForSelector('.modal-back.feedback');
     if (!/não dá XP/.test(await page.locator('.modal-back.feedback .coach-note').textContent())) throw new Error('the replay feedback does not say it pays no XP');
     if ((await saved()).xp !== paid.xp) throw new Error('a tutorial replay paid XP');
@@ -375,6 +380,7 @@ try {
         if (await renderedOrder() !== rendered) throw new Error('option order changed on re-render');
         if (!(await page.locator(`input[name=dx][value="${correct.dx}"]`).isChecked())) throw new Error('diagnosis choice lost on re-render');
         await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
+        await page.locator('[data-step=finish-confirm]').click(); // finishing asks for confirmation (P1-08)
         await page.waitForSelector('.modal');
         {
           // feedback shows where the consultation went, as shares of the target (never minutes), the room
@@ -499,6 +505,7 @@ try {
   await page.locator(`input[name=dx][value="${endCase.dx}"]`).check();
   await page.locator(`input[name=cd][value="${endCase.cd}"]`).check();
   await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
+  await page.locator('[data-step=finish-confirm]').click(); // finishing asks for confirmation (P1-08)
   await page.waitForSelector('.modal');
   await page.locator('.modal .btn.primary').click();
   await page.waitForSelector('text=Fim de plantão', { timeout: 3000 });
@@ -557,6 +564,7 @@ try {
     await page.locator(`input[name=dx][value="${ids[0]}"]`).check();
     await page.locator(`input[name=cd][value="${ids[1]}"]`).check();
     await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
+    await page.locator('[data-step=finish-confirm]').click(); // finishing asks for confirmation (P1-08)
     await page.waitForSelector('.modal .time-breakdown');
     if (!/Raciocínio\s*\d+%/.test(await page.locator('.modal .time-breakdown [data-k=thinking]').textContent())) throw new Error('breakdown has no thinking share');
     if ((await step(30000)).clock !== 0) throw new Error('the clock ran on the feedback screen');
@@ -662,6 +670,7 @@ try {
   await page.locator(`input[name=dx][value="${waitCase.dx}"]`).check();
   await page.locator(`input[name=cd][value="${waitCase.cd}"]`).check();
   await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
+  await page.locator('[data-step=finish-confirm]').click(); // finishing asks for confirmation (P1-08)
   await page.waitForSelector('.modal');
   await page.locator('.modal .btn.primary').click();
   await page.waitForSelector('text=Fim de plantão', { timeout: 3000 });
@@ -780,6 +789,7 @@ try {
   await page.locator(`input[name=dx][value="${evEnd.dx}"]`).check();
   await page.locator(`input[name=cd][value="${evEnd.cd}"]`).check();
   await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
+  await page.locator('[data-step=finish-confirm]').click(); // finishing asks for confirmation (P1-08)
   await page.waitForSelector('.modal');
   await page.locator('.modal .btn.primary').click();
   await page.waitForSelector('text=Fim de plantão', { timeout: 3000 });
@@ -825,9 +835,35 @@ try {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/12b-next-decide.png` });
   await page.getByRole('tab', { name: /Exames/ }).click();
   await page.evaluate(() => document.querySelectorAll('.test-cat').forEach((d) => { d.open = true; }));
+  {
+    // working hypothesis (P1-08): lab and imaging locked until one is recorded; bedside tests are not; recording costs no consultation time
+    await expectStep('hypothesis', 'Exames tab before the working hypothesis');
+    const lab = page.locator('.pane .opt', { hasText: '· laboratório' }).first();
+    if (!(await lab.isDisabled()) || !/🔒/.test(await lab.textContent())) throw new Error('a lab test can be ordered before the working hypothesis');
+    if (await page.locator('.pane .opt:not(.locked)', { hasText: 'resultado na consulta' }).first().isDisabled()) throw new Error('a bedside test is locked');
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/12f-hypothesis.png` });
+    await page.locator('[data-step=hypothesis]').click();
+    if (await page.evaluate(() => window.__plantao.shift.current.hypothesis)) throw new Error('a hypothesis was recorded with no option picked');
+    const pick = await page.evaluate(() => { const e = window.__plantao.shift.current; return { dx: e.c.diagnosis.correct, spent: e.minutesSpent }; });
+    await page.locator(`input[name=hx][value="${pick.dx}"]`).check();
+    await page.locator('[data-step=hypothesis]').click();
+    const hx = await page.evaluate(() => { const e = window.__plantao.shift.current; return { hx: e.hypothesis, spent: e.minutesSpent - e.time.thinking, actions: e.time.questions + e.time.physical + e.time.orders }; });
+    if (hx.hx?.dx !== pick.dx || hx.spent !== hx.actions) throw new Error(`hypothesis not recorded, or it cost consultation time: ${JSON.stringify(hx)}`);
+    if (!/Hipótese de trabalho:/.test(await page.locator('.pane .hx-recorded').textContent()) || await page.locator('.pane .hx-panel').count()) throw new Error('the recorded hypothesis is not shown in place of the panel');
+    await page.evaluate(() => document.querySelectorAll('.test-cat').forEach((d) => { d.open = true; }));
+  }
   await page.locator('.pane .opt', { hasText: '· laboratório' }).first().click();
   await expectStep('wait-here', 'a test still out and no one else to see');
-  await page.locator('[data-step=send-wait]').click();
+  {
+    // the screen says when the patient comes back, as a clock time (never minutes), on the button, the Exames tab and the queue card
+    const label = clockLabelAt(await page.evaluate(() => { const s = window.__plantao.shift; return Math.max(...s.current.pendingExams(s.clock).map(([, r]) => r.readyAt)); }));
+    const btn = await page.locator('[data-step=send-wait]').textContent();
+    if (!btn.includes(`volta às ${label}`) || /\d+\s*min/.test(btn)) throw new Error(`send-wait button does not say when the patient comes back: ${btn}`);
+    if (!(await page.locator('.pane .return-note').textContent()).includes(label)) throw new Error('the Exames tab does not say when the results come');
+    await page.locator('[data-step=send-wait]').click();
+    const card = page.locator('.qcard', { hasText: await page.evaluate(() => window.__plantao.shift.encounters[0].c.patient.name) });
+    if (!(await card.textContent()).includes(`Exames até ${label}`) || !(await card.locator('.tbar.exam').count())) throw new Error('the queue card does not show the return time and the exam bar');
+  }
   await expectStep('wait-next', 'room free, no one to call yet');
   if (!/Aguardar próximo/.test(await page.locator('.free-room-hint').textContent())) throw new Error('the free room does not say how to move on');
   await bringIn({ quiet: true });
@@ -843,19 +879,40 @@ try {
   await resultToast.first().click();
   const opened = await page.evaluate(() => { const s = window.__plantao.shift; return { cur: s.current?.c.id, first: s.encounters[0].c.id, tab: document.querySelector('.tab.active')?.dataset.step, paused: s.encounters.filter((e) => e.status === 'paused').map((e) => e.c.id) }; });
   if (opened.cur !== opened.first || opened.tab !== 'tab:tests' || opened.paused.join() !== p2) throw new Error(`the result toast did not open that patient's results: ${JSON.stringify(opened)}`);
+  if (!(await page.locator('.pane .hx-recorded').count()) || await page.locator('.pane .opt.locked').count()) throw new Error('the working hypothesis was lost when the patient came back');
   await expectStep('decide', 'results opened, enough gathered');
   await page.locator('[data-step=decide]').click();
   await expectStep('finish', 'decision tab');
+  let firstFinish = false;
+  let hxSeen = false;
   const finishRight = async () => {
     const d = await page.evaluate(() => { const c = window.__plantao.shift.current.c; return { dx: c.diagnosis.correct, cd: c.conduct.correct }; });
     await page.locator(`input[name=dx][value="${d.dx}"]`).check();
     await page.locator(`input[name=cd][value="${d.cd}"]`).check();
     await page.locator('[data-step=finish]').click();
+    // finishing asks for confirmation (P1-08): "Voltar" keeps the patient in the room with the choices kept
+    await page.locator('.modal-back.confirm-finish').waitFor();
+    await expectStep('finish-confirm', 'finish confirmation');
+    if (!firstFinish) {
+      firstFinish = true;
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/12g-finish-confirm.png` });
+      await page.locator('.modal-back.confirm-finish').getByRole('button', { name: 'Voltar' }).click();
+      const kept = await page.evaluate(() => ({ status: window.__plantao.shift.current?.status, dx: document.querySelector('input[name=dx]:checked')?.value }));
+      if (kept.status !== 'in_progress' || kept.dx !== d.dx) throw new Error(`"Voltar" did not keep the consultation: ${JSON.stringify(kept)}`);
+      await page.locator('[data-step=finish]').click();
+    }
+    await page.locator('[data-step=finish-confirm]').click();
     await page.waitForSelector('.modal-back.feedback');
     await expectStep('feedback-next', 'feedback');
+    const hxNote = await page.locator('.modal-back.feedback .hx-note').count() ? await page.locator('.modal-back.feedback .hx-note').textContent() : null;
+    const hxLine = await page.locator('.modal-back.feedback .score-lines li', { hasText: 'Hipótese de trabalho' }).count();
+    const hadHx = await page.evaluate(() => !!window.__plantao.shift.results.at(-1).enc.hypothesis);
+    if (hadHx !== !!hxNote || hadHx !== !!hxLine || (hadHx && !/era o diagnóstico correto; você a manteve/.test(hxNote))) throw new Error(`feedback hypothesis comparison: ${hadHx} ${hxNote} ${hxLine}`);
+    if (hadHx) hxSeen = true;
     await page.locator('[data-step=feedback-next]').click();
   };
   await finishRight();
+  if (!hxSeen) throw new Error('no feedback showed the working hypothesis');
   await expectStep('call', 'a paused patient in the queue');
   if (!/Retomar atendimento/.test(await page.locator('[data-step=call]').textContent())) throw new Error('the call button does not say it resumes the paused patient');
   if (!/pausado/.test(await page.locator('.free-room-hint').textContent())) throw new Error('the free room does not say the patient is paused');
@@ -891,7 +948,7 @@ try {
     return { calm: calm.outlineWidth, anim: calm.animationName, strong };
   });
   if (look.calm !== '2px' || look.anim !== 'none' || look.strong !== '3px') throw new Error(`next-step highlight: ${JSON.stringify(look)}`);
-  console.log('✔ next step: one highlight per state (call, triage, anamnese, physical, decide, finish, wait, feedback, paused, pause, arrival, summary); result toast opens the results');
+  console.log('✔ next step: one highlight per state (call, triage, anamnese, physical, decide, hypothesis, finish, finish-confirm, wait, feedback, paused, pause, arrival, summary); result toast opens the results');
   await page.locator('[data-step=summary-menu]').click();
   // PICU scene
   if (SHOTS) {

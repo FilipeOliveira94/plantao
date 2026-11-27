@@ -10,6 +10,9 @@ import { UNITS, ACTION_COST, EXAMS } from '../src/data/catalog.js';
 import { applyShift } from '../src/game/progress.js';
 import { REAL_SECONDS_PER_MINUTE } from '../src/game/time.js';
 
+// orders a test for the patient in the room, recording a working hypothesis first (P1-08 gates lab and imaging)
+const order = (s, id) => { s.recordHypothesis(s.current.c.diagnosis.options[0].id); return s.requestExam(id); };
+
 const UPA = UNITS.find((u) => u.type === 'upa');
 const make = (seed = 1) => new Shift({ unit: UPA, specialty: 'internal-medicine', seed });
 
@@ -79,9 +82,9 @@ test('lab_delay: lab tests take longer for the rest of the shift; bedside tests 
   assert.equal(s.labExtra, LAB_DELAY_EXTRA);
   s.call(s.encounters[0]);
   const start = s.clock;
-  const { rec } = s.requestExam('cbc');
+  const { rec } = order(s, 'cbc');
   assert.equal(rec.readyAt, start + EXAMS.cbc.minutes + LAB_DELAY_EXTRA);
-  const glu = s.requestExam('capillary_glucose').rec;
+  const glu = order(s, 'capillary_glucose').rec;
   assert.equal(glu.readyAt - (start + ACTION_COST.order), EXAMS.capillary_glucose.minutes);
   assert.deepEqual(s.activeEffects().map((f) => f.id), ['lab_delay']);
 });
@@ -97,7 +100,7 @@ test('system_down: each action costs extra shift time while it lasts, never cons
   assert.equal(s.clock - t0, ACTION_COST.question + SYSTEM_DOWN.extra);
   assert.equal(enc.minutesSpent, ACTION_COST.question, 'consultation time is unchanged');
   const t1 = s.clock;
-  s.requestExam('cbc');
+  order(s, 'cbc');
   assert.equal(s.clock - t1, ACTION_COST.order + SYSTEM_DOWN.extra);
   assert.ok(s.activeEffects()[0].label.includes('Sistema fora do ar até'));
   assert.doesNotMatch(s.activeEffects()[0].label + s.activeEffects()[0].detail, /\d+\s*min/, 'no scaled minutes on screen');
@@ -113,13 +116,13 @@ test('supply_shortage: point-of-care tests take longer while it lasts; lab tests
   s.advance(1);
   s.call(s.encounters[0]);
   const t = s.clock;
-  const glu = s.requestExam('capillary_glucose').rec;
+  const glu = order(s, 'capillary_glucose').rec;
   assert.equal(glu.readyAt, t + EXAMS.capillary_glucose.minutes + SUPPLY_SHORTAGE.extra);
-  const cbc = s.requestExam('cbc').rec;
+  const cbc = order(s, 'cbc').rec;
   assert.equal(cbc.readyAt, s.clock - ACTION_COST.order + EXAMS.cbc.minutes);
   s.advance(SUPPLY_SHORTAGE.minutes);
   const t2 = s.clock;
-  const dip = s.requestExam('urine_dipstick').rec;
+  const dip = order(s, 'urine_dipstick').rec;
   assert.equal(dip.readyAt, t2 + EXAMS.urine_dipstick.minutes);
 });
 
@@ -226,7 +229,7 @@ test('idle time waiting on a delayed result is lost time; seeing someone else me
     const s = shiftWithEvent(id, 1);
     s.advance(1);
     s.call(s.encounters[0]);
-    const { rec } = s.requestExam(exam);
+    const { rec } = order(s, exam);
     assert.equal(rec.delayedBy, id);
     s.waitInRoom();
     assert.equal(s.clock, rec.readyAt);
@@ -236,7 +239,7 @@ test('idle time waiting on a delayed result is lost time; seeing someone else me
   const s = shiftWithEvent('lab_delay', 1);
   s.advance(1);
   s.call(s.encounters[0]);
-  s.requestExam('cbc');
+  order(s, 'cbc');
   s.sendToWait();
   s.call(s.encounters[1]); // busy with another patient: nothing is lost
   for (let i = 0; i < 40; i++) s.spend(ACTION_COST.question);
@@ -251,7 +254,7 @@ test('companion_complaint counts when the more urgent patient is only waiting on
   s.pendingEvents[0].pick = () => named;
   s.advance(5);
   s.call(other);
-  s.requestExam('cbc');
+  order(s, 'cbc');
   s.sendToWait(); // red patient parked until the result: the doctor is free
   s.call(third);
   const out = s.advance(COMPANION_COMPLAINT.minutes);
@@ -281,7 +284,7 @@ test('real time (P1-11) stuck on a delayed result is lost time, not thinking; ot
   s.advance(1);
   const enc = s.encounters[0];
   s.call(enc);
-  const { rec } = s.requestExam('capillary_glucose');
+  const { rec } = order(s, 'capillary_glucose');
   const per = REAL_SECONDS_PER_MINUTE * 1000;
   s.tick(per * (rec.delayedFrom - s.clock)); // the original wait: thinking, as without the event
   const thinking = enc.time.thinking;
@@ -299,9 +302,9 @@ test('waiting on a delayed result and a normal one: lost only once the normal on
   const s = shiftWithEvent('lab_delay', 5);
   s.advance(1);
   s.call(s.encounters[0]);
-  const tropo = s.requestExam('troponin').rec; // ordered before the event: not delayed
+  const tropo = order(s, 'troponin').rec; // ordered before the event: not delayed
   s.advance(5 - s.clock); // the lab breaks down
-  const crp = s.requestExam('crp').rec; // delayed
+  const crp = order(s, 'crp').rec; // delayed
   assert.equal(tropo.delayedFrom, undefined);
   assert.ok(crp.delayedFrom < tropo.readyAt && tropo.readyAt < crp.readyAt);
   while (s.current.pendingExams(s.clock).length) s.waitInRoom();

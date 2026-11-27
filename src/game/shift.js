@@ -391,8 +391,16 @@ export class Shift {
   /** Extra shift minutes per clinical action while the system is down (P1-09). Not consultation time. */
   actionExtra() { return this.hasEffect('system_down') ? SYSTEM_DOWN.extra : 0; }
 
+  /** Records the current patient's working hypothesis at the shift clock (P1-08). */
+  recordHypothesis(dxId) {
+    return !!this.current && this.current.recordHypothesis(dxId, this.clock);
+  }
+
+  /** Orders a test for the current patient. A lab or imaging test before the working hypothesis is refused
+   *  (P1-08): `{ rec: null, fired: [], blocked: 'hypothesis' }`, with no time spent. */
   requestExam(examId) {
     const enc = this.current;
+    if (enc.needsHypothesis(examId)) return { rec: null, fired: [], blocked: 'hypothesis' };
     const meta = EXAMS[examId];
     const mult = this.unitType.labDelayMultiplier;
     const before = enc.minutesSpent;

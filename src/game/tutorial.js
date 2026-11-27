@@ -31,6 +31,10 @@ const PROMPTS = {
     'Num plantão normal o relógio também anda em tempo real enquanto você pensa, e quem espera na fila perde a paciência. No tutorial ele fica parado enquanto você lê.',
     'Quando estiver pronto(a), siga para "Diagnóstico e conduta".',
   ],
+  hypothesis: [
+    'Exames de laboratório e de imagem pedem uma hipótese de trabalho antes. Escolha o diagnóstico mais provável até aqui e registre; os testes de beira de leito não precisam.',
+    'Acertar a hipótese vale alguns pontos, mas a decisão final pesa mais.',
+  ],
   'wait-here': [
     'O exame ainda não saiu. Aguarde na sala: o relógio avança até o resultado.',
   ],
@@ -42,6 +46,9 @@ const PROMPTS = {
   ],
   finish: [
     'Escolha a hipótese diagnóstica e a conduta e finalize o atendimento.',
+  ],
+  'finish-confirm': [
+    'Confira a hipótese e a conduta. Depois de confirmar, o atendimento termina e não pode ser reaberto.',
   ],
   'end-shift': [
     'Todos foram atendidos. Encerre o plantão.',
