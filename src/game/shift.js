@@ -3,9 +3,11 @@
 import { UNIT_TYPES, TRIAGE, EXAMS } from '../data/catalog.js';
 import { casesFor } from '../data/cases/index.js';
 import { Encounter } from './encounter.js';
-import { SHIFT_MINUTES, TIME_SCALE, REAL_SECONDS_PER_MINUTE, clockLabelAt } from './time.js';
+import { SHIFT_MINUTES, REAL_SECONDS_PER_MINUTE, clockLabelAt } from './time.js';
+import { scaledTarget, impatienceAt } from './waiting.js';
 
 export { SHIFT_START_HOUR, SHIFT_MINUTES, REAL_SHIFT_MINUTES, clockLabelAt } from './time.js';
+export { scaledTarget, IMPATIENCE_MARGIN, impatienceAt } from './waiting.js';
 // Internal minutes (see time.js): the shift lasts SHIFT_MINUTES, shown as 07:00 to 19:00, and patients
 // arrive within the first ARRIVAL_WINDOW (shown as 8 hours). Five patients keep a shift to about
 // 10 to 15 minutes of real play.
@@ -21,16 +23,8 @@ export function mulberry32(seed) {
   };
 }
 
-// Waiting consequences (P1-06): non-clinical only, no vital sign changes.
-// The Manchester targets in TRIAGE are minutes the player sees on the 12-hour clock; the engine compares
-// them in internal minutes (blue: 240 shown -> 60 internal).
-/** Manchester target for a priority, in internal minutes. */
-export const scaledTarget = (priority) => TRIAGE[priority].target / TIME_SCALE;
-// A patient never called is impatient once their wait passes the scaled target plus their priority's margin
-// (internal minutes; red 20 is shown as 80 min).
-// Red to yellow get a wider margin: their scaled targets are short (0 to 15), and a doctor busy with
-// another urgent patient for one consultation should not make them impatient straight away.
-export const IMPATIENCE_MARGIN = { red: 20, orange: 25, yellow: 30, green: 15, blue: 15 };
+// Waiting consequences (P1-06): non-clinical only, no vital sign changes. Scaled targets and the impatience
+// thresholds live in waiting.js.
 // Only these priorities give up and leave unseen, once their wait passes the scaled target plus this margin.
 export const CAN_LEAVE = ['green', 'blue'];
 export const LEAVE_MARGIN = 30;
@@ -41,8 +35,6 @@ export const SATISFACTION_PENALTY = { impatient: 10, complaint: 5, left: 15, com
 // Share of impatient patients who complain at the desk.
 export const COMPLAINT_CHANCE = 0.5;
 
-/** Wait in minutes after which a patient of this priority gets impatient. */
-export const impatienceAt = (priority) => scaledTarget(priority) + IMPATIENCE_MARGIN[priority];
 /** Wait after which a patient of this priority leaves unseen, or null when they never leave. */
 export const leaveAt = (priority) => (CAN_LEAVE.includes(priority) ? scaledTarget(priority) + LEAVE_MARGIN : null);
 // A waiting patient this close (internal minutes) to getting impatient or leaving shows in the feedback as

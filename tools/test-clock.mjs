@@ -148,6 +148,9 @@ test('a moderate player sees every patient with a clock hour to spare, inside 15
     assert.equal(r.finishedLate, 0, `${where}: finished a patient after 19:00`);
     assert.ok(r.clock <= SHIFT_MINUTES - HOUR, `${where}: done at internal minute ${r.clock}`);
     assert.ok(r.realMin <= 10, `${where}: ${r.realMin.toFixed(1)} real minutes of play (plus feedback screens)`);
+    // P1-13: seeing patients in priority order at this pace never costs case points for waiting
+    const waitLine = r.s.results.find(({ result }) => result.lines.some((l) => /Espera acima do alvo/.test(l.label)));
+    assert.equal(waitLine, undefined, `${where}: waiting penalty for ${waitLine?.enc.c.triage.priority}`);
   }
 });
 
