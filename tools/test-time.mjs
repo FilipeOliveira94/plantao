@@ -111,3 +111,15 @@ test('a patient already seen costs the queue nothing for later consultations', (
   s.finish(second, decide(second));
   assert.deepEqual(s.results.at(-1).result.queuePaid, []);
 });
+
+test('pausing a patient to see another closes their room span; resuming opens a new one', () => {
+  const s = shiftWith([['green', 0], ['red', 0]]);
+  const [e, red] = s.encounters;
+  s.call(e); s.advance(4);
+  s.pause();
+  s.call(red); s.advance(6); s.finish(red, decide(red));
+  s.call(e); s.advance(2);
+  s.finish(e, decide(e));
+  assert.deepEqual(e.roomSpans, [{ from: 0, to: 4 }, { from: 10, to: 12 }]);
+  assert.deepEqual(red.roomSpans, [{ from: 4, to: 10 }]);
+});

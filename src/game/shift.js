@@ -256,6 +256,17 @@ export class Shift {
     return paid.sort((a, b) => TRIAGE[a.priority].order - TRIAGE[b.priority].order || b.overdue - a.overdue);
   }
 
+  /** Puts the current patient back in the queue to see someone else first. Everything they had is kept:
+   *  questions, exams, ordered tests and their timers, and the time already spent. */
+  pause() {
+    const enc = this.current;
+    if (!enc) return null;
+    this.closeSpan(enc);
+    enc.status = 'paused';
+    this.current = null;
+    return enc;
+  }
+
   finish(enc, result) {
     this.closeSpan(enc);
     enc.status = 'done';

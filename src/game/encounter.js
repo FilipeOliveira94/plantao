@@ -42,7 +42,7 @@ export class Encounter {
     this.roomWaits = [];
     this.arrivedAt = null; // shift clock
     this.firstSeenAt = null;
-    this.status = 'waiting'; // waiting | in_progress | awaiting_results | done | left
+    this.status = 'waiting'; // waiting | in_progress | paused | awaiting_results | done | left
     this.impatient = false; // waited past the Manchester target plus a margin (Shift.checkWaiting)
     this.leftAt = null; // shift clock when a low-priority patient gave up and left unseen
     this.log = [];
