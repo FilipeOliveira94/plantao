@@ -3,6 +3,29 @@ import { EXAMS, ACTION_COST, TRIAGE } from '../data/catalog.js';
 
 export const DEFAULT_EXAM_RESULT = 'Sem alterações significativas.';
 
+// Default target consultation time (game minutes of questions, physical exam and test orders)
+// by triage priority, used when a case does not set `consultMinutes`. Game balance, not a clinical
+// claim: every current case's key items fit within its default (checked by tools/validate-cases.mjs).
+export const CONSULT_TARGET_MINUTES = { red: 20, orange: 20, yellow: 25, green: 25, blue: 20 };
+// Points lost per minute over the target, and the cap.
+export const OVERTIME_POINTS_PER_MINUTE = 2;
+export const OVERTIME_CAP = 40;
+
+/** Target consultation time for a case: its own `consultMinutes`, else the triage default. */
+export const consultTarget = (c) => c.consultMinutes ?? CONSULT_TARGET_MINUTES[c.triage.priority];
+
+/** Consultation minutes of the focused path: every key question (with the questions it requires),
+ *  every key physical item and every key test the patient did not bring. */
+export function focusedMinutes(c) {
+  const byId = new Map(c.questions.map((q) => [q.id, q]));
+  const asked = new Set();
+  const ask = (q) => { if (q && !asked.has(q.id)) { asked.add(q.id); ask(byId.get(q.requires)); } };
+  c.questions.filter((q) => q.key).forEach(ask);
+  const physical = c.physical.filter((p) => p.key).length;
+  const tests = Object.values(c.exams || {}).filter((e) => e.relevance === 'key' && !e.brought).length;
+  return asked.size * ACTION_COST.question + physical * ACTION_COST.physical + tests * ACTION_COST.order;
+}
+
 export class Encounter {
   constructor(caseData, unitType) {
     this.c = caseData;
@@ -77,8 +100,9 @@ export class Encounter {
     if (this.requested.has(examId)) return this.requested.get(examId);
     const meta = EXAMS[examId];
     const data = this.c.exams?.[examId] || { result: DEFAULT_EXAM_RESULT, relevance: 'unnecessary' };
-    const wait = meta.poc ? 0 : Math.round(meta.minutes * multiplier);
-    if (meta.poc) this.minutesSpent += meta.minutes;
+    // ordering costs a few minutes of the consultation; the test's duration only sets when the result is ready
+    const wait = meta.poc ? meta.minutes : Math.round(meta.minutes * multiplier);
+    this.minutesSpent += ACTION_COST.order;
     const rec = { ...data, readyAt: now + wait, poc: !!meta.poc };
     this.requested.set(examId, rec);
     return rec;
@@ -139,10 +163,14 @@ export class Encounter {
       else add(-30, `Decisão fora da janela crítica (${this.minutesSpent} min > ${c.timeCritical.minutes} min)`);
     }
 
-    // Efficiency
-    if (dxOk && cdOk && this.asked.size + this.examined.size <= keyTotal + 2) add(15, 'Raciocínio eficiente');
+    // Consultation time vs. target: unfocused questions, exams and test orders push it over
+    const goal = consultTarget(c);
+    if (this.minutesSpent > goal) {
+      const over = this.minutesSpent - goal;
+      add(-Math.min(OVERTIME_CAP, over * OVERTIME_POINTS_PER_MINUTE), `Consulta acima do tempo-alvo (${this.minutesSpent} min de ${goal} min)`);
+    }
 
-    const max = 100 + 60 + 60 + (c.timeCritical ? 25 : 0) + 15;
+    const max = 100 + 60 + 60 + (c.timeCritical ? 25 : 0);
     const pct = Math.max(0, pts) / max;
     const stars = !dxOk && !dxAcceptable ? (cdOk ? 1 : 0) : pct >= 0.8 ? 3 : pct >= 0.55 ? 2 : 1;
 
@@ -150,7 +178,7 @@ export class Encounter {
       points: Math.max(0, pts), lines, stars, dxOk, dxAcceptable, cdOk,
       harmful: !!cdOpt?.harmful, unnecessaryCount: unnecessary.length,
       keyHit, keyTotal, questionsAsked: this.asked.size, minutesSpent: this.minutesSpent,
-      waited, timeCriticalOk: c.timeCritical ? this.minutesSpent <= c.timeCritical.minutes : null,
+      waited, consultTarget: goal, timeCriticalOk: c.timeCritical ? this.minutesSpent <= c.timeCritical.minutes : null,
       noUnnecessary: unnecessary.length === 0 && this.requested.size > 0,
     };
   }

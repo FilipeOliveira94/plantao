@@ -57,8 +57,8 @@ All player-facing text (patient speech, findings, options, teaching notes) is in
 | Key items found (questions, physical exam, tests) | up to +60, proportional |
 | Unnecessary test | −10 each (extra −20 if risky) |
 | Wait beyond the Manchester target (+15 min tolerance) | down to −40 |
-| Time-critical window met / missed | +25 / −30 |
-| Efficient reasoning | +15 |
+| Time-critical window met / missed (consultation minutes) | +25 / −30 |
+| Consultation time over the target (triage default until P6-07 sets per-case targets) | −2 per minute, down to −40 |
 
 ## Checklist before opening a case PR
 
