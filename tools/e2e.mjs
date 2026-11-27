@@ -386,6 +386,10 @@ try {
     const idle = await step(25000); // 2.5 internal minutes: the half minute carries over
     if (idle.clock !== 2 || idle.spent !== 0 || !idle.label.startsWith('07:08')) throw new Error(`real time with the room free: ${JSON.stringify(idle)}`);
     if ((await step(5000)).clock !== 1) throw new Error('the half minute of real time did not carry over');
+    // a tick swaps only the clock face: the volume slider keeps the focus
+    await page.locator('.topbar input[type=range]').focus();
+    await step(10000);
+    if (!(await page.locator('.topbar input[type=range]').evaluate((el) => el === document.activeElement))) throw new Error('a clock tick took the focus off the volume slider');
     await page.locator('.qcard button:not([disabled])').first().click();
     await page.getByRole('tab', { name: /Exames/ }).click();
     const search = page.locator('.test-search');

@@ -301,6 +301,7 @@ export class Shift {
     if (!times.length) return [];
     const minutes = Math.max(1, Math.min(Math.min(...times), SHIFT_MINUTES) - this.clock);
     this.current.roomWaits.push({ from: this.clock, to: this.clock + minutes });
+    this.realMs = 0; // like the fast-forward, the jump drops the part of a minute already ticking
     return this.advance(minutes);
   }
 

@@ -312,8 +312,15 @@ function renderGame() {
 
 function renderAll() { renderTop(); renderQueue(); renderChart(); }
 
-function renderTop() {
+function renderTop({ ifChanged = false } = {}) {
   const lvl = levelOf(state.xp);
+  // a clock tick swaps only the clock face, so the volume slider and the buttons keep focus and drags
+  const face = ui.top.querySelector('.clock');
+  if (ifChanged && face && ui.topSig === JSON.stringify([shift.results.length, shift.over, shift.done, state.xp, state.settings.muted])) {
+    face.firstChild.textContent = shift.clockLabel;
+    return;
+  }
+  ui.topSig = JSON.stringify([shift.results.length, shift.over, shift.done, state.xp, state.settings.muted]);
   mount(ui.top,
     h('button', { class: 'btn ghost', onclick: confirmLeave, title: 'Sair do plantão' }, '←'),
     h('span', { class: 'unitname' }, shift.unit.name),
@@ -356,7 +363,7 @@ if (!manualClock) {
 function onClockTick(fired) {
   if (!shift || clock?.shift !== shift) return;
   handleEvents(fired);
-  renderTop();
+  renderTop({ ifChanged: true });
   renderQueue({ ifChanged: true });
   refreshChart();
   if (shift.done && !shift.current) setTimeout(showShiftSummary, 400);
