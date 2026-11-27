@@ -345,10 +345,17 @@ try {
   await page.getByRole('button', { name: /Voltar ao menu/ }).click();
   // waiting has consequences (P1-06): a green patient left waiting complains, then leaves unseen,
   // and the summary shows the departure and a lower satisfaction. UBS internal medicine always has the green cystitis case.
-  await page.locator('.unit').first().click();
-  await page.locator('.spec').first().click();
-  await page.getByRole('button', { name: /Começar plantão/ }).click();
-  await page.waitForSelector('.game');
+  // the green patient must wait while someone else is seen: restart until another patient is in the queue at 07:00
+  for (let tries = 0; ; tries++) {
+    await page.locator('.unit').first().click();
+    await page.locator('.spec').first().click();
+    await page.getByRole('button', { name: /Começar plantão/ }).click();
+    await page.waitForSelector('.game');
+    if (await page.evaluate(() => window.__plantao.shift.encounters.find((e) => e.arrivedAt === 0).c.triage.priority !== 'green')) break;
+    if (tries >= 20) throw new Error('the green patient arrived first in 20 shifts');
+    await page.evaluate(() => { location.reload(); });
+    await page.waitForSelector('.unit');
+  }
   const green = await page.evaluate(async () => {
     const { impatienceAt, leaveAt } = await import('./src/game/shift.js');
     const s = window.__plantao.shift;
@@ -380,7 +387,7 @@ try {
   await page.waitForSelector('.modal');
   await page.locator('.modal .btn.primary').click();
   await page.waitForSelector('text=Fim de plantão', { timeout: 3000 });
-  const leftLine = await page.locator('.modal li.unseen.left').textContent();
+  const leftLine = await page.locator('.modal li.unseen.left', { hasText: green.name }).textContent();
   if (!leftLine.includes(green.name) || !/foi embora sem atendimento às \d\d:\d\d/.test(leftLine)) throw new Error(`unexpected departure line: ${leftLine}`);
   const satLine = await page.locator('.modal li.satisfaction').textContent();
   if (!satLine.includes(`Satisfação dos pacientes: ${waitCase.satisfaction}/100`) || !/impaciente/.test(satLine) || !/reclamaç/.test(satLine)) throw new Error(`unexpected satisfaction line: ${satLine}`);

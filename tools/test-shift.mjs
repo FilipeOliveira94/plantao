@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  Shift, IMPATIENCE_MARGIN, LEAVE_MARGIN, SATISFACTION_PENALTY, impatienceAt, leaveAt, satisfactionXp,
+  Shift, scaledTarget, IMPATIENCE_MARGIN, LEAVE_MARGIN, SATISFACTION_PENALTY, impatienceAt, leaveAt, satisfactionXp,
 } from '../src/game/shift.js';
 import { applyShift } from '../src/game/progress.js';
 import { UNITS, TRIAGE } from '../src/data/catalog.js';
@@ -22,11 +22,17 @@ function shiftWith(priorities, complain = false) {
 }
 
 test('thresholds: impatient past target + margin, leaving only for green and blue', () => {
-  for (const p of Object.keys(TRIAGE)) assert.equal(impatienceAt(p), TRIAGE[p].target + IMPATIENCE_MARGIN);
-  assert.equal(leaveAt('green'), TRIAGE.green.target + LEAVE_MARGIN);
-  assert.equal(leaveAt('blue'), TRIAGE.blue.target + LEAVE_MARGIN);
+  for (const p of Object.keys(TRIAGE)) assert.equal(impatienceAt(p), scaledTarget(p) + IMPATIENCE_MARGIN);
+  assert.equal(leaveAt('green'), scaledTarget('green') + LEAVE_MARGIN);
+  assert.equal(leaveAt('blue'), scaledTarget('blue') + LEAVE_MARGIN);
   for (const p of ['red', 'orange', 'yellow']) assert.equal(leaveAt(p), null);
   assert.ok(LEAVE_MARGIN > IMPATIENCE_MARGIN, 'leaving needs a longer wait than impatience');
+});
+
+test('Manchester targets scale from a 12-hour shift to the game shift', () => {
+  assert.deepEqual(Object.keys(TRIAGE).map(scaledTarget), [0, 2.5, 15, 30, 60]);
+  assert.ok(leaveAt('blue') > leaveAt('green'), 'blue waits longer than green before leaving');
+  assert.ok(leaveAt('blue') < 180, 'a blue patient can leave within the shift');
 });
 
 test('a patient becomes impatient only after the threshold, once', () => {
@@ -117,8 +123,8 @@ test('satisfaction changes the closing bonus, never a case score, and the bonus 
 test('waits stop counting at the end of the shift', () => {
   const s = shiftWith(['green', 'yellow']);
   const [green, yellow] = s.encounters;
-  green.arrivedAt = 60; // at 10:00 has waited 120 min: impatient only after 135, leaves after 150
-  yellow.arrivedAt = 120; // at 10:00 has waited 60 min: impatient only after 75
+  green.arrivedAt = 150; // at 10:00 has waited 30 min: impatient only after 45, leaves after 60
+  yellow.arrivedAt = 160; // at 10:00 has waited 20 min: impatient only after 30
   s.advance(400); // a consultation running far past the end of the shift
   assert.equal(green.status, 'waiting');
   assert.ok(!green.impatient && !yellow.impatient);

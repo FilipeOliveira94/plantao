@@ -26,9 +26,14 @@ export function mulberry32(seed) {
 }
 
 // Waiting consequences (P1-06): non-clinical only, no vital sign changes.
-// A patient never called is impatient once their wait passes the Manchester target plus this margin.
+// The game shift (SHIFT_MINUTES on the clock) stands for a real 12-hour shift, so the Manchester targets,
+// set in real minutes in TRIAGE, are scaled by SHIFT_MINUTES / REAL_SHIFT_MINUTES (blue: 240 -> 60).
+export const REAL_SHIFT_MINUTES = 12 * 60;
+/** Manchester target for a priority, in game minutes. */
+export const scaledTarget = (priority) => TRIAGE[priority].target * SHIFT_MINUTES / REAL_SHIFT_MINUTES;
+// A patient never called is impatient once their wait passes the scaled target plus this margin (game minutes).
 export const IMPATIENCE_MARGIN = 15;
-// Only these priorities give up and leave unseen, once their wait passes the target plus this margin.
+// Only these priorities give up and leave unseen, once their wait passes the scaled target plus this margin.
 export const CAN_LEAVE = ['green', 'blue'];
 export const LEAVE_MARGIN = 30;
 // Shift satisfaction, 0 to 100, starts at 100. Penalties are game balance, not clinical claims.
@@ -38,9 +43,9 @@ export const SATISFACTION_PENALTY = { impatient: 10, complaint: 5, left: 15 };
 export const COMPLAINT_CHANCE = 0.5;
 
 /** Wait in minutes after which a patient of this priority gets impatient. */
-export const impatienceAt = (priority) => TRIAGE[priority].target + IMPATIENCE_MARGIN;
+export const impatienceAt = (priority) => scaledTarget(priority) + IMPATIENCE_MARGIN;
 /** Wait after which a patient of this priority leaves unseen, or null when they never leave. */
-export const leaveAt = (priority) => (CAN_LEAVE.includes(priority) ? TRIAGE[priority].target + LEAVE_MARGIN : null);
+export const leaveAt = (priority) => (CAN_LEAVE.includes(priority) ? scaledTarget(priority) + LEAVE_MARGIN : null);
 /** XP added to (or taken from) the closing bonus for the shift's satisfaction. */
 export const satisfactionXp = (s) => (s >= 90 ? 10 : s >= 70 ? 0 : s >= 40 ? -10 : -20);
 
