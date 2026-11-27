@@ -9,6 +9,7 @@ import { sfx } from './audio/sfx.js';
 import { music } from './audio/music.js';
 import { h, mount, toast, modal } from './ui/dom.js';
 import { createTalk } from './ui/talk.js';
+import { popup } from './ui/popup.js';
 
 const app = document.getElementById('app');
 let state = load();
@@ -39,6 +40,7 @@ const firstName = (enc) => enc.c.patient.companion ? enc.c.patient.companion.nam
 let menuSel = { unit: null, spec: null };
 
 function renderMenu() {
+  clearArrivals();
   scene = null;
   music.stop();
   const lvl = levelOf(state.xp);
@@ -271,6 +273,7 @@ function showHelp() {
 // ======================================================================
 function startShift(unit, specialty) {
   sfx.unlock();
+  clearArrivals();
   shift = new Shift({ unit, specialty, completedCases: state.cases });
   if (!shift.encounters.length) { toast('Ainda não há casos para essa combinação.'); return; }
   music.play(unit.music);
@@ -331,6 +334,10 @@ function confirmLeave() {
 }
 
 function statusOf(enc) {
+  if (enc.status === 'paused') {
+    const pend = enc.pendingExams(shift.clock);
+    return { text: pend.length ? `⏸ Pausado · 🧪 exames até ${clockAt(Math.max(...pend.map(([, r]) => r.readyAt)))}` : '⏸ Atendimento pausado' };
+  }
   if (enc.status === 'awaiting_results') {
     const pend = enc.pendingExams(shift.clock);
     if (!pend.length) return { text: '✅ Resultados prontos', ready: true };
@@ -358,7 +365,7 @@ function renderQueue() {
   const upcoming = shift.upcoming().length;
   const children = cards.length ? cards : [h('div', { class: 'empty' }, upcoming ? 'Ninguém na fila agora.' : shift.current ? 'Último paciente em atendimento.' : 'Fila vazia.')];
   const waitingExams = shift.encounters.some((e) => e.status === 'awaiting_results' && e.pendingExams(shift.clock).length);
-  if (!shift.current && !shift.over && (upcoming || waitingExams) && !q.some((e) => statusOf(e).ready || e.status === 'waiting')) {
+  if (!shift.current && !shift.over && (upcoming || waitingExams) && !q.some((e) => statusOf(e).ready || e.status === 'waiting' || e.status === 'paused')) {
     children.push(h('button', { class: 'btn', style: { alignSelf: 'center' }, onclick: () => { handleEvents(shift.waitForNext()); renderAll(); if (shift.done) setTimeout(showShiftSummary, 400); } }, '☕ Aguardar próximo'));
   }
   mount(ui.queue, children);
@@ -368,11 +375,12 @@ function handleEvents(fired) {
   for (const ev of fired || []) toast(ev.text, 6500);
   if (shift.over && !shift._overNotified) {
     shift._overNotified = true;
+    clearArrivals(); // no one else can be called: an open arrival card has nothing left to offer
     toast(shift.current ? `⏰ ${shift.endLabel}: fim do turno. Conclua o atendimento atual; ninguém mais será chamado.` : `⏰ ${shift.endLabel}: fim do turno.`, 6500);
   }
   // newly available results for waiting patients
   for (const e of shift.encounters) {
-    if (e.status === 'awaiting_results' && !e._notified && e.pendingExams(shift.clock).length === 0) {
+    if ((e.status === 'awaiting_results' || e.status === 'paused') && !e._notified && e.pendingExams(shift.clock).length === 0) {
       e._notified = true; sfx.result(); toast(`Resultados de ${e.c.patient.name} disponíveis.`);
     }
   }
@@ -381,28 +389,98 @@ function handleEvents(fired) {
   for (const [id, r] of cur ? cur.readyExams(shift.clock) : []) {
     if (!r._notified) { r._notified = true; sfx.result(); toast(`Resultado liberado: ${EXAMS[id].label}.`); }
   }
-  // new high-priority arrivals
+  // an open arrival card whose patient is no longer waiting (left unseen, P1-06) has nothing to offer
+  if (arrivalPopup && arrivalPopup.enc.status !== 'waiting') arrivalPopup.close();
+  // new arrivals during the shift (the first patient is already waiting at the start)
   for (const e of shift.encounters) {
     if (!e._arrivalNotified && e.arrivedAt <= shift.clock) {
       e._arrivalNotified = true;
-      if (e.arrivedAt > 0 && (e.c.triage.priority === 'red' || e.c.triage.priority === 'orange')) { sfx.alarm(); toast(`🚨 Chegou paciente ${TRIAGE[e.c.triage.priority].label.toLowerCase()}: ${e.c.patient.name}.`); }
+      if (e.arrivedAt > 0) announceArrival(e);
     }
   }
 }
 
+// ----------------------------------------------------------------------
+// Arrival popups: one at a time, most urgent first. Red and orange block the screen with the alarm;
+// the others are a compact card that goes away on its own ("Depois").
+// ----------------------------------------------------------------------
+const ARRIVAL_AUTO_CLOSE_MS = 6000;
+const arrivals = [];
+let arrivalPopup = null;
+
+function clearArrivals() {
+  arrivals.length = 0;
+  const p = arrivalPopup;
+  arrivalPopup = null;
+  p?.close();
+}
+
+function announceArrival(enc) {
+  arrivals.push(enc);
+  arrivals.sort((a, b) => TRIAGE[a.c.triage.priority].order - TRIAGE[b.c.triage.priority].order);
+  // a red or orange arrival does not wait behind a calm card: that card counts as "Depois"
+  if (arrivalPopup && !arrivalPopup.blocking && TRIAGE[enc.c.triage.priority].order <= TRIAGE.orange.order) arrivalPopup.close();
+  else if (!arrivalPopup) showNextArrival();
+}
+
+function showNextArrival() {
+  let enc;
+  // skip anyone called from the queue in the meantime; after the end of the shift no one can be called
+  do enc = arrivals.shift(); while (enc && enc.status !== 'waiting');
+  if (!enc || !shift || shift.over) { arrivals.length = 0; return; }
+  const pr = enc.c.triage.priority;
+  const tri = TRIAGE[pr];
+  const urgent = pr === 'red' || pr === 'orange';
+  if (urgent) sfx.alarm();
+  const own = popup(h('div', {},
+    h('span', { class: 'arrival-tag', style: { background: tri.color, color: pr === 'yellow' ? 'var(--ink)' : null } }, `${urgent ? '🚨 ' : ''}Chegou: ${tri.label}`),
+    h('div', { class: 'arrival-name' }, enc.c.patient.name, ' ', h('span', { class: 'muted small' }, `· ${enc.c.patient.age}`)),
+    h('p', { class: 'arrival-complaint small' }, enc.c.triage.complaint),
+  ), {
+    className: `arrival${urgent ? '' : ' compact'}`,
+    blocking: urgent,
+    timeout: urgent ? 0 : ARRIVAL_AUTO_CLOSE_MS,
+    accent: tri.color,
+    label: `Novo paciente: ${enc.c.patient.name}`,
+    actions: [
+      { label: 'Atender agora', primary: true, onclick: () => attendNow(enc) },
+      { label: 'Depois' },
+    ],
+    onClose: () => { if (arrivalPopup === own) { arrivalPopup = null; showNextArrival(); } },
+  });
+  own.enc = enc;
+  arrivalPopup = own;
+}
+
+/** "Atender agora": the patient in the room goes back to the queue with everything kept, and the new one comes in. */
+function attendNow(enc) {
+  if (!shift || shift.over || enc.status !== 'waiting') return;
+  const cur = shift.current;
+  if (cur) {
+    cur._resume = { tab, decision: { ...decision } }; // chart state, restored when they are called again
+    cur._notified = cur.pendingExams(shift.clock).length === 0; // toast their results if they come in meanwhile
+    scene.exit();
+    shift.pause();
+  }
+  callPatient(enc);
+}
+
 function callPatient(enc) {
   const returning = enc.status === 'awaiting_results';
+  const resume = enc.status === 'paused' ? enc._resume : null;
   if (!shift.call(enc)) return;
+  enc._resume = null;
+  if (arrivalPopup?.enc === enc) arrivalPopup.close(); // called from the queue while their popup was up
   for (const [, r] of enc.readyExams(shift.clock)) r._notified = true; // shown in the chart, no toast
   enc._notified = true;
   sfx.call();
   scene.enter(enc.c.patient.look, enc.c.patient.companion);
-  tab = returning ? 'tests' : 'triage';
-  decision = { dx: null, cd: null };
+  tab = resume?.tab ?? (returning ? 'tests' : 'triage');
+  decision = resume?.decision ?? { dx: null, cd: null };
   testQuery = ''; openTestCats.clear(); askedOpen = false;
   ui.talk.clear();
   if (enc.c.patient.look.inBed && shift.unit.type === 'picu') sfx.alarm();
-  say(enc, returning ? 'Voltei, doutor(a). Os resultados saíram?' : enc.c.opening);
+  say(enc, resume ? 'Voltei, doutor(a). Podemos continuar?' : returning ? 'Voltei, doutor(a). Os resultados saíram?' : enc.c.opening);
   renderAll();
 }
 

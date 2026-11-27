@@ -91,7 +91,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P2-09](https://github.com/FilipeOliveira94/plantao/issues/26) | Visual refresh | Design tokens, type scale, clearer hierarchy in the chart, per-unit theming beyond the current palette. Menus keep their structure. | Lo/- | Md/- | P2-06 |
 | [P2-10](https://github.com/FilipeOliveira94/plantao/issues/27) | Phone and tablet layout | The shift screen works at phone width: stage on top, chart as a sheet, large touch targets. | Lo/- | Md/- | P2-07 |
 | [P2-11](https://github.com/FilipeOliveira94/plantao/issues/28) | Accessibility | Full keyboard navigation, contrast check, reduced-motion mode, screen-reader labels on the chart. | Lo/- | Md/- | P2-09 |
-| [P2-12](https://github.com/FilipeOliveira94/plantao/issues/73) | New patients arrive as a popup | An arrival shows a popup with triage color, name, age and complaint, with "Atender agora" and "Depois". The plan decides whether a red arrival interrupts the current consultation. | Lo/- | Sm/- | P1-04 |
+| [P2-12](https://github.com/FilipeOliveira94/plantao/issues/73) | New patients arrive as a popup | An arrival shows a popup with triage color, name, age and complaint, with "Atender agora" and "Depois". The plan decides whether a red arrival interrupts the current consultation. | Lo/Lo | Sm/Sm | P1-04 |
 
 ## P3: Progress and reasons to come back
 

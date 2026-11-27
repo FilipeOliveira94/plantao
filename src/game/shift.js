@@ -220,6 +220,16 @@ export class Shift {
     this.current = null;
   }
 
+  /** Puts the current patient back in the queue to see someone else first. Everything they had is kept:
+   *  questions, exams, ordered tests and their timers, and the time already spent. */
+  pause() {
+    const enc = this.current;
+    if (!enc) return null;
+    enc.status = 'paused';
+    this.current = null;
+    return enc;
+  }
+
   finish(enc, result) {
     enc.status = 'done';
     this.results.push({ enc, result });
