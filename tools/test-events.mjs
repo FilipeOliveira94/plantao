@@ -242,6 +242,22 @@ test('idle time waiting on a delayed result is lost time; seeing someone else me
   assert.equal(s.lostWithin(0, s.clock), 0);
 });
 
+test('companion_complaint counts when the more urgent patient is only waiting on results', () => {
+  const s = shiftWithEvent('companion_complaint', 5);
+  const [named, other, third] = s.encounters;
+  s.encounters = [named, other, third];
+  other.c = { ...other.c, triage: { ...other.c.triage, priority: 'red' } };
+  s.pendingEvents[0].pick = () => named;
+  s.advance(5);
+  s.call(other);
+  s.requestExam('cbc');
+  s.sendToWait(); // red patient parked until the result: the doctor is free
+  s.call(third);
+  const out = s.advance(COMPANION_COMPLAINT.minutes);
+  assert.ok(!out.find((o) => o.id === 'companion_penalty').excused);
+  assert.equal(s.gradedSatisfaction, 100 - SATISFACTION_PENALTY.companion);
+});
+
 test('companion_complaint is unfounded while a more urgent patient comes first', () => {
   const s = shiftWithEvent('companion_complaint', 5);
   const [named, other] = s.encounters;

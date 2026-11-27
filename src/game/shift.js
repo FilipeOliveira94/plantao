@@ -208,7 +208,8 @@ export class Shift {
 
   /** Why grading ignores a satisfaction loss, or null. A wait-based loss is excused while the player's own share of
    *  that wait (the wait minus time events took) is still within its threshold; once it is past, the patient would
-   *  have got impatient or left anyway. A wait ends at first contact, else now (a patient who left counts on). */
+   *  have got impatient or left anyway. A wait ends at first contact, else now: a patient who left counts on, as if
+   *  still waiting, so a departure is excused only while the player could not have reached them yet. */
   excusedBy(l) {
     if (l.excused || l.limit == null) return l.excused ?? null;
     const e = l.enc;
@@ -269,7 +270,9 @@ export class Shift {
         f.resolved = true;
         // like an ombudsman review: the complaint stands, but it is unfounded when a more urgent patient came first
         const order = TRIAGE[f.enc.c.triage.priority].order;
-        const busier = [this.current, ...this.queue()].some((e) => e && e !== f.enc && TRIAGE[e.c.triage.priority].order < order);
+        // only patients the doctor could be seeing: in the room, waiting, paused, or with results ready
+        const callable = (e) => e === this.current || e.status !== 'awaiting_results' || e.pendingExams(this.clock).length === 0;
+        const busier = [this.current, ...this.queue()].some((e) => e && e !== f.enc && callable(e) && TRIAGE[e.c.triage.priority].order < order);
         this.changeSatisfaction(-SATISFACTION_PENALTY.companion, 'complaint', f.enc, { excused: busier ? 'triage' : null });
         const text = `Recepção: “${familyOf(f.enc)} fez uma reclamação formal na ouvidoria pela demora.”`;
         out.push({ id: 'companion_penalty', enc: f.enc, excused: busier, text: busier ? `${text} Reclamação improcedente: havia paciente mais grave.` : text });
