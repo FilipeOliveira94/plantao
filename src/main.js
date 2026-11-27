@@ -649,6 +649,25 @@ function reportUrl(c, chosen) {
   return `${NEW_ISSUE_URL}?${new URLSearchParams({ title: `[Caso] ${c.id}: problema relatado`, body })}`;
 }
 
+/** Where the encounter's minutes went, against the consultation target, and what the queue paid for it. */
+function timeBreakdown(r) {
+  const t = r.time;
+  const row = (k, label, min) => h('li', { 'data-k': k }, h('span', {}, label), h('span', { class: 'muted' }, `${min} min`));
+  const waits = [t.roomWait && `aguardando no consultório ${t.roomWait} min`, t.queueWait && `aguardando resultados na recepção ${t.queueWait} min`].filter(Boolean);
+  const paid = r.queuePaid || [];
+  return h('details', { class: 'time-breakdown', open: true },
+    h('summary', {}, h('b', {}, 'Para onde foi o tempo')),
+    h('ul', { class: 'score-lines' },
+      row('questions', 'Anamnese', t.questions),
+      row('physical', 'Exame físico', t.physical),
+      row('orders', 'Pedidos de exame', t.orders),
+      h('li', { 'data-k': 'total' }, h('b', {}, 'Consulta'), h('b', { class: r.minutesSpent > r.consultTarget ? 'neg' : 'pos' }, `${r.minutesSpent} de ${r.consultTarget} min`))),
+    waits.length ? h('p', { class: 'small muted', 'data-k': 'waits' }, `Fora da consulta: ${waits.join(' · ')}.`) : null,
+    h('p', { class: 'small', 'data-k': 'queue' }, h('b', {}, 'O que a fila pagou: '), paid.length
+      ? paid.map((p) => `${p.name} (${TRIAGE[p.priority].label}) ${p.minutes} min além do alvo`).join('; ') + '.'
+      : 'ninguém passou do tempo-alvo da classificação enquanto você atendia.'));
+}
+
 function showFeedback(enc, r, earned, leveled) {
   const c = enc.c;
   const dxLabel = c.diagnosis.options.find((o) => o.id === c.diagnosis.correct).label;
@@ -658,6 +677,7 @@ function showFeedback(enc, r, earned, leveled) {
     h('h2', {}, r.dxOk && r.cdOk ? 'Muito bem!' : r.harmful ? 'Atenção: conduta com risco ao paciente' : 'Reveja este caso'),
     h('p', { class: 'muted' }, `${c.patient.name} · +${r.points} XP`),
     h('ul', { class: 'score-lines' }, r.lines.map((l) => h('li', {}, h('span', {}, l.label), h('span', { class: l.v > 0 ? 'pos' : l.v < 0 ? 'neg' : 'muted' }, l.v > 0 ? `+${l.v}` : String(l.v))))),
+    timeBreakdown(r),
     h('p', {}, h('b', {}, 'Diagnóstico: '), dxLabel),
     h('p', {}, h('b', {}, 'Conduta esperada: '), cdLabel),
     c.timeCritical ? h('p', { class: 'small' }, '⏱ ', c.timeCritical.reason) : null,

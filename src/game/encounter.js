@@ -34,6 +34,11 @@ export class Encounter {
     this.examined = new Set();
     this.requested = new Map(); // examId -> { readyAt, result, relevance, note, harmful }
     this.minutesSpent = 0;
+    // where the minutes went: consultation minutes by action (they add up to minutesSpent), plus shift
+    // minutes spent waiting for results in the room and in the waiting room (not consultation time)
+    this.time = { questions: 0, physical: 0, orders: 0, roomWait: 0, queueWait: 0 };
+    this.roomSpans = []; // shift-clock spans with this patient in the room: { from, to } (to = null while open)
+    this.awaitingSince = null; // shift clock when sent to wait for results in the waiting room
     this.arrivedAt = null; // shift clock
     this.firstSeenAt = null;
     this.status = 'waiting'; // waiting | in_progress | awaiting_results | done
@@ -81,6 +86,7 @@ export class Encounter {
     if (!q) return null;
     this.asked.add(id);
     this.minutesSpent += ACTION_COST.question;
+    this.time.questions += ACTION_COST.question;
     this.log.push({ kind: 'q', q: q.q, a: q.a });
     return q;
   }
@@ -91,6 +97,7 @@ export class Encounter {
     if (!p) return null;
     this.examined.add(id);
     this.minutesSpent += ACTION_COST.physical;
+    this.time.physical += ACTION_COST.physical;
     this.log.push({ kind: 'p', label: p.label, finding: p.finding });
     return p;
   }
@@ -103,6 +110,7 @@ export class Encounter {
     // ordering costs a few minutes of the consultation; the test's duration only sets when the result is ready
     const wait = meta.poc ? meta.minutes : Math.round(meta.minutes * multiplier);
     this.minutesSpent += ACTION_COST.order;
+    this.time.orders += ACTION_COST.order;
     const rec = { ...data, readyAt: now + wait, poc: !!meta.poc };
     this.requested.set(examId, rec);
     return rec;
@@ -178,7 +186,7 @@ export class Encounter {
       points: Math.max(0, pts), lines, stars, dxOk, dxAcceptable, cdOk,
       harmful: !!cdOpt?.harmful, unnecessaryCount: unnecessary.length,
       keyHit, keyTotal, questionsAsked: this.asked.size, minutesSpent: this.minutesSpent,
-      waited, consultTarget: goal, timeCriticalOk: c.timeCritical ? this.minutesSpent <= c.timeCritical.minutes : null,
+      waited, consultTarget: goal, time: { ...this.time }, timeCriticalOk: c.timeCritical ? this.minutesSpent <= c.timeCritical.minutes : null,
       noUnnecessary: unnecessary.length === 0 && this.requested.size > 0,
     };
   }

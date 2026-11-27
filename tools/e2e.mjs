@@ -127,6 +127,7 @@ try {
   let talkChecked = false;
   let musicChecked = false;
   let shuffledSeen = 0;
+  let roomWaitSeen = false;
   for (let u = 0; u < units; u++) {
     await page.locator('.unit').nth(u).click();
     const specs = await page.locator('.spec').count();
@@ -232,6 +233,21 @@ try {
         if (!(await page.locator(`input[name=dx][value="${correct.dx}"]`).isChecked())) throw new Error('diagnosis choice lost on re-render');
         await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
         await page.waitForSelector('.modal');
+        {
+          // feedback shows where the minutes went: the parts add up to the consultation total, against its target
+          const tb = await page.evaluate(() => {
+            const { result: r } = window.__plantao.shift.results.at(-1);
+            const txt = (k) => document.querySelector(`.modal .time-breakdown [data-k=${k}]`)?.textContent || '';
+            const min = (k) => Number(/(\d+) min/.exec(txt(k))?.[1]);
+            return { r: { time: r.time, spent: r.minutesSpent, target: r.consultTarget, paid: r.queuePaid.length }, q: min('questions'), p: min('physical'), o: min('orders'), total: txt('total'), waits: txt('waits'), queue: txt('queue') };
+          });
+          const { time: t } = tb.r;
+          if (tb.q !== t.questions || tb.p !== t.physical || tb.o !== t.orders || t.questions + t.physical + t.orders !== tb.r.spent) throw new Error(`time breakdown parts: ${JSON.stringify(tb)}`);
+          if (!tb.total.includes(`${tb.r.spent} de ${tb.r.target} min`)) throw new Error(`time breakdown total: ${JSON.stringify(tb)}`);
+          if (t.roomWait && !tb.waits.includes(`aguardando no consultório ${t.roomWait} min`)) throw new Error(`room wait missing: ${JSON.stringify(tb)}`);
+          if (!/O que a fila pagou/.test(tb.queue) || (tb.r.paid === 0) !== /ninguém passou/.test(tb.queue)) throw new Error(`queue cost: ${JSON.stringify(tb)}`);
+          if (!roomWaitSeen && t.roomWait > 0) roomWaitSeen = true;
+        }
         if (!reportChecked) {
           // feedback links to a prefilled GitHub issue with the case id and the answer given
           reportChecked = true;
@@ -261,6 +277,8 @@ try {
   if (!menuChecked) throw new Error('test menu was never checked');
   if (!shuffledSeen) throw new Error('answer options were never shuffled in any encounter');
   console.log(`✔ options shuffled in ${shuffledSeen} encounters`);
+  if (!roomWaitSeen) throw new Error('no feedback showed the minutes waited in the room');
+  console.log('✔ feedback time breakdown matches the encounter totals');
   // the same seed gives the same option order
   const sameSeed = await page.evaluate(async () => {
     const { Shift } = await import('./src/game/shift.js');

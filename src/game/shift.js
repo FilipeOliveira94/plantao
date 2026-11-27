@@ -115,6 +115,8 @@ export class Shift {
     if (this.over || this.current) return false;
     this.current = enc;
     if (enc.firstSeenAt == null) enc.firstSeenAt = this.clock;
+    if (enc.awaitingSince != null) { enc.time.queueWait += this.clock - enc.awaitingSince; enc.awaitingSince = null; }
+    enc.roomSpans.push({ from: this.clock, to: null });
     enc.status = 'in_progress';
     return true;
   }
@@ -144,12 +146,35 @@ export class Shift {
   /** Sends the current patient to the waiting room until results are ready. */
   sendToWait() {
     if (!this.current) return;
+    this.closeSpan(this.current);
     this.current.status = 'awaiting_results';
+    this.current.awaitingSince = this.clock;
     this.current = null;
   }
 
+  closeSpan(enc) {
+    const span = enc.roomSpans.at(-1);
+    if (span && span.to == null) span.to = this.clock;
+  }
+
+  /** What the queue paid for one patient's consultation: for each other patient, the minutes spent past
+   *  their Manchester target (and not yet seen) while this patient was in the room. Largest first. */
+  queuePaid(enc) {
+    const paid = [];
+    for (const e of this.encounters) {
+      if (e === enc) continue;
+      const due = e.arrivedAt + TRIAGE[e.c.triage.priority].target;
+      const seen = e.firstSeenAt ?? Infinity;
+      const minutes = enc.roomSpans.reduce((sum, sp) => sum + Math.max(0, Math.min(sp.to ?? this.clock, seen) - Math.max(sp.from, due)), 0);
+      if (minutes > 0) paid.push({ name: e.c.patient.name, priority: e.c.triage.priority, minutes });
+    }
+    return paid.sort((a, b) => b.minutes - a.minutes);
+  }
+
   finish(enc, result) {
+    this.closeSpan(enc);
     enc.status = 'done';
+    result.queuePaid = this.queuePaid(enc);
     this.results.push({ enc, result });
     if (this.current === enc) this.current = null;
   }
@@ -160,7 +185,9 @@ export class Shift {
     if (!this.current || this.over) return [];
     const times = this.current.pendingExams(this.clock).map(([, r]) => r.readyAt);
     if (!times.length) return [];
-    return this.advance(Math.max(1, Math.min(Math.min(...times), SHIFT_MINUTES) - this.clock));
+    const minutes = Math.max(1, Math.min(Math.min(...times), SHIFT_MINUTES) - this.clock);
+    this.current.time.roomWait += minutes;
+    return this.advance(minutes);
   }
 
   /** Advances the clock to the next event (arrival or test result), never past the end of the shift. */
