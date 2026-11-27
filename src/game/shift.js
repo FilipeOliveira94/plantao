@@ -138,12 +138,14 @@ export class Shift {
   }
 
   /** Marks newly impatient patients and lets low-priority ones leave. Only patients never called count:
-   *  the target is the wait for first contact. Returns the messages to show, as event-like objects. */
+   *  the target is the wait for first contact. Waits stop counting at the end of the shift (those patients
+   *  already count as unseen). Returns the messages to show, as event-like objects. */
   checkWaiting() {
     const out = [];
+    const now = Math.min(this.clock, SHIFT_MINUTES);
     for (const e of this.encounters) {
-      if (e.status !== 'waiting' || e.firstSeenAt != null || e.arrivedAt > this.clock) continue;
-      const wait = this.clock - e.arrivedAt;
+      if (e.status !== 'waiting' || e.firstSeenAt != null || e.arrivedAt > now) continue;
+      const wait = now - e.arrivedAt;
       const pr = e.c.triage.priority;
       if (!e.impatient && wait > impatienceAt(pr)) {
         e.impatient = true;
@@ -157,7 +159,7 @@ export class Shift {
       const limit = leaveAt(pr);
       if (limit != null && wait > limit) {
         e.status = 'left';
-        e.leftAt = this.clock;
+        e.leftAt = e.arrivedAt + limit + 1; // when the threshold was crossed, even inside a long clock jump
         this.changeSatisfaction(-SATISFACTION_PENALTY.left, 'left', e);
         out.push({ id: 'left', enc: e, text: leftText(e) });
       }

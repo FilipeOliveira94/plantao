@@ -113,3 +113,20 @@ test('satisfaction changes the closing bonus, never a case score, and the bonus 
   s.satisfaction = 0; s.encounters.push(...shiftWith(['red', 'red', 'red']).encounters);
   assert.equal(applyShift(state(), s).bonus, 0);
 });
+
+test('waits stop counting at the end of the shift', () => {
+  const s = shiftWith(['green', 'yellow']);
+  const [green, yellow] = s.encounters;
+  green.arrivedAt = 60; // at 10:00 has waited 120 min: impatient only after 135, leaves after 150
+  yellow.arrivedAt = 120; // at 10:00 has waited 60 min: impatient only after 75
+  s.advance(400); // a consultation running far past the end of the shift
+  assert.equal(green.status, 'waiting');
+  assert.ok(!green.impatient && !yellow.impatient);
+  assert.equal(s.satisfaction, 100);
+});
+
+test('a departure inside a long clock jump is dated when the threshold was crossed', () => {
+  const s = shiftWith(['green']);
+  s.advance(170);
+  assert.equal(s.encounters[0].leftAt, leaveAt('green') + 1);
+});
