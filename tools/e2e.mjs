@@ -521,9 +521,25 @@ try {
   await page.evaluate(() => { const s = window.__plantao.shift; s.advance(s.activeEffects()[0].until - s.clock); });
   await page.locator('.pane .opt').first().click();
   if (await chip.count()) throw new Error('the effect chip stays after the event ends');
-  console.log(`✔ random event: "system_down" at ${evAt}, popup, chip and slower actions`);
-  await page.locator('.topbar .btn.ghost').first().click();
-  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  // a loss the event caused shows in the summary but does not count in the bonus
+  const evEnd = await page.evaluate(() => {
+    const s = window.__plantao.shift;
+    s.changeSatisfaction(-15, 'impatient', s.encounters[1], { excused: 'system_down' });
+    s.advance(s.endsAt - s.clock);
+    return { dx: s.current.c.diagnosis.correct, cd: s.current.c.conduct.correct };
+  });
+  await page.getByRole('tab', { name: /Decisão/ }).click();
+  await page.locator(`input[name=dx][value="${evEnd.dx}"]`).check();
+  await page.locator(`input[name=cd][value="${evEnd.cd}"]`).check();
+  await page.getByRole('button', { name: /Finalizar atendimento/ }).click();
+  await page.waitForSelector('.modal');
+  await page.locator('.modal .btn.primary').click();
+  await page.waitForSelector('text=Fim de plantão', { timeout: 3000 });
+  const evSat = await page.locator('.modal li.satisfaction').textContent();
+  if (!/Satisfação dos pacientes: 85\/100/.test(evSat) || !/15 pontos atribuídos ao imprevisto \(não contam no bônus\)/.test(evSat) || !/\+10$/.test(evSat.trim())) throw new Error(`unexpected satisfaction line after an event: ${evSat}`);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/11-imprevisto-resumo.png` });
+  console.log(`✔ random event: "system_down" at ${evAt}, popup, chip, slower actions, excused loss in the summary`);
+  await page.getByRole('button', { name: /Voltar ao menu/ }).click();
   // PICU scene
   if (SHOTS) {
     await page.locator('.unit').last().click();

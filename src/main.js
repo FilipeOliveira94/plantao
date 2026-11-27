@@ -740,7 +740,7 @@ function sendToWait(enc) {
 function finishEncounter(enc) {
   if (!decision.dx || !decision.cd) { toast('Escolha a hipótese diagnóstica e a conduta.'); return; }
   const prevLevel = levelOf(state.xp).number;
-  const result = enc.score({ diagnosisId: decision.dx, conductId: decision.cd, now: shift.clock });
+  const result = enc.score({ diagnosisId: decision.dx, conductId: decision.cd, now: shift.clock, excusedWait: shift.excusedWait(enc) });
   result.chosen = { dx: decision.dx, cd: decision.cd };
   shift.finish(enc, result);
   const earned = applyCase(state, enc.c, result);
@@ -843,11 +843,17 @@ function impatientNote(s) {
   return parts.length ? ` · ${parts.join(', ')}` : '';
 }
 
+// " · 15 pontos atribuídos ao imprevisto (não contam no bônus)" when an event (P1-09) caused part of the loss
+function excusedNote(shown, graded) {
+  const n = graded - shown;
+  return n > 0 ? ` · ${n} ponto${n > 1 ? 's' : ''} atribuído${n > 1 ? 's' : ''} ao imprevisto (não conta${n > 1 ? 'm' : ''} no bônus)` : '';
+}
+
 function showShiftSummary() {
   if (!shift || shift._summaryShown) return;
   shift._summaryShown = true;
   const prev = levelOf(state.xp).number;
-  const { earned, bonus, unseenPenalty, satisfaction, satisfactionBonus } = applyShift(state, shift);
+  const { earned, bonus, unseenPenalty, satisfaction, gradedSatisfaction, satisfactionBonus } = applyShift(state, shift);
   const unseen = shift.unseen();
   save(state);
   const leveled = levelOf(state.xp).number > prev;
@@ -862,7 +868,7 @@ function showShiftSummary() {
       unseen.map((enc) => h('li', { class: `unseen${enc.status === 'left' ? ' left' : ''}` }, h('span', {}, enc.c.patient.name, ` (${TRIAGE[enc.c.triage.priority].label})`),
         h('span', { class: 'neg' }, enc.status === 'left' ? `foi embora sem atendimento às ${clockAt(enc.leftAt)}` : 'não atendido'))),
       unseen.length ? h('li', {}, h('span', {}, `Pacientes sem atendimento (${unseen.length})`), h('span', { class: 'neg' }, `-${unseenPenalty}`)) : null,
-      h('li', { class: 'satisfaction' }, h('span', {}, `Satisfação dos pacientes: ${satisfaction}/100${impatientNote(finished)}`),
+      h('li', { class: 'satisfaction' }, h('span', {}, `Satisfação dos pacientes: ${satisfaction}/100${impatientNote(finished)}${excusedNote(satisfaction, gradedSatisfaction)}`),
         h('span', { class: satisfactionBonus > 0 ? 'pos' : satisfactionBonus < 0 ? 'neg' : 'muted' }, satisfactionBonus < 0 ? `${satisfactionBonus}` : `+${satisfactionBonus}`)),
       h('li', {}, h('span', {}, unseen.length || satisfactionBonus < 0 ? 'Bônus de fechamento (após descontos, mínimo 0)' : 'Bônus de fechamento de plantão'), h('span', { class: bonus ? 'pos' : 'muted' }, `+${bonus}`)),
       h('li', {}, h('b', {}, 'Total'), h('b', {}, `+${total} XP`)),

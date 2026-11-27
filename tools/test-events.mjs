@@ -7,6 +7,7 @@ import {
   Shift, EVENT_CHANCE, EVENT_IDS, EVENT_WINDOW, LAB_DELAY_EXTRA, SYSTEM_DOWN, SUPPLY_SHORTAGE, COMPANION_COMPLAINT, SATISFACTION_PENALTY,
 } from '../src/game/shift.js';
 import { UNITS, ACTION_COST, EXAMS } from '../src/data/catalog.js';
+import { applyShift } from '../src/game/progress.js';
 
 const UPA = UNITS.find((u) => u.type === 'upa');
 const make = (seed = 1) => new Shift({ unit: UPA, specialty: 'internal-medicine', seed });
@@ -173,4 +174,87 @@ test('no event changes clinical content', () => {
     assert.equal(optionsOf(s), before);
     assert.deepEqual(s.encounters.map((e) => JSON.stringify(e.c)), cases);
   }
+});
+
+// Grading excuses what an event caused (the world still reacts): the same play with and without the event
+// gives the same stars, case points, graded satisfaction and P2-03 overdue time.
+function playWaitingRoom(id) {
+  const s = make(1);
+  s.pendingEvents = [];
+  s.waitRnd = () => 0.99;
+  const [p0, p1, p2] = s.encounters;
+  s.encounters = [p0, p1, p2];
+  const set = (e, priority) => { e.c = { ...e.c, triage: { ...e.c.triage, priority } }; e.arrivedAt = 0; };
+  set(p0, 'red'); set(p1, 'orange'); set(p2, 'green');
+  if (id) s.scheduleEvent(id, 1);
+  s.advance(1);
+  s.call(p0);
+  for (let i = 0; i < 21; i++) s.spend(ACTION_COST.question);
+  const score = (e) => e.score({ diagnosisId: e.c.diagnosis.correct, conductId: e.c.conduct.correct, now: s.clock, excusedWait: s.excusedWait(e) });
+  s.finish(p0, score(p0));
+  s.call(p1);
+  const r1 = score(p1);
+  return { s, p1: r1, paid: s.results[0].result.queuePaid.map((q) => [q.name, q.overdue]) };
+}
+
+test('system_down: the same play ends with the same grades as a shift without the event', () => {
+  const base = playWaitingRoom(null);
+  const ev = playWaitingRoom('system_down');
+  assert.ok(ev.s.clock > base.s.clock, 'the event cost shift time');
+  // the world reacted: the green patient got impatient only in the event shift
+  assert.equal(base.s.encounters[2].impatient, false);
+  assert.equal(ev.s.encounters[2].impatient, true);
+  assert.ok(ev.s.satisfaction < base.s.satisfaction);
+  // grading did not hold it against the player
+  assert.equal(ev.s.gradedSatisfaction, base.s.gradedSatisfaction);
+  assert.equal(ev.p1.points, base.p1.points);
+  assert.equal(ev.p1.stars, base.p1.stars);
+  assert.equal(ev.p1.waited, base.p1.waited);
+  assert.deepEqual(ev.paid, base.paid);
+});
+
+test('the satisfaction log names the event that excused a loss; a loss the player caused is not excused', () => {
+  const { s } = playWaitingRoom('system_down');
+  const log = s.satisfactionLog.map((l) => [l.enc.c.triage.priority, l.reason, s.excusedBy(l)]);
+  // orange crossed earlier because of the event, but the player's own wait passed its threshold too: not excused
+  assert.deepEqual(log, [['orange', 'impatient', null], ['green', 'impatient', 'system_down']]);
+});
+
+test('idle time waiting on a delayed result is lost time; seeing someone else meanwhile is not', () => {
+  for (const [id, exam, extra] of [['lab_delay', 'cbc', LAB_DELAY_EXTRA], ['supply_shortage', 'capillary_glucose', SUPPLY_SHORTAGE.extra]]) {
+    const s = shiftWithEvent(id, 1);
+    s.advance(1);
+    s.call(s.encounters[0]);
+    const { rec } = s.requestExam(exam);
+    assert.equal(rec.delayedBy, id);
+    s.waitInRoom();
+    assert.equal(s.clock, rec.readyAt);
+    assert.equal(s.lostWithin(0, s.clock), extra, id);
+    assert.deepEqual(s.lostSpans.map((sp) => sp.event), [id]);
+  }
+  const s = shiftWithEvent('lab_delay', 1);
+  s.advance(1);
+  s.call(s.encounters[0]);
+  s.requestExam('cbc');
+  s.sendToWait();
+  s.call(s.encounters[1]); // busy with another patient: nothing is lost
+  for (let i = 0; i < 40; i++) s.spend(ACTION_COST.question);
+  assert.equal(s.lostWithin(0, s.clock), 0);
+});
+
+test('companion_complaint is unfounded while a more urgent patient comes first', () => {
+  const s = shiftWithEvent('companion_complaint', 5);
+  const [named, other] = s.encounters;
+  s.encounters = [named, other];
+  other.c = { ...other.c, triage: { ...other.c.triage, priority: 'red' } };
+  s.pendingEvents[0].pick = () => named;
+  s.advance(5);
+  s.call(other);
+  const out = s.advance(COMPANION_COMPLAINT.minutes);
+  const pen = out.find((o) => o.id === 'companion_penalty');
+  assert.ok(pen.excused && /improcedente/.test(pen.text));
+  assert.equal(s.satisfaction, 100 - SATISFACTION_PENALTY.companion, 'the complaint still happened');
+  assert.equal(s.gradedSatisfaction, 100, 'but does not count');
+  const shown = applyShift({ xp: 0, cases: {}, badges: [], states: [], shifts: 0 }, s);
+  assert.deepEqual([shown.satisfaction, shown.gradedSatisfaction, shown.satisfactionBonus], [90, 100, 10]);
 });

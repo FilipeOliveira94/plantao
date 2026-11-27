@@ -134,7 +134,10 @@ export class Shift {
     this.messages = [];
     this.results = [];
     this.satisfaction = SATISFACTION_START;
-    this.satisfactionLog = []; // { delta, reason, at, enc? }
+    this.satisfactionLog = []; // { delta, reason, at, enc?, excused? }
+    // shift time the doctor lost to an event (P1-09): { from, to, event }. The world still reacts to it (patients
+    // wait, complain, leave), but grading excuses it: see excusedWait, gradedSatisfaction and queuePaid.
+    this.lostSpans = [];
     // a separate stream for complaints, so they do not change arrivals, options or events
     this.waitRnd = mulberry32(seed ^ 0x2545f491);
 
@@ -194,6 +197,40 @@ export class Shift {
     return this.effects.filter((f) => !f.resolved && this.clock < f.until && !(f.enc && (f.enc.firstSeenAt != null || f.enc.status === 'left')));
   }
 
+  /** Records shift time lost to `event`, from internal minute `from` to `to`. */
+  loseTime(from, to, event) { if (to > from) this.lostSpans.push({ from, to, event }); }
+
+  /** Internal minutes lost to events between `a` and `b`. Lost spans never overlap: each comes from one clock step. */
+  lostWithin(a, b) { return this.lostSpans.reduce((sum, sp) => sum + Math.max(0, Math.min(sp.to, b) - Math.max(sp.from, a)), 0); }
+
+  /** Minutes of a patient's wait for first contact that events took from the doctor: not held against the player. */
+  excusedWait(enc) { return this.lostWithin(enc.arrivedAt, enc.firstSeenAt ?? Math.min(this.clock, SHIFT_MINUTES)); }
+
+  /** Why grading ignores a satisfaction loss, or null. A wait-based loss is excused while the player's own share of
+   *  that wait (the wait minus time events took) is still within its threshold; once it is past, the patient would
+   *  have got impatient or left anyway. A wait ends at first contact, else now (a patient who left counts on). */
+  excusedBy(l) {
+    if (l.excused || l.limit == null) return l.excused ?? null;
+    const e = l.enc;
+    const end = e.firstSeenAt ?? Math.min(this.clock, SHIFT_MINUTES);
+    if (end - e.arrivedAt - this.lostWithin(e.arrivedAt, end) > l.limit) return null;
+    return this.lostSpans.find((sp) => sp.to > e.arrivedAt && sp.from < end)?.event ?? null;
+  }
+
+  /** Satisfaction the closing bonus uses: the shown value with excused losses given back. */
+  get gradedSatisfaction() {
+    return Math.min(100, this.satisfaction - this.satisfactionLog.filter((l) => this.excusedBy(l)).reduce((sum, l) => sum + l.delta, 0));
+  }
+
+  /** Records the time lost if the doctor idles from the clock to `to`, waiting on results an event delayed: only
+   *  the part after the earliest of them would have been ready. Call before advancing, so waits see it. */
+  loseIdle(to, recs) {
+    const late = recs.filter((r) => r.delayedFrom != null && r.delayedFrom < to && r.readyAt >= to);
+    if (!late.length) return;
+    const first = late.reduce((a, b) => (b.delayedFrom < a.delayedFrom ? b : a));
+    this.loseTime(Math.max(this.clock, first.delayedFrom), to, first.delayedBy);
+  }
+
   get clockLabel() { return clockLabelAt(this.clock); }
 
   get endsAt() { return SHIFT_MINUTES; }
@@ -230,17 +267,22 @@ export class Shift {
       if (f.enc.firstSeenAt != null || f.enc.status === 'left') { f.resolved = true; continue; }
       if (this.clock >= f.until) {
         f.resolved = true;
-        this.changeSatisfaction(-SATISFACTION_PENALTY.companion, 'complaint', f.enc);
-        out.push({ id: 'companion_penalty', enc: f.enc, text: `Recepção: “${familyOf(f.enc)} fez uma reclamação formal na ouvidoria pela demora.”` });
+        // like an ombudsman review: the complaint stands, but it is unfounded when a more urgent patient came first
+        const order = TRIAGE[f.enc.c.triage.priority].order;
+        const busier = [this.current, ...this.queue()].some((e) => e && e !== f.enc && TRIAGE[e.c.triage.priority].order < order);
+        this.changeSatisfaction(-SATISFACTION_PENALTY.companion, 'complaint', f.enc, { excused: busier ? 'triage' : null });
+        const text = `Recepção: “${familyOf(f.enc)} fez uma reclamação formal na ouvidoria pela demora.”`;
+        out.push({ id: 'companion_penalty', enc: f.enc, excused: busier, text: busier ? `${text} Reclamação improcedente: havia paciente mais grave.` : text });
       }
     }
     return out;
   }
 
-  /** Changes shift satisfaction by `delta`, kept within 0..100, and logs why. Returns the new value. */
-  changeSatisfaction(delta, reason, enc = null) {
+  /** Changes shift satisfaction by `delta`, kept within 0..100, and logs why. `limit`: the wait threshold that caused
+   *  it; `excused`: a fixed reason grading ignores it ('triage'). Returns the new value. */
+  changeSatisfaction(delta, reason, enc = null, { limit = null, excused = null } = {}) {
     const next = Math.min(100, Math.max(0, this.satisfaction + delta));
-    this.satisfactionLog.push({ delta: next - this.satisfaction, reason, at: this.clock, enc });
+    this.satisfactionLog.push({ delta: next - this.satisfaction, reason, at: this.clock, enc, limit, excused });
     this.satisfaction = next;
     return next;
   }
@@ -255,11 +297,12 @@ export class Shift {
       if (e.status !== 'waiting' || e.firstSeenAt != null || e.arrivedAt > now) continue;
       const wait = now - e.arrivedAt;
       const pr = e.c.triage.priority;
+      // each loss keeps its threshold, so grading can tell whether the player's own time crossed it (excusedBy)
       if (!e.impatient && wait > impatienceAt(pr)) {
         e.impatient = true;
-        this.changeSatisfaction(-SATISFACTION_PENALTY.impatient, 'impatient', e);
+        this.changeSatisfaction(-SATISFACTION_PENALTY.impatient, 'impatient', e, { limit: impatienceAt(pr) });
         if (this.waitRnd() < COMPLAINT_CHANCE) {
-          this.changeSatisfaction(-SATISFACTION_PENALTY.complaint, 'complaint', e);
+          this.changeSatisfaction(-SATISFACTION_PENALTY.complaint, 'complaint', e, { limit: impatienceAt(pr) });
           const say = COMPLAINTS[Math.floor(this.waitRnd() * COMPLAINTS.length)];
           out.push({ id: 'complaint', enc: e, text: say(e, wait) });
         }
@@ -268,7 +311,7 @@ export class Shift {
       if (limit != null && wait > limit) {
         e.status = 'left';
         e.leftAt = e.arrivedAt + limit + 1; // when the threshold was crossed, even inside a long clock jump
-        this.changeSatisfaction(-SATISFACTION_PENALTY.left, 'left', e);
+        this.changeSatisfaction(-SATISFACTION_PENALTY.left, 'left', e, { limit });
         out.push({ id: 'left', enc: e, text: leftText(e) });
       }
     }
@@ -298,7 +341,11 @@ export class Shift {
   }
 
   /** Clinical action on the current patient (question/physical exam): advances the clock. */
-  spend(minutes) { return this.advance(minutes + this.actionExtra()); }
+  spend(minutes) {
+    const extra = this.actionExtra();
+    this.loseTime(this.clock + minutes, this.clock + minutes + extra, 'system_down');
+    return this.advance(minutes + extra);
+  }
 
   /** Extra shift minutes per clinical action while the system is down (P1-09). Not consultation time. */
   actionExtra() { return this.hasEffect('system_down') ? SYSTEM_DOWN.extra : 0; }
@@ -311,17 +358,21 @@ export class Shift {
     const extra = this.actionExtra();
     const shortage = this.hasEffect('supply_shortage');
     const rec = enc.request(examId, this.clock, mult);
-    if (meta.poc && !rec.brought && shortage && enc.minutesSpent > before) rec.readyAt += SUPPLY_SHORTAGE.extra;
+    // a result an event delayed remembers when it would have been ready, so idle time past that point is excused
+    const delay = (by, event) => { rec.delayedFrom = rec.readyAt; rec.delayedBy = event; rec.readyAt += by; };
+    if (meta.poc && !rec.brought && shortage && enc.minutesSpent > before) delay(SUPPLY_SHORTAGE.extra, 'supply_shortage');
     if (!meta.poc && !rec.brought) {
       if (this.unitType.labResultsOnReturn) {
         rec.readyAt = this.clock;
         rec.result = 'Solicitado. O resultado chegará apenas no retorno (dias). Na UBS, decida com o que tem hoje.';
         rec.deferred = true;
-      } else if (this.labExtra) {
-        rec.readyAt += this.labExtra;
+      } else if (this.labExtra && enc.minutesSpent > before) {
+        delay(this.labExtra, 'lab_delay');
       }
     }
-    const fired = this.advance((enc.minutesSpent - before || 1) + (enc.minutesSpent > before ? extra : 0));
+    const cost = enc.minutesSpent - before || 1;
+    if (enc.minutesSpent > before) this.loseTime(this.clock + cost, this.clock + cost + extra, 'system_down');
+    const fired = this.advance(cost + (enc.minutesSpent > before ? extra : 0));
     return { rec, fired };
   }
 
@@ -349,9 +400,10 @@ export class Shift {
     for (const e of this.encounters) {
       if (e === enc) continue;
       const pr = e.c.triage.priority;
-      const due = e.arrivedAt + scaledTarget(pr);
       const end = Math.min(e.firstSeenAt ?? Infinity, e.leftAt ?? Infinity, SHIFT_MINUTES);
-      const overdue = enc.roomSpans.reduce((sum, sp) => sum + Math.max(0, Math.min(sp.to ?? this.clock, end) - Math.max(sp.from, due)), 0);
+      // measured on the player's time, without the minutes events took from the doctor (P1-09)
+      const pt = (t) => t - this.lostWithin(0, t);
+      const overdue = enc.roomSpans.reduce((sum, sp) => sum + Math.max(0, pt(Math.min(sp.to ?? this.clock, end)) - Math.max(pt(sp.from), pt(e.arrivedAt) + scaledTarget(pr))), 0);
       const events = this.satisfactionLog.filter((l) => l.enc === e && inRoom(l.at)).map((l) => l.reason);
       let soon = null;
       if (e.status === 'waiting' && e.firstSeenAt == null && e.arrivedAt <= now) {
@@ -387,10 +439,12 @@ export class Shift {
    *  Shift time passes; consultation time does not. */
   waitInRoom() {
     if (!this.current || this.over) return [];
-    const times = this.current.pendingExams(this.clock).map(([, r]) => r.readyAt);
+    const pending = this.current.pendingExams(this.clock).map(([, r]) => r);
+    const times = pending.map((r) => r.readyAt);
     if (!times.length) return [];
     const minutes = Math.max(1, Math.min(Math.min(...times), SHIFT_MINUTES) - this.clock);
     this.current.roomWaits.push({ from: this.clock, to: this.clock + minutes });
+    this.loseIdle(this.clock + minutes, pending);
     return this.advance(minutes);
   }
 
@@ -398,14 +452,17 @@ export class Shift {
   waitForNext() {
     if (this.over) return [];
     const times = [];
+    const pending = [];
     for (const e of this.encounters) {
       if (e.status === 'done' || e.status === 'left') continue;
       if (e.arrivedAt > this.clock) times.push(e.arrivedAt);
-      for (const [, r] of e.pendingExams(this.clock)) times.push(r.readyAt);
+      for (const [, r] of e.pendingExams(this.clock)) { times.push(r.readyAt); pending.push(r); }
     }
     if (!times.length) return [];
     const next = Math.min(Math.min(...times), SHIFT_MINUTES);
-    return this.advance(Math.max(1, next - this.clock));
+    const minutes = Math.max(1, next - this.clock);
+    this.loseIdle(this.clock + minutes, pending);
+    return this.advance(minutes);
   }
 
   /** Patients not finished, including those who left: at the end of the shift these count against it. */
