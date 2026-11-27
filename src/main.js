@@ -935,7 +935,7 @@ function footerFor(enc) {
     // waiting in the room passes shift time, not consultation time
     pend && !shift.over ? h('button', { class: 'btn', 'data-step': 'wait-here', onclick: () => waitInRoom(enc) }, `⏳ Aguardar aqui (até ${clockAt(Math.min(nextReady, shift.endsAt))})`) : null,
     // after the end of the shift a patient sent out could not be called back, so they stay in the room
-    pend && !shift.over ? h('button', { class: 'btn', 'data-step': 'send-wait', onclick: () => sendToWait(enc) }, `🪑 Aguardar na recepção (volta às ${clockAt(Math.max(...pending.map(([, r]) => r.readyAt)))})`) : null,
+    pend && !shift.over ? h('button', { class: 'btn', 'data-step': 'send-wait', onclick: () => sendToWait(enc) }, `🪑 Aguardar na recepção (volta às ${clockAt(Math.min(Math.max(...pending.map(([, r]) => r.readyAt)), shift.endsAt))})`) : null,
     h('span', { class: 'spacer', style: { flex: 1 } }),
     h('button', { class: 'btn', 'data-step': 'decide', onclick: () => { tab = 'decision'; renderChart(); } }, 'Diagnóstico e conduta →'),
   );
@@ -1037,7 +1037,7 @@ function recordHypothesis(enc) {
 function returnNote(enc) {
   const pending = enc.pendingExams(shift.clock);
   if (!pending.length || shift.over) return null;
-  const back = clockAt(Math.max(...pending.map(([, r]) => r.readyAt)));
+  const back = clockAt(Math.min(Math.max(...pending.map(([, r]) => r.readyAt)), shift.endsAt));
   const next = firstCallable();
   return h('p', { class: 'small return-note', role: 'status' }, `🕒 Resultados até ${back}. `,
     next ? `Mande aguardar na recepção e atenda ${next.c.patient.name} enquanto isso.` : 'Ninguém para chamar agora: aguarde aqui ou na recepção.');
@@ -1113,6 +1113,7 @@ function confirmFinish(enc) {
   const pend = enc.pendingExams(shift.clock).length;
   const m = modal(h('div', {},
     h('h2', {}, 'Finalizar atendimento?'),
+    tutorial ? coachNote(tutorialPrompt('finish-confirm', tutorial)) : null,
     h('p', {}, h('b', {}, 'Diagnóstico: '), dxLabel(enc, decision.dx)),
     h('p', {}, h('b', {}, 'Conduta: '), enc.c.conduct.options.find((o) => o.id === decision.cd)?.label),
     pend ? h('p', { class: 'small pending-warn' }, `⚠️ ${pend} exame${pend > 1 ? 's' : ''} ainda sem resultado.`) : null,

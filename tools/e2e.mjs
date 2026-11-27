@@ -110,7 +110,7 @@ try {
     await page.locator(`input[name=cd][value="${d.cd}"]`).check();
     await page.locator('[data-step=finish]').click();
     await expectStep('finish-confirm', 'tutorial finish confirmation');
-    await coachSays(/não pode ser reaberto/, 'finish-confirm');
+    if (!/não pode ser reaberto/.test(await page.locator('.modal-back.confirm-finish .coach-note').textContent())) throw new Error('the finish confirmation has no tutorial prompt');
     await page.locator('[data-step=finish-confirm]').click();
     await page.waitForSelector('.modal-back.feedback');
     await expectStep('feedback-next', 'tutorial feedback');
@@ -856,7 +856,7 @@ try {
   await expectStep('wait-here', 'a test still out and no one else to see');
   {
     // the screen says when the patient comes back, as a clock time (never minutes), on the button, the Exames tab and the queue card
-    const label = clockLabelAt(await page.evaluate(() => { const s = window.__plantao.shift; return Math.max(...s.current.pendingExams(s.clock).map(([, r]) => r.readyAt)); }));
+    const label = clockLabelAt(await page.evaluate(() => { const s = window.__plantao.shift; return Math.min(Math.max(...s.current.pendingExams(s.clock).map(([, r]) => r.readyAt)), s.endsAt); }));
     const btn = await page.locator('[data-step=send-wait]').textContent();
     if (!btn.includes(`volta às ${label}`) || /\d+\s*min/.test(btn)) throw new Error(`send-wait button does not say when the patient comes back: ${btn}`);
     if (!(await page.locator('.pane .return-note').textContent()).includes(label)) throw new Error('the Exames tab does not say when the results come');
