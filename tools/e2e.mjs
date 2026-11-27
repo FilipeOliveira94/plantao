@@ -45,6 +45,9 @@ try {
   const arrivalCard = page.locator('.popup.arrival:not(.out)');
   const dismissArrival = async () => { await arrivalCard.getByRole('button', { name: 'Depois' }).click(); };
   await page.addLocatorHandler(arrivalCard, dismissArrival, { noWaitAfter: true });
+  // random event popups (P1-09, about one shift in six): the full-shift runs close them; the seeded check below covers them
+  const eventCard = page.locator('.popup.event:not(.out)');
+  await page.addLocatorHandler(eventCard, async () => { await eventCard.getByRole('button', { name: 'Entendi' }).click(); }, { noWaitAfter: true });
   await page.goto(`http://localhost:${PORT}/index.html`);
   // the menu states that the cases are AI-generated and links to the references table
   const refs = page.locator('.ai-notice a');
@@ -481,6 +484,48 @@ try {
   if (await page.evaluate(() => window.__plantao.shift.current?.c.id) !== arr.red) throw new Error('an ignored arrival changed the patient in the room');
   console.log('✔ arrival popups: details, non-blocking "Depois", auto-dismiss, red "Atender agora" pauses with progress kept');
   await page.locator('.topbar .btn.ghost').first().click(); // ←: leave the shift
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  // random events (P1-09): a seed whose shift has the system-down event shows its popup and the effect chip,
+  // and each action costs extra shift time while it lasts
+  await page.removeLocatorHandler(eventCard);
+  const { Shift } = await import('../src/game/shift.js');
+  const { UNITS: ALL_UNITS } = await import('../src/data/catalog.js');
+  let seed = 0;
+  while (new Shift({ unit: ALL_UNITS[0], specialty: ALL_UNITS[0].specialties[0], seed }).pendingEvents[0]?.id !== 'system_down') seed++;
+  await page.goto(`http://localhost:${PORT}/index.html?seed=${seed}`);
+  await page.locator('.unit').first().click();
+  await page.locator('.spec').first().click();
+  await page.getByRole('button', { name: /Começar plantão/ }).click();
+  await page.waitForSelector('.game');
+  await page.locator('.qcard button:not([disabled])').first().click();
+  await page.getByRole('tab', { name: /Anamnese/ }).click();
+  const evAt = await page.evaluate(() => {
+    const s = window.__plantao.shift;
+    for (const e of s.upcoming()) e.arrivedAt = s.endsAt - 1; // no arrival card in the way
+    const at = s.pendingEvents[0].at;
+    s.advance(at - 1 - s.clock);
+    return at;
+  });
+  await page.locator('.pane .opt').first().click(); // crosses the event minute through the UI
+  await eventCard.waitFor();
+  const evText = await eventCard.innerText();
+  if (!/sistema do prontuário caiu/.test(evText) || !/Sistema fora do ar até \d\d:\d\d/.test(evText)) throw new Error(`unexpected event popup: ${evText}`);
+  if (/\d+\s*min\b/.test(evText)) throw new Error(`event popup shows scaled minutes: ${evText}`);
+  if (await page.locator('.popup-wrap.blocking').count()) throw new Error('an event popup must not block the screen');
+  const chip = page.locator('.topbar .chip.effect', { hasText: /Sistema fora do ar até/ });
+  await chip.waitFor();
+  if (SHOTS) { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/10-imprevisto.png` }); }
+  await eventCard.getByRole('button', { name: 'Entendi' }).click();
+  await eventCard.waitFor({ state: 'detached' });
+  const t0 = await page.evaluate(() => window.__plantao.shift.clock);
+  await page.locator('.pane .opt').first().click();
+  const t1 = await page.evaluate(() => window.__plantao.shift.clock);
+  if (t1 - t0 !== 3) throw new Error(`a question during the system-down event advanced the clock by ${t1 - t0}, expected 3`);
+  await page.evaluate(() => { const s = window.__plantao.shift; s.advance(s.activeEffects()[0].until - s.clock); });
+  await page.locator('.pane .opt').first().click();
+  if (await chip.count()) throw new Error('the effect chip stays after the event ends');
+  console.log(`✔ random event: seed ${seed} fires "system_down" at ${evAt}, popup, chip and slower actions`);
+  await page.locator('.topbar .btn.ghost').first().click();
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
   // PICU scene
   if (SHOTS) {

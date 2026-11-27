@@ -274,7 +274,9 @@ function showHelp() {
 function startShift(unit, specialty) {
   sfx.unlock();
   clearArrivals();
-  shift = new Shift({ unit, specialty, completedCases: state.cases });
+  // `?seed=N` replays a shift (arrivals, options, events); the e2e test uses it
+  const seed = Number.parseInt(new URLSearchParams(location.search).get('seed'), 10);
+  shift = new Shift({ unit, specialty, completedCases: state.cases, seed: Number.isFinite(seed) ? seed : Date.now() });
   if (!shift.encounters.length) { toast('Ainda não há casos para essa combinação.'); return; }
   music.play(unit.music);
   renderGame();
@@ -317,6 +319,8 @@ function renderTop() {
     h('span', { class: 'spacer' }),
     h('span', { class: 'small muted' }, `${shift.results.length}/${shift.encounters.length} atendidos`),
     h('span', { class: 'small' }, `Nv ${lvl.number} · ${state.xp} XP`),
+    // event effects (P1-09) stay on screen while they last
+    ...shift.activeEffects().map((f) => h('span', { class: 'chip effect', title: f.detail }, f.label)),
     h('span', { class: `clock${shift.over ? ' over' : ''}`, title: `Relógio do plantão (termina às ${shift.endLabel})` }, shift.clockLabel, h('span', { class: 'clock-end' }, ` · fim ${shift.endLabel}`)),
     h('button', { class: 'btn ghost', onclick: toggleMute }, state.settings.muted ? '🔇' : '🔊'),
     musicSlider(),
@@ -372,7 +376,8 @@ function renderQueue() {
 }
 
 function handleEvents(fired) {
-  for (const ev of fired || []) toast(ev.text, 6500);
+  // high-impact events open a popup; cosmetic ones and waiting consequences stay as toasts
+  for (const ev of fired || []) { if (ev.impact) announceEvent(ev); else toast(ev.text, 6500); }
   if (shift.over && !shift._overNotified) {
     shift._overNotified = true;
     clearArrivals(); // no one else can be called: an open arrival card has nothing left to offer
@@ -403,24 +408,62 @@ function handleEvents(fired) {
 // ----------------------------------------------------------------------
 // Arrival popups: one at a time, most urgent first. Red and orange block the screen with the alarm;
 // the others are a compact card that goes away on its own ("Depois").
+// Event popups (P1-09) share the slot: one card at a time, arrivals first.
 // ----------------------------------------------------------------------
 const ARRIVAL_AUTO_CLOSE_MS = 6000;
+const EVENT_AUTO_CLOSE_MS = 9000;
 const arrivals = [];
+const events = [];
 let arrivalPopup = null;
+let eventPopup = null;
 
 function clearArrivals() {
   arrivals.length = 0;
+  events.length = 0;
   const p = arrivalPopup;
+  const q = eventPopup;
   arrivalPopup = null;
+  eventPopup = null;
   p?.close();
+  q?.close();
+}
+
+/** Shows the next queued card when none is up: arrivals before events. */
+function showNextNotice() {
+  if (arrivalPopup || eventPopup) return;
+  if (arrivals.length) showNextArrival();
+  if (!arrivalPopup && events.length) showEvent(events.shift());
 }
 
 function announceArrival(enc) {
   arrivals.push(enc);
   arrivals.sort((a, b) => TRIAGE[a.c.triage.priority].order - TRIAGE[b.c.triage.priority].order);
-  // a red or orange arrival does not wait behind a calm card: that card counts as "Depois"
-  if (arrivalPopup && !arrivalPopup.blocking && TRIAGE[enc.c.triage.priority].order <= TRIAGE.orange.order) arrivalPopup.close();
-  else if (!arrivalPopup) showNextArrival();
+  // a red or orange arrival does not wait behind a calm card: an arrival card counts as "Depois",
+  // an event card closes (its effect stays in the top bar)
+  const open = arrivalPopup ?? eventPopup;
+  if (open && !open.blocking && TRIAGE[enc.c.triage.priority].order <= TRIAGE.orange.order) open.close();
+  else showNextNotice();
+}
+
+function announceEvent(ev) {
+  events.push(ev);
+  showNextNotice();
+}
+
+function showEvent(ev) {
+  if (!shift || shift.over) { events.length = 0; return; }
+  const own = popup(h('div', {},
+    h('span', { class: 'event-tag' }, '⚠️ Imprevisto no plantão'),
+    h('p', { class: 'event-text' }, ev.text),
+    ev.detail ? h('p', { class: 'event-detail small' }, ev.detail) : null,
+  ), {
+    className: 'event',
+    timeout: EVENT_AUTO_CLOSE_MS,
+    label: 'Imprevisto no plantão',
+    actions: [{ label: 'Entendi' }],
+    onClose: () => { if (eventPopup === own) { eventPopup = null; showNextNotice(); } },
+  });
+  eventPopup = own;
 }
 
 function showNextArrival() {
@@ -446,7 +489,7 @@ function showNextArrival() {
       { label: 'Atender agora', primary: true, onclick: () => attendNow(enc) },
       { label: 'Depois' },
     ],
-    onClose: () => { if (arrivalPopup === own) { arrivalPopup = null; showNextArrival(); } },
+    onClose: () => { if (arrivalPopup === own) { arrivalPopup = null; showNextNotice(); } },
   });
   own.enc = enc;
   arrivalPopup = own;

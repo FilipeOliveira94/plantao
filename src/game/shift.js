@@ -1,4 +1,4 @@
-// A shift: clock, patient queue, pending tests and random events.
+// A shift: clock, patient queue, pending tests and random events (P1-09).
 // Event texts are player-facing and stay in pt-BR.
 import { UNIT_TYPES, TRIAGE, EXAMS } from '../data/catalog.js';
 import { casesFor } from '../data/cases/index.js';
@@ -36,7 +36,8 @@ export const CAN_LEAVE = ['green', 'blue'];
 export const LEAVE_MARGIN = 30;
 // Shift satisfaction, 0 to 100, starts at 100. Penalties are game balance, not clinical claims.
 export const SATISFACTION_START = 100;
-export const SATISFACTION_PENALTY = { impatient: 10, complaint: 5, left: 15 };
+// `companion`: a companion's complaint (P1-09 event) not answered in time.
+export const SATISFACTION_PENALTY = { impatient: 10, complaint: 5, left: 15, companion: 10 };
 // Share of impatient patients who complain at the desk.
 export const COMPLAINT_CHANCE = 0.5;
 
@@ -63,14 +64,63 @@ const shuffle = (arr, rnd) => {
   return a;
 };
 
+// Random events (P1-09): rare, and none of them touches clinical content (findings, options, results,
+// scoring of the case). Their effects are shift time, lab or bedside-test speed, and satisfaction.
+// Magnitudes are internal minutes and game balance, not claims about real services.
+/** Chance that a shift has a random event: about one event every 6 shifts. */
+export const EVENT_CHANCE = 1 / 6;
+/** An event fires at a random internal minute in [EVENT_WINDOW.from, EVENT_WINDOW.to). */
+export const EVENT_WINDOW = { from: 20, to: 120 };
+/** Extra lab wait for the rest of the shift (shown as about 2 hours). */
+export const LAB_DELAY_EXTRA = 30;
+/** System down: for `minutes`, each clinical action costs `extra` more shift minutes (not consultation time). */
+export const SYSTEM_DOWN = { minutes: 40, extra: 1 };
+/** Supply shortage: for `minutes`, point-of-care tests take `extra` more minutes to come back. */
+export const SUPPLY_SHORTAGE = { minutes: 60, extra: 5 };
+/** Companion complaint: the named patient must be called within `minutes`, or satisfaction drops. */
+export const COMPANION_COMPLAINT = { minutes: 20 };
+
 const EVENTS = [
-  { id: 'lab_delay', text: 'Laboratório: “O analisador travou, os exames vão atrasar umas 2 horas.”', effect: (s) => { s.labExtra = 30; } },
-  { id: 'system_down', text: 'Recepção: “O sistema do prontuário caiu de novo… tô anotando tudo no papel.”' },
-  { id: 'companion_complaint', text: 'Enfermagem: “Tem um acompanhante perguntando pela terceira vez quando vai ser atendido.”' },
-  { id: 'coffee', text: 'Técnica de enfermagem: “Passei um café fresco na copa, doutor(a). Quando der, né?”' },
-  { id: 'no_beds', text: 'Central de regulação: “Estamos sem leito de retaguarda agora, aguardem atualização.”' },
-  { id: 'supply_shortage', text: 'Farmácia: “Acabou o equipo de soro de bomba, estamos pegando emprestado com a enfermaria.”' },
+  {
+    id: 'lab_delay', impact: true,
+    // a UBS gets lab results only at the follow-up visit: a lab delay changes nothing there
+    when: (unitType) => !unitType.labResultsOnReturn,
+    text: () => 'Laboratório: “O analisador travou, os exames vão atrasar umas 2 horas.”',
+    effect: (s) => { s.labExtra = LAB_DELAY_EXTRA; return { until: SHIFT_MINUTES, label: '🧪 Laboratório atrasado', detail: 'Exames de laboratório mais lentos até o fim do plantão.' }; },
+  },
+  {
+    id: 'system_down', impact: true,
+    text: () => 'Recepção: “O sistema do prontuário caiu de novo… tô anotando tudo no papel.”',
+    effect: (s) => {
+      const until = s.clock + SYSTEM_DOWN.minutes;
+      return { until, label: `💻 Sistema fora do ar até ${clockLabelAt(until)}`, detail: `Sistema fora do ar até ${clockLabelAt(until)}: cada ação leva mais tempo do plantão.` };
+    },
+  },
+  {
+    id: 'companion_complaint', impact: true,
+    // needs someone in the waiting room; the event waits until there is one
+    ready: (s) => s.waitingRoom().length > 0,
+    pick: (s, rnd) => { const w = s.waitingRoom(); return w[Math.floor(rnd() * w.length)]; },
+    text: (s, enc) => `Enfermagem: “${familyOf(enc)} perguntou pela terceira vez quando vai ser atendido(a). Estão bem nervosos.”`,
+    effect: (s, enc) => {
+      const until = s.clock + COMPANION_COMPLAINT.minutes;
+      return { enc, until, label: `😠 ${enc.c.patient.name}: chamar até ${clockLabelAt(until)}`, detail: `Chame ${enc.c.patient.name} até ${clockLabelAt(until)}, ou a satisfação dos pacientes cai.` };
+    },
+  },
+  {
+    id: 'supply_shortage', impact: true,
+    text: () => 'Enfermagem: “Acabaram os kits de teste rápido e as fitas do setor; estamos pegando emprestado com a enfermaria.”',
+    effect: (s) => {
+      const until = s.clock + SUPPLY_SHORTAGE.minutes;
+      return { until, label: `🩹 Falta de insumos até ${clockLabelAt(until)}`, detail: `Até ${clockLabelAt(until)}, testes à beira do leito (rápidos, fitas, HGT, ECG) demoram mais.` };
+    },
+  },
+  // cosmetic: a toast and nothing else
+  { id: 'coffee', text: () => 'Técnica de enfermagem: “Passei um café fresco na copa, doutor(a). Quando der, né?”' },
+  // cosmetic until P6-05 adds a disposition step (admit, transfer, discharge) for it to slow down
+  { id: 'no_beds', text: () => 'Central de regulação: “Estamos sem leito de retaguarda agora, aguardem atualização.”' },
 ];
+export const EVENT_IDS = EVENTS.map((e) => e.id);
 
 export class Shift {
   constructor({ unit, specialty, seed = Date.now(), completedCases = {} }) {
@@ -80,6 +130,7 @@ export class Shift {
     this.rnd = mulberry32(seed);
     this.clock = 0;
     this.labExtra = 0;
+    this.effects = []; // active and past event effects: { id, until, label, detail, enc?, resolved? }
     this.messages = [];
     this.results = [];
     this.satisfaction = SATISFACTION_START;
@@ -111,9 +162,36 @@ export class Shift {
       return e;
     });
 
-    // random events: 2 per shift at random times
-    this.pendingEvents = shuffle(EVENTS, this.rnd).slice(0, 2).map((ev, i) => ({ ...ev, at: 20 + i * 45 + Math.floor(this.rnd() * 20) }));
+    // random events (P1-09): a separate stream, so they do not change arrivals, options or complaints
+    this.eventRnd = mulberry32(seed ^ 0x68e31da4);
+    this.pendingEvents = [];
+    if (this.eventRnd() < EVENT_CHANCE) {
+      const kinds = EVENTS.filter((e) => !e.when || e.when(this.unitType));
+      const ev = kinds[Math.floor(this.eventRnd() * kinds.length)];
+      this.scheduleEvent(ev.id, EVENT_WINDOW.from + Math.floor(this.eventRnd() * (EVENT_WINDOW.to - EVENT_WINDOW.from)));
+    }
     this.current = null;
+  }
+
+  /** Schedules event `id` at internal minute `at` (the constructor's roll, or a test). */
+  scheduleEvent(id, at) {
+    const ev = EVENTS.find((e) => e.id === id);
+    if (!ev) throw new Error(`unknown event ${id}`);
+    this.pendingEvents.push({ ...ev, at });
+  }
+
+  /** Patients who have arrived and were never called, still waiting. */
+  waitingRoom() {
+    return this.encounters.filter((e) => e.status === 'waiting' && e.firstSeenAt == null && e.arrivedAt <= this.clock);
+  }
+
+  /** True while an effect of event `id` lasts. */
+  hasEffect(id) { return this.activeEffects().some((f) => f.id === id); }
+
+  /** Effects the screen shows while they last: { id, label, detail, until }. A companion complaint ends as soon
+   *  as its patient is called or leaves. */
+  activeEffects() {
+    return this.effects.filter((f) => !f.resolved && this.clock < f.until && !(f.enc && (f.enc.firstSeenAt != null || f.enc.status === 'left')));
   }
 
   get clockLabel() { return clockLabelAt(this.clock); }
@@ -129,10 +207,34 @@ export class Shift {
     this.clock += minutes;
     const fired = [];
     for (const ev of this.pendingEvents) {
-      if (!ev.fired && ev.at <= this.clock) { ev.fired = true; ev.effect?.(this); this.messages.push(ev.text); fired.push(ev); }
+      if (ev.fired || ev.at > this.clock || this.over || (ev.ready && !ev.ready(this))) continue;
+      ev.fired = true;
+      const enc = ev.pick?.(this, this.eventRnd) ?? null;
+      const out = { id: ev.id, impact: !!ev.impact, enc, text: ev.text(this, enc) };
+      const fx = ev.effect?.(this, enc);
+      if (fx) { this.effects.push({ id: ev.id, ...fx }); out.detail = fx.detail; out.until = fx.until; }
+      this.messages.push(out.text);
+      fired.push(out);
     }
     for (const ev of this.checkWaiting()) { this.messages.push(ev.text); fired.push(ev); }
+    for (const ev of this.checkCompanions()) { this.messages.push(ev.text); fired.push(ev); }
     return fired;
+  }
+
+  /** Settles companion complaints: calling the patient in time calms them; past the deadline, satisfaction drops.
+   *  A patient who left unseen already cost satisfaction (checkWaiting), so the complaint just ends. */
+  checkCompanions() {
+    const out = [];
+    for (const f of this.effects) {
+      if (f.id !== 'companion_complaint' || f.resolved) continue;
+      if (f.enc.firstSeenAt != null || f.enc.status === 'left') { f.resolved = true; continue; }
+      if (this.clock >= f.until) {
+        f.resolved = true;
+        this.changeSatisfaction(-SATISFACTION_PENALTY.companion, 'complaint', f.enc);
+        out.push({ id: 'companion_penalty', enc: f.enc, text: `Recepção: “${familyOf(f.enc)} fez uma reclamação formal na ouvidoria pela demora.”` });
+      }
+    }
+    return out;
   }
 
   /** Changes shift satisfaction by `delta`, kept within 0..100, and logs why. Returns the new value. */
@@ -196,14 +298,20 @@ export class Shift {
   }
 
   /** Clinical action on the current patient (question/physical exam): advances the clock. */
-  spend(minutes) { return this.advance(minutes); }
+  spend(minutes) { return this.advance(minutes + this.actionExtra()); }
+
+  /** Extra shift minutes per clinical action while the system is down (P1-09). Not consultation time. */
+  actionExtra() { return this.hasEffect('system_down') ? SYSTEM_DOWN.extra : 0; }
 
   requestExam(examId) {
     const enc = this.current;
     const meta = EXAMS[examId];
     const mult = this.unitType.labDelayMultiplier;
     const before = enc.minutesSpent;
+    const extra = this.actionExtra();
+    const shortage = this.hasEffect('supply_shortage');
     const rec = enc.request(examId, this.clock, mult);
+    if (meta.poc && !rec.brought && shortage && enc.minutesSpent > before) rec.readyAt += SUPPLY_SHORTAGE.extra;
     if (!meta.poc && !rec.brought) {
       if (this.unitType.labResultsOnReturn) {
         rec.readyAt = this.clock;
@@ -213,7 +321,7 @@ export class Shift {
         rec.readyAt += this.labExtra;
       }
     }
-    const fired = this.advance(enc.minutesSpent - before || 1);
+    const fired = this.advance((enc.minutesSpent - before || 1) + (enc.minutesSpent > before ? extra : 0));
     return { rec, fired };
   }
 
