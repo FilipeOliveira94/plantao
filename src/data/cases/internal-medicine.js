@@ -442,7 +442,7 @@ export default [
     type: 'new',
     settings: ['hospital'],
     difficulty: 3,
-    timeCritical: { minutes: 25, reason: 'No AVC isquêmico, a alteplase só pode ser infundida até 4 h 30 min do início dos sintomas: cada minuto de atraso reduz o benefício.' },
+    timeCritical: { minutes: 30, reason: 'No AVC isquêmico, a alteplase só pode ser infundida até 4 h 30 min do início dos sintomas: cada minuto de atraso reduz o benefício.' },
     patient: {
       name: 'Antônio Pereira', age: '67 anos', sex: 'M',
       look: { skin: '#c98e66', hair: '#cfcfcf', shirt: '#4d6fa3', build: 'elder' },

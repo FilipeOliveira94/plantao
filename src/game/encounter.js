@@ -91,8 +91,7 @@ export class Encounter {
     return { ...sp, text: m[1].includes(',') ? text : text.slice(m[0].length) };
   }
 
-  /** Consultation minutes spent on actions, without thinking. `timeCritical` windows use these until P1-12
-   *  moves them to clock time. */
+  /** Consultation minutes spent on actions, without thinking. */
   get actionMinutes() { return this.minutesSpent - this.time.thinking; }
 
   /** One internal minute of real time with this patient in the room. */
@@ -192,9 +191,9 @@ export class Encounter {
     // EPS: real-time steps leave float noise on the wait; a wait that is the threshold to the eye costs nothing
     if (overWait > EPS) add(-Math.min(WAIT_CAP, Math.ceil(overWait * WAIT_POINTS_PER_MINUTE - EPS)), 'Espera acima do alvo da classificação');
 
-    // Time-critical cases
+    // Time-critical cases: the window counts consultation time, thinking included (P1-12)
     if (c.timeCritical) {
-      if (this.actionMinutes <= c.timeCritical.minutes) add(25, 'Decisão dentro da janela crítica');
+      if (this.minutesSpent <= c.timeCritical.minutes) add(25, 'Decisão dentro da janela crítica');
       else add(-30, 'Decisão fora da janela crítica');
     }
 
@@ -213,7 +212,7 @@ export class Encounter {
       points: Math.max(0, pts), lines, stars, dxOk, dxAcceptable, cdOk,
       harmful: !!cdOpt?.harmful, unnecessaryCount: unnecessary.length,
       keyHit, keyTotal, questionsAsked: this.asked.size, minutesSpent: this.minutesSpent,
-      waited, consultTarget: goal, time: { ...this.time }, timeCriticalOk: c.timeCritical ? this.actionMinutes <= c.timeCritical.minutes : null,
+      waited, consultTarget: goal, time: { ...this.time }, timeCriticalOk: c.timeCritical ? this.minutesSpent <= c.timeCritical.minutes : null,
       noUnnecessary: unnecessary.length === 0 && this.requested.size > 0,
     };
   }

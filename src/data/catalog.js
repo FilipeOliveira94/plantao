@@ -126,6 +126,6 @@ export const TRIAGE = {
 // Game-minute cost of each clinical action, counted as consultation time.
 // Ordering a test costs `order` minutes; its duration in EXAMS only sets when the result is ready,
 // so the doctor can keep working, wait, or see someone else meanwhile (and, later, reevaluate).
-// Costs are kept low enough that every case's key items fit its time-critical window
-// (checked by tools/validate-cases.mjs).
+// Costs are kept low enough that every case's key items, plus the thinking allowance, fit its time-critical
+// window (checked by tools/validate-cases.mjs).
 export const ACTION_COST = { question: 2, physical: 2, order: 1 };

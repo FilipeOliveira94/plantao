@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { UNITS, ACTION_COST } from '../src/data/catalog.js';
+import { CASES } from '../src/data/cases/index.js';
 import { Encounter, consultTarget } from '../src/game/encounter.js';
 import { Shift, SHIFT_MINUTES, impatienceAt } from '../src/game/shift.js';
 import { ShiftClock, MAX_UPDATE_MS } from '../src/game/clock.js';
@@ -177,5 +178,56 @@ test('with the thinking allowance a focused moderate player stays within the con
       for (const p of keyP) e.examine(p.id);
       assert.ok(e.minutesSpent <= consultTarget(e.c), `${e.c.id}: ${e.minutesSpent} of ${consultTarget(e.c)}`);
     }
+  }
+});
+
+// Time-critical windows (P1-12): consultation time with the patient in the room, thinking included; waiting for a
+// result and time an event takes are not counted.
+const criticalCase = (minutes) => ({ ...fakeCase('tc', 'red'), timeCritical: { minutes, reason: 'r' } });
+const decide = (e) => e.score({ diagnosisId: 'd', conductId: 'c' });
+
+test('thinking in the room counts against the time-critical window', () => {
+  const s = shiftWith([]);
+  const e = new Encounter(criticalCase(10), 'hospital'); e.arrivedAt = 0; s.encounters = [e];
+  s.call(e);
+  e.ask('q1'); s.spend(ACTION_COST.question);
+  s.tick(MINUTE_MS * 9);
+  assert.equal(e.actionMinutes, ACTION_COST.question);
+  const r = decide(e);
+  assert.equal(r.timeCriticalOk, false);
+  assert.ok(r.lines.some((l) => l.label === 'Decisão fora da janela crítica' && l.v < 0));
+});
+
+test('waiting for a result and time an event takes do not count against the time-critical window', () => {
+  const s = shiftWith([]);
+  const e = new Encounter(criticalCase(10), 'hospital'); e.arrivedAt = 0; s.encounters = [e];
+  s.call(e);
+  s.labExtra = 30; // a lab delay event is on
+  const { rec } = s.requestExam('head_ct');
+  assert.ok(rec.delayedFrom > s.clock);
+  s.advance(rec.delayedFrom - s.clock); // stand-in for the undelayed wait
+  s.tick(MINUTE_MS * 5); // real time stuck on the delayed result: lost time, not thinking
+  s.waitInRoom();
+  assert.equal(s.clock, rec.readyAt);
+  e.ask('q1'); s.spend(ACTION_COST.question);
+  assert.equal(e.minutesSpent, ACTION_COST.order + ACTION_COST.question);
+  assert.equal(decide(e).timeCriticalOk, true);
+});
+
+test('a focused moderate player makes every time-critical window with minutes to spare', () => {
+  // key items only (with the questions they require, and key test orders), 8 s per action, 30 s to decide
+  const SPARE = 3;
+  for (const c of CASES.filter((x) => x.timeCritical)) {
+    const e = new Encounter(c, c.settings[0]);
+    const keyQ = c.questions.filter((q) => q.key), keyP = c.physical.filter((p) => p.key);
+    const keyE = Object.entries(c.exams || {}).filter(([, x]) => x.relevance === 'key' && !x.brought).map(([id]) => id);
+    for (const q of keyQ) { if (q.requires) e.ask(q.requires); e.ask(q.id); }
+    for (const p of keyP) e.examine(p.id);
+    for (const id of keyE) e.request(id, 0);
+    const actions = e.asked.size + e.examined.size + keyE.length;
+    e.think(Math.round((actions * 8 + 30) / REAL_SECONDS_PER_MINUTE));
+    const r = e.score({ diagnosisId: c.diagnosis.correct, conductId: c.conduct.correct });
+    assert.equal(r.timeCriticalOk, true, `${c.id}: ${e.minutesSpent} of a ${c.timeCritical.minutes}-min window`);
+    assert.ok(e.minutesSpent + SPARE <= c.timeCritical.minutes, `${c.id}: ${e.minutesSpent} min leaves less than ${SPARE} of ${c.timeCritical.minutes}`);
   }
 });
