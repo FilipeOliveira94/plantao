@@ -57,8 +57,7 @@ function roomStep(r, v) {
   if (!r.opened.includes('triage') || (r.tab === 'triage' && r.opened.length === 1)) return TAB_STEP.triage;
   if (r.newResults > 0 && r.tab !== 'tests') return TAB_STEP.tests;
   if (r.tab === 'decision') return 'finish';
-  if (!r.asked && r.canAsk) return TAB_STEP.history;
-  if (!r.examined && r.canExamine) return TAB_STEP.physical;
+  if (!gathered(r)) return r.asked > 0 || !r.canAsk ? TAB_STEP.physical : TAB_STEP.history;
   // tests still out: see someone else meanwhile, or wait in the room when no one else can be called
   if (r.pending && !v.over) return v.next ? 'send-wait' : 'wait-here';
   return 'decide';

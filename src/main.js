@@ -656,10 +656,10 @@ function showNextArrival() {
     timeout: urgent ? 0 : ARRIVAL_AUTO_CLOSE_MS,
     accent: tri.color,
     label: `Novo paciente: ${enc.c.patient.name}`,
-    // the primary answer follows the next-step rule: attend when urgent or the room is free, else keep the consultation
+    // no static primary: the next-step highlight marks the answer and follows the room (game/nextstep.js)
     actions: [
-      { label: 'Atender agora', primary: urgent || !shift.current, step: 'attend', onclick: () => attendNow(enc) },
-      { label: 'Depois', primary: !urgent && !!shift.current, step: 'later' },
+      { label: 'Atender agora', step: 'attend', onclick: () => attendNow(enc) },
+      { label: 'Depois', step: 'later' },
     ],
     onClose: () => { if (arrivalPopup === own) { arrivalPopup = null; showNextNotice(); } },
   });
@@ -687,11 +687,12 @@ function setAsideCurrent() {
 /** A result toast was clicked: show that patient's Exames tab, calling them in if needed (P2-01).
  *  Someone else in the room is set aside with everything kept, like "Atender agora". */
 function openResults(enc) {
-  if (!shift || !shift.encounters.includes(enc) || modalOpen() || blockingPopupOpen()) return;
-  if (shift.current === enc) { sfx.page(); tab = 'tests'; renderChart(); return; }
-  if (shift.over || !['awaiting_results', 'paused'].includes(enc.status) || !callable(enc)) return;
+  if (!shift || !shift.encounters.includes(enc) || modalOpen() || blockingPopupOpen()) return false;
+  if (shift.current === enc) { sfx.page(); tab = 'tests'; renderChart(); return true; }
+  if (shift.over || !['awaiting_results', 'paused'].includes(enc.status) || !callable(enc)) return false;
   setAsideCurrent();
   callPatient(enc, { openTab: 'tests' });
+  return true;
 }
 
 function callPatient(enc, { openTab } = {}) {
