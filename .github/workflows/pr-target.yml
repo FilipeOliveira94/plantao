@@ -11,6 +11,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: pr-target-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   target:
     name: targets main
@@ -22,7 +26,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.ref }}
         run: |
           if [ "$BASE" != "main" ]; then
-            echo "::error::This PR targets '$BASE', not main. Retarget it to main before merging; a stacked PR is retargeted automatically when '$BASE' merges."
+            echo "::error::This PR targets '$BASE', not main. Retarget it to main before merging. GitHub retargets a stacked PR when '$BASE' merges; if this check stays red after that, re-run it."
             exit 1
           fi
           echo "Targets main."
