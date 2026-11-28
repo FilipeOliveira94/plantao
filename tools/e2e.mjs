@@ -556,6 +556,8 @@ try {
   await page.getByRole('button', { name: /Começar plantão/ }).click();
   await page.waitForSelector('.game');
   if (!/fim 19:00/.test(await page.locator('.clock').textContent())) throw new Error('top bar does not show the end of the shift');
+  // mount() skips empty children: no stray "null" where the clock-jump chip is absent
+  if (/\bnull\b|\bfalse\b/.test(await page.locator('.topbar').textContent())) throw new Error(`top bar shows a stray null or false: ${await page.locator('.topbar').textContent()}`);
   await page.locator('.qcard button:not([disabled])').first().click();
   const xpBefore = await page.evaluate(() => { const s = window.__plantao.shift; s.advance(s.endsAt - s.clock); return window.__plantao.state.xp; });
   await page.getByRole('tab', { name: /Anamnese/ }).click();
