@@ -183,6 +183,68 @@ try {
     await page.waitForSelector('.menu');
     console.log('✔ guided first shift: offered on a fresh save, coach follows each step, clock held, XP on the first run only, skip and replay');
   }
+
+  {
+    // scene hotspots (P2-08): the door calls, the patient opens the exam by region, the computer opens the tests;
+    // the waiting room seats the queue in triage colors. Hotspots cost what their buttons cost: opening is free.
+    await page.locator('.unit').first().click();
+    await page.getByRole('button', { name: /Começar plantão/ }).click();
+    await page.waitForSelector('.game');
+    for (let i = 0; i < 30 && await page.evaluate(() => window.__plantao.shift.queue().length < 3 && window.__plantao.shift.upcoming().length); i++) {
+      await page.evaluate(() => window.__plantao.clock.step(50000));
+      for (const later of await page.locator('.popup:not(.out) [data-step=later]').all()) await later.click().catch(() => {});
+    }
+    await page.waitForTimeout(300);
+    const wr = await page.evaluate(async () => {
+      const { TRIAGE } = await import('./src/data/catalog.js');
+      return { seated: document.querySelector('.waiting-canvas').dataset.seated, queue: window.__plantao.shift.queue().map((e) => TRIAGE[e.c.triage.priority].color).join(' ') };
+    });
+    if (!wr.queue.includes(' ') || wr.seated !== wr.queue) throw new Error(`waiting room ${wr.seated} != queue ${wr.queue}`);
+    const door = page.locator('[data-hotspot=door]');
+    const first = await page.evaluate(() => window.__plantao.shift.queue()[0].c.patient.name);
+    if (!(await door.getAttribute('aria-label')).includes(`Chamar ${first}`) || !/Não gasta tempo/.test(await door.getAttribute('aria-description'))) throw new Error(`door label: ${await door.getAttribute('aria-label')}`);
+    if (!await door.evaluate((b) => b.classList.contains('hs-hint'))) throw new Error('the door does not mirror the "call" next step');
+    await door.hover();
+    if (!await door.locator('.hs-label').isVisible()) throw new Error('hovering the door shows no label');
+    // Tab reaches the hotspots from the top bar
+    await page.locator('.topbar .music-vol input').focus();
+    let reached = null;
+    for (let i = 0; i < 6 && !reached; i++) { await page.keyboard.press('Tab'); reached = await page.evaluate(() => document.activeElement?.dataset.hotspot ?? null); }
+    if (reached !== 'door') throw new Error(`Tab from the top bar reached ${reached}, not the door`);
+    await page.keyboard.press('Enter');
+    if (await page.evaluate(() => window.__plantao.shift.current?.c.patient.name) !== first) throw new Error('the door did not call the first patient');
+    const patient = page.locator('[data-hotspot=patient]');
+    await patient.waitFor({ state: 'visible' });
+    if (await door.getAttribute('aria-disabled') !== 'true' || !/ocupado/.test(await door.getAttribute('aria-label'))) throw new Error('the door is not unavailable with a patient in the room');
+    await door.click({ force: true });
+    if (!await door.evaluate((b) => b.classList.contains('show')) || !await door.locator('.hs-label').isVisible()) throw new Error('tapping the unavailable door shows no reason');
+    const clock0 = await page.evaluate(() => window.__plantao.shift.clock);
+    await patient.click();
+    const menu = page.locator('.region-menu');
+    await menu.waitFor();
+    const regions = await page.evaluate(async () => { const { regionsFor } = await import('./src/game/regions.js'); const e = window.__plantao.shift.current; return regionsFor(e.c, e.examined).map((g) => g.id); });
+    const items = await menu.locator('.region-item').evaluateAll((els) => els.map((e) => e.dataset.region));
+    if (JSON.stringify(items) !== JSON.stringify(regions)) throw new Error(`region menu ${items} != ${regions}`);
+    if (!/não gasta tempo[\s\S]*Cada item examinado gasta tempo da consulta/.test(await menu.textContent())) throw new Error('the region menu does not state its cost');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Escape');
+    if (await menu.count() || await page.evaluate(() => document.activeElement?.dataset.hotspot) !== 'patient') throw new Error('Escape did not close the region menu back to the patient');
+    await patient.click();
+    await menu.locator('.region-item').last().click();
+    if (!/Exame físico/.test(await page.locator('.tab.active').textContent())) throw new Error('a region did not open the Exame físico tab');
+    if (!await page.locator(`.pane .region-group[data-region-group="${regions.at(-1)}"]`).isVisible()) throw new Error('the tab does not show the chosen region group');
+    const computer = page.locator('[data-hotspot=computer]');
+    const compLabel = await computer.getAttribute('aria-description');
+    if (!/Cada pedido gasta tempo da consulta/.test(compLabel)) throw new Error(`computer label: ${compLabel}`);
+    await computer.click();
+    if (!/Exames/.test(await page.locator('.tab.active').textContent())) throw new Error('the computer did not open the Exames tab');
+    if (await page.locator('.hx-panel').count() && !/Registre a hipótese/.test(compLabel)) throw new Error('the computer does not say the hypothesis unlocks lab and imaging');
+    if (await page.evaluate(() => window.__plantao.shift.clock) !== clock0) throw new Error('opening from the hotspots moved the clock');
+    await page.getByRole('button', { name: '←' }).click();
+    await page.getByRole('button', { name: 'Sair' }).click();
+    await page.waitForSelector('.menu');
+    console.log(`✔ scene hotspots: door calls (Tab + Enter), reason on tap, region menu (${items.join(', ')}), computer opens tests, waiting room seats ${wr.seated.split(' ').length}`);
+  }
   // career screen and locked unit cards, at three points of the track
   const career = async (xp) => {
     await page.evaluate((v) => { localStorage.setItem('plantao.save.v1', JSON.stringify({ xp: v })); }, xp);

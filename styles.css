@@ -83,7 +83,7 @@ body.tutorial .btn.next-step:not(.primary) { background: color-mix(in srgb, var(
 .chip.over { background: #f6c1b8; }
 .topbar .spacer { flex: 1; }
 .main { display: grid; grid-template-columns: minmax(340px, 1.05fr) minmax(380px, 1fr); min-height: 0; }
-.stage { position: relative; border-right: 2px solid var(--ink); min-height: 0; display: grid; grid-template-rows: 1fr auto; }
+.stage { position: relative; border-right: 2px solid var(--ink); min-height: 0; display: grid; grid-template-rows: 1fr auto auto; }
 .stage canvas { width: 100%; height: 100%; display: block; }
 .talk { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .balloon { position: absolute; left: 0; top: 0; visibility: hidden; width: max-content; max-width: min(300px, 46%); background: #fff; border: 2px solid var(--ink); border-radius: 14px; padding: 7px 12px; box-shadow: 0 3px 0 var(--ink); font-size: 14px; line-height: 1.35; transition: opacity .2s; }
@@ -186,7 +186,7 @@ body.tutorial .btn.next-step:not(.primary) { background: color-mix(in srgb, var(
 @media (max-width: 900px) {
   .game { height: auto; min-height: 100vh; }
   .main { grid-template-columns: 1fr; }
-  .stage { border-right: none; border-bottom: 2px solid var(--ink); grid-template-rows: 300px auto; }
+  .stage { border-right: none; border-bottom: 2px solid var(--ink); grid-template-rows: 300px auto auto; }
   .chart { min-height: 70vh; }
 }
 .music-vol { display: inline-flex; align-items: center; gap: 4px; }
@@ -276,3 +276,30 @@ body.tutorial .btn.next-step:not(.primary) { background: color-mix(in srgb, var(
 .qcard.hit { box-shadow: 0 0 0 2px #e9b9a9; }
 @keyframes jump-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tbar .fill, .consult-chip .tbar .cut { transition: none; } .clock-jump { animation: none; } }
+
+/* ---------- scene hotspots and waiting room (P2-08) ---------- */
+.hotspots { position: absolute; inset: 0; pointer-events: none; }
+.hotspot { position: absolute; pointer-events: auto; padding: 0; background: transparent; border: 2px solid transparent; border-radius: 10px; cursor: pointer; }
+.hotspot[hidden] { display: none; }
+.hotspot[aria-disabled='true'] { cursor: not-allowed; }
+.hotspot:hover, .hotspot:focus-visible { border-color: color-mix(in srgb, var(--accent) 70%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); outline: none; }
+.hotspot[aria-disabled='true']:hover, .hotspot[aria-disabled='true']:focus-visible, .hotspot[aria-disabled='true'].show { border-color: color-mix(in srgb, var(--muted) 60%, transparent); background: transparent; }
+/* next step (P2-01): the same calm accent as the chart buttons; stronger in the tutorial (P2-04) */
+.hotspot.hs-hint { border-color: var(--accent); border-style: dashed; }
+body.tutorial .hotspot.hs-hint { border-width: 3px; border-style: solid; box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 25%, transparent); }
+.hs-label { position: absolute; left: 0; bottom: calc(100% + 6px); display: none; width: max-content; max-width: 250px; text-align: left; background: var(--card); color: var(--ink); border: 2px solid var(--ink); border-radius: 10px; padding: 5px 9px; box-shadow: 0 3px 0 var(--ink); font-size: 13px; line-height: 1.3; white-space: normal; z-index: 2; }
+.hs-label b { display: block; font-size: 13px; }
+.hs-label span { display: block; color: var(--muted); font-size: 12px; }
+.hs-label span:empty { display: none; }
+.hotspot.flip .hs-label { left: auto; right: 0; }
+.hotspot.below .hs-label { bottom: auto; top: calc(100% + 6px); }
+.hotspot:hover .hs-label, .hotspot:focus-visible .hs-label, .hotspot.show .hs-label { display: block; }
+.region-menu { position: absolute; pointer-events: auto; z-index: 3; width: 230px; background: var(--card); border: 2px solid var(--ink); border-radius: 12px; box-shadow: 0 4px 0 var(--ink); padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.region-title { font-weight: 800; font-size: 13px; padding: 2px 4px 4px; }
+.region-item { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; text-align: left; background: transparent; border: 2px solid var(--line); border-radius: 8px; padding: 5px 8px; color: var(--ink); cursor: pointer; }
+.region-item:hover, .region-item:focus-visible { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--card)); outline: none; }
+.region-note { margin: 4px 4px 0; font-size: 12px; }
+.region-group.region-focus { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.waiting { position: relative; border-top: 2px solid var(--ink); background: #ebe5d7; }
+.waiting-title { position: absolute; right: 8px; top: 4px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink); background: color-mix(in srgb, var(--card) 80%, transparent); border-radius: 6px; padding: 1px 6px; }
+.stage canvas.waiting-canvas { height: 92px; }

@@ -10,7 +10,7 @@ export const TUTORIAL = { unitId: 'ubs-recife', specialty: 'internal-medicine', 
 const PROMPTS = {
   call: [
     'Bem-vindo(a) ao seu primeiro plantão! Na fila ficam os pacientes, na ordem da classificação de risco (Manchester): vermelho primeiro, azul por último.',
-    'Chame a paciente no botão destacado.',
+    'Chame a paciente no botão destacado, ou clique na porta da sala.',
   ],
   'tab:triage': [
     'Comece pela triagem: queixa, sinais vitais e cor de risco.',
@@ -22,9 +22,10 @@ const PROMPTS = {
   ],
   'tab:physical': [
     'Agora vá ao Exame físico e examine o que ajuda a confirmar ou afastar as suas hipóteses.',
+    'Você também pode clicar na paciente, na cena, e escolher a região do corpo.',
   ],
   'tab:tests': [
-    'Saiu resultado de exame: abra a aba Exames para ver.',
+    'Saiu resultado de exame: abra a aba Exames para ver, ou clique no computador da mesa.',
   ],
   decide: [
     'Precisa de exame? Na aba Exames, os de beira de leito saem na hora; os de laboratório demoram. Exame desnecessário tira pontos (Choosing Wisely).',
