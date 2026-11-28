@@ -31,6 +31,7 @@ Other things found while reading: `AGENTS.md` said 14 cases, but there are 23 (8
 | Cases per specialty | Twenty, not ten. | P6-01 |
 | Endless random cases | A long-term issue, not scheduled: a major change for an established product. | P7-05 |
 | Career stats | After the MVP: not needed in v0.x. | P3-13 |
+| MVP hosting | GitHub Pages for the static MVP, before the P3 work; a legal review comes first. Cloudflare Pages stays for when the backend arrives. | P0-03, P0-04, P5-02 |
 
 ## User feedback, 2026-11-26
 
@@ -52,12 +53,27 @@ Each note was checked against the open issues. Where an issue already covered it
 | The career screen should show stats: average time per shift, success rate, progress, usage and completion | New: P3-13, after the MVP. |
 | The leaderboard belongs on the career screen | Widened P5-05: the ranking shows on the career screen. |
 
+## Feature requests, 2026-11-27
+
+| Request | Where it goes |
+| --- | --- |
+| Endless mode, one patient at a time, no unit, until a wrong diagnosis; timed and untimed; ranking of the best streaks | New: P3-15. Existing cases for now; generated cases (P7-05) feed it later. Online ranking stays in P5-05. |
+| Quick mode: a short text with the symptoms and five diagnosis options | New: P3-16. Short versions of the existing cases for now; generated cases (P7-05) later. |
+| Unrelated complaints that mislead the diagnosis | New: P6-08. |
+| Optional 1 to 5 star rating of a case on the report screen | New: P3-17 (local only). Widened P5-03: sending ratings to the server. |
+| Review of Brazilian law and regulations before the MVP goes live | New: P0-03. |
+| Hosting on GitHub Pages, soon, before P3 | New: P0-04, after P0-03. |
+| AI-driven live consultation | New: P7-06, an idea, long-term and not scheduled. |
+| Requested features page | New: P3-18. New: P5-06, a site form so players need no GitHub account, once the backend is live. |
+
 ## P0: Foundations
 
 | ID | Issue | Scope | Expected/Seen Risk | Expected/Seen Size | Depends on |
 | --- | --- | --- | --- | --- | --- |
 | [P0-01](https://github.com/FilipeOliveira94/plantao/issues/8) | CI on every PR | GitHub Actions runs `npm run validate` and `npm run test:e2e`. | Med/Med | Md/Md | none |
 | [P0-02](https://github.com/FilipeOliveira94/plantao/issues/9) | Sync `AGENTS.md` with reality | Fix the case count, point the roadmap section to this file. | Lo/Lo | Sm/Sm | none |
+| [P0-03](https://github.com/FilipeOliveira94/plantao/issues/105) | Brazilian law and regulations review | Before the game is public: CFM resolutions (publicity, telemedicine, educational content vs. medical advice), ECA for pediatric cases, drug names, copyright of quoted references, the Manchester Triage System name and license, SUS and Ministry names, LGPD and Marco Civil for player data. Writes `docs/LEGAL-REVIEW.md` with source, applies or not, and action; each action gets an issue; lawyer-only items are marked. Drafts a disclaimer if needed. No code. | Hi/- | Md/- | none |
+| [P0-04](https://github.com/FilipeOliveira94/plantao/issues/106) | Host the MVP on GitHub Pages | The static game served at `filipeoliveira94.github.io/plantao/`, deployed only from `main`, working under the sub-path, with the P0-03 disclaimer if it asks for one. README gets the link. Cloudflare Pages (P5-02) replaces it when the backend arrives. | Hi/- | Md/- | P0-03 |
 
 ## P1: A fair core loop with consequences
 
@@ -112,6 +128,10 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P3-12](https://github.com/FilipeOliveira94/plantao/issues/74) | Career ladder from Acadêmico to Professor | Ten titles with wider XP gaps: Acadêmico(a), Interno(a), Residente R1 to R5, Assistente, Preceptor(a), Professor(a). Saves keep their XP and the level is recomputed. Unlocks and post-top progress move to the new ladder. | Lo/- | Sm/- | P3-02 |
 | [P3-13](https://github.com/FilipeOliveira94/plantao/issues/82) | Career stats (after the MVP) | Not needed in the MVP (v0.x). The career screen gains stats from the local save: average shift length (real time and game clock), shifts started and finished, success rate (correct diagnosis, correct management, share of 3-star cases), unnecessary tests per case, cases seen out of the total per specialty, days played and total time played, broken down per specialty and unit. The save keeps a short per-shift history for this. | Lo/- | Md/- | P3-02, P3-01 |
 | [P3-14](https://github.com/FilipeOliveira94/plantao/issues/83) | Resume a shift in progress | Autosave a shift in progress (shift, encounters, clock, pending tests, seed state) and offer to resume it after a reload. Split from P3-01 because the `Shift` shape is still changing in P1-04 to P1-06. | Med/- | Md/- | P3-01, P1-06 |
+| [P3-15](https://github.com/FilipeOliveira94/plantao/issues/107) | Endless mode with a streak ranking | "Modo infinito": one patient at a time, no unit or queue, random cases without repeats, until the first wrong final diagnosis. Untimed and timed variants (timed uses the P1-05 budget and the P1-11 clock). A local top-streaks ranking per variant in the save. The plan settles unit resources without a unit and what happens when the pool runs out. Existing cases for now; generated cases (P7-05) later. | Med/- | Md/- | P1-05, P1-11 |
+| [P3-16](https://github.com/FilipeOliveira94/plantao/issues/108) | Quick mode | "Modo rápido": each case as a short vignette with five shuffled diagnosis options and immediate feedback. A `vignette` per case that uses only findings already in the case, checked by `validate-cases`; vignettes in one PR per specialty, cases stay "pending". Existing cases for now; generated cases (P7-05) later, each with a vignette. | Hi/- | Md/- | P1-03 |
+| [P3-17](https://github.com/FilipeOliveira94/plantao/issues/109) | Optional case rating | A subtle, optional 1 to 5 star row on the feedback screen; never blocks the flow, can be changed or cleared, stored in the local save. Sending ratings is P5-03's job. | Lo/- | Sm/- | none |
+| [P3-18](https://github.com/FilipeOliveira94/plantao/issues/110) | Requested features page | "Sugestões" from the menu: requested and planned features with their status, from a data file in the repo, and a button that opens a prefilled GitHub issue. A form without a GitHub account is P5-06. | Lo/- | Sm/- | none |
 
 ## P4: A sense of place
 
@@ -129,10 +149,11 @@ Each note was checked against the open issues. Where an issue already covered it
 | ID | Issue | Scope | Expected/Seen Risk | Expected/Seen Size | Depends on |
 | --- | --- | --- | --- | --- | --- |
 | [P5-01](https://github.com/FilipeOliveira94/plantao/issues/42) | ADR: backend and privacy | Cloudflare Pages is chosen. Decide the data store (D1 or KV), what is stored, consent text, retention and deletion under LGPD. No code. | Hi/- | Sm/- | none |
-| [P5-02](https://github.com/FilipeOliveira94/plantao/issues/43) | Hosting and deploy | The game on Cloudflare Pages with preview builds per PR and a production release that only Filipe triggers. | Hi/- | Md/- | P5-01 |
-| [P5-03](https://github.com/FilipeOliveira94/plantao/issues/44) | Player-wide answer stats | Anonymous counts per case and option. After answering, feedback shows the share of players who chose each diagnosis and plan, hidden below a minimum sample. | Hi/- | Md/- | P5-01, P1-01 |
+| [P5-02](https://github.com/FilipeOliveira94/plantao/issues/43) | Hosting and deploy | The game moves from GitHub Pages (P0-04) to Cloudflare Pages, with preview builds per PR and a production release that only Filipe triggers. | Hi/- | Md/- | P5-01 |
+| [P5-03](https://github.com/FilipeOliveira94/plantao/issues/44) | Player-wide answer stats | Anonymous counts per case and option. After answering, feedback shows the share of players who chose each diagnosis and plan, hidden below a minimum sample. Also collects the optional case ratings of P3-17. | Hi/- | Md/- | P5-01, P1-01 |
 | [P5-04](https://github.com/FilipeOliveira94/plantao/issues/45) | Accounts and cloud save | Sign in, sync the save between devices, merge with the local save. | Hi/- | Lg/- | P5-01, P3-01 |
 | [P5-05](https://github.com/FilipeOliveira94/plantao/issues/46) | Daily leaderboard | Ranking for the daily shift, with a display name the player chooses. The ranking shows on the career screen, next to the player's own stats (P3-13). | Hi/- | Md/- | P5-04, P3-04 |
+| [P5-06](https://github.com/FilipeOliveira94/plantao/issues/113) | Requests and case reports through a site form | Feature requests (P3-18) and case problem reports (P3-08) from a form, no GitHub account needed. A Pages Function validates, rate-limits and filters the input, then opens the labeled GitHub issue with a token kept on the backend. The form says the text becomes public. | Hi/- | Md/- | P5-01, P5-02, P3-08, P3-18 |
 
 ## P6: Content and depth
 
@@ -145,6 +166,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P6-05](https://github.com/FilipeOliveira94/plantao/issues/52) | Referral and bed regulation | Deciding where the patient goes (home, observation, transfer, bed request) as its own step, with the limits of each unit. Every case gets it, so transfer is never a giveaway; missing a needed transfer, or transferring a patient who can stay, caps the case score. | Hi/- | Md/- | P1-09 |
 | [P6-06](https://github.com/FilipeOliveira94/plantao/issues/53) | New specialties | Family medicine, adult emergency, neonatology, OB/GYN, psychiatry. One issue per specialty when it starts. | Hi/- | Lg/- | P6-01 |
 | [P6-07](https://github.com/FilipeOliveira94/plantao/issues/86) | Per-case consultation time budgets | Set `consultMinutes` on each case whose triage default does not fit it, and document the field in `docs/MEDICAL-CONTENT.md`. Cases stay "pending" in `REVIEW-STATUS.md`. | Hi/- | Sm/- | P1-05 |
+| [P6-08](https://github.com/FilipeOliveira94/plantao/issues/111) | Unrelated complaints that mislead | Some cases carry a complaint from an unrelated condition (for example long-standing tension headaches), tagged in the data with its own reference and named in feedback. `docs/MEDICAL-CONTENT.md` rules: plausible for the patient, not part of the real diagnosis, never a red flag that changes the right management. Pilot of 2 or 3 cases per specialty, one PR each, cases stay "pending". | Hi/- | Md/- | none |
 
 ## P7: Clinical course
 
@@ -154,15 +176,17 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P7-02](https://github.com/FilipeOliveira94/plantao/issues/77) | Wrong choices change the course | A wrong or harmful choice changes the next stage (worse vitals, a complication, a rescue stage), up to death when the literature supports it. Feedback shows the course and what would have changed it. | Hi/- | Lg/- | P7-01 |
 | [P7-03](https://github.com/FilipeOliveira94/plantao/issues/78) | Intercurrences during care | Clinical events in a patient already under care, fitted to the unit (anaphylaxis, seizure, desaturation, accidental extubation in the PICU), each with its own decision and references. | Hi/- | Lg/- | P7-01 |
 | [P7-04](https://github.com/FilipeOliveira94/plantao/issues/79) | Cases that worsen, up to cardiac arrest | Cases that grow in complexity over the stages (sepsis to shock, asthma to respiratory failure), including an arrest stage that follows current ACLS/PALS. | Hi/- | Lg/- | P7-01, P3-07 |
-| [P7-05](https://github.com/FilipeOliveira94/plantao/issues/80) | Endless random cases (long-term) | Not scheduled. Cases generated from vetted templates that vary age, weight, vitals and history within the template's evidence. Starts with an ADR on the template model, review and whether LLM generation is allowed. | Hi/- | Lg/- | P6-01, P7-01 |
+| [P7-05](https://github.com/FilipeOliveira94/plantao/issues/80) | Endless random cases (long-term) | Not scheduled. Cases generated from vetted templates that vary age, weight, vitals and history within the template's evidence. Starts with an ADR on the template model, review and whether LLM generation is allowed. Generated cases also feed endless mode (P3-15) and quick mode (P3-16). | Hi/- | Lg/- | P6-01, P7-01 |
+| [P7-06](https://github.com/FilipeOliveira94/plantao/issues/112) | AI-driven live consultation (idea, long-term) | Not scheduled, not settled. The player talks freely and an AI patient answers only from the case's facts. Starts with an ADR: fit with the case model, backend for the API key, LLM egress and consent, scoring of free questions, cost and fallback. | Hi/- | Lg/- | P5-01, P0-03 |
 
 ## Suggested order
 
 1. Quick wins that fix what the playtest noticed first: P1-01, P1-02, P2-05, P2-06, P3-02, P0-01, P0-02, P4-06.
-2. Make time matter: P1-04, P1-05, P1-06, P1-11, P1-12, P1-13, then P2-02, P2-03 and P2-12 to show it.
-3. Make the screen lead the player: P2-01, P2-07, P2-04, then P2-08.
-4. Keep the player: P3-12, P3-01, P3-04, P3-14, P3-09, P3-03, P3-05, P3-10, P3-11. P3-13 comes after the MVP.
-5. Content fairness, in parallel as review capacity allows: P1-03, P1-10, P3-06, P6-01.
-6. Place and polish: P4, P2-09 to P2-11.
-7. Online: P5, starting with the ADR (P5-01).
-8. Clinical course: P7-01, then P7-02, P7-03 and P7-04. P3-07 before P7-04. P7-05 is long-term and not scheduled.
+2. Go public before the P3 work: P0-03, then P0-04.
+3. Make time matter: P1-04, P1-05, P1-06, P1-11, P1-12, P1-13, then P2-02, P2-03 and P2-12 to show it.
+4. Make the screen lead the player: P2-01, P2-07, P2-04, then P2-08.
+5. Keep the player: P3-12, P3-01, P3-04, P3-14, P3-09, P3-03, P3-05, P3-10, P3-11. P3-13 comes after the MVP. New modes and community: P3-17, P3-18, P3-15, P3-16.
+6. Content fairness, in parallel as review capacity allows: P1-03, P1-10, P3-06, P6-01, P6-08.
+7. Place and polish: P4, P2-09 to P2-11.
+8. Online: P5, starting with the ADR (P5-01).
+9. Clinical course: P7-01, then P7-02, P7-03 and P7-04. P3-07 before P7-04. P7-05 and P7-06 are long-term and not scheduled.
