@@ -5,7 +5,7 @@ import { ShiftClock } from './game/clock.js';
 import { clockLabelAt } from './game/time.js';
 import { consultBar, patienceBar, examProgress, waitSnapshot, jumpImpact } from './game/timebars.js';
 import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS, exportSave, encodeCode, parseImport, MAX_IMPORT_BYTES } from './game/progress.js';
-import { IsoScene } from './render/iso.js';
+import { IsoScene, WaitingRoom } from './render/iso.js';
 import { sfx } from './audio/sfx.js';
 import { music } from './audio/music.js';
 import { h, mount, toast, modal, modalOpen } from './ui/dom.js';
@@ -15,6 +15,9 @@ import { nextStep, TAB_STEP, CALL_LABEL } from './game/nextstep.js';
 import { markNextStep, setNextStepEmphasis } from './ui/nextstep.js';
 import { TUTORIAL, tutorialPrompt } from './game/tutorial.js';
 import { createCoach, coachNote } from './ui/tutorial.js';
+import { createHotspots } from './ui/hotspots.js';
+import { hotspotView, hotspotHint } from './game/hotspots.js';
+import { regionsFor } from './game/regions.js';
 
 const app = document.getElementById('app');
 let state = load();
@@ -283,6 +286,7 @@ function showHelp() {
       h('li', {}, 'Primeira vez? O botão 🧭 Tutorial do menu faz um plantão guiado, passo a passo.'),
       h('li', {}, 'Escolha uma unidade e uma especialidade. Cada plantão traz pacientes de forma escalonada, com classificação de risco (Manchester).'),
       h('li', {}, 'Chame o paciente da fila. Comece pela triagem e pelos documentos (passagem de caso, contrarreferência).'),
+      h('li', {}, 'A cena também responde a cliques: a porta chama o próximo, o paciente abre o exame físico por região e o computador abre os exames. Abrir não gasta tempo; cada pergunta, item examinado ou exame pedido, sim.'),
       h('li', {}, 'Pergunte, examine e peça exames. Cada ação consome minutos do plantão; enquanto isso, a fila espera.'),
       h('li', {}, 'O relógio também anda enquanto você pensa: com o paciente na sala, esse tempo conta na consulta. Use ⏸ Pausar para parar o relógio.'),
       h('li', {}, 'Exames de laboratório e imagem demoram: mande o paciente aguardar e atenda o próximo. Ele volta quando o resultado sair.'),
@@ -376,20 +380,27 @@ function renderGame() {
   ui.top = h('div', { class: 'topbar' });
   ui.canvas = h('canvas', { 'aria-label': 'Sala de atendimento' });
   ui.talk = createTalk();
+  ui.hotspots = createHotspots({ onDoor: hotspotDoor, onComputer: hotspotComputer, onRegion: hotspotRegion });
+  ui.waitCanvas = h('canvas', { class: 'waiting-canvas', 'aria-hidden': 'true' });
   ui.queue = h('div', { class: 'queue' });
   ui.chart = h('div', { class: 'chart' });
   mount(app, h('div', { class: 'game' },
     ui.top,
     h('div', { class: 'main' },
-      h('div', { class: 'stage' }, h('div', { style: { position: 'relative', minHeight: 0 } }, ui.canvas, ui.talk.el), ui.queue),
+      h('div', { class: 'stage' },
+        h('div', { style: { position: 'relative', minHeight: 0 } }, ui.canvas, ui.hotspots.el, ui.talk.el),
+        // the waiting room (P2-08): the queue below, drawn as people; display only, the cards stay the way to call
+        ui.waitStrip = h('div', { class: 'waiting', 'aria-hidden': 'true' }, h('span', { class: 'waiting-title' }, '🪑 Sala de espera'), ui.waitCanvas),
+        ui.queue),
       ui.chart,
     ),
   ));
   scene = new IsoScene(ui.canvas);
   scene.setUnit(shift.unit);
-  // earlier shifts' scenes keep their animation loop running: only the current one places balloons
+  ui.waiting = new WaitingRoom(ui.waitCanvas);
+  // earlier shifts' scenes keep their animation loop running: only the current one places balloons and hotspots
   const own = scene;
-  scene.onFrame = (anchors) => { if (scene === own) ui.talk.place(anchors); };
+  scene.onFrame = (anchors) => { if (scene === own) { ui.talk.place(anchors); ui.hotspots.place(scene.hotspots); } };
   scene.onStep = () => sfx.step();
   scene.onMonitor = () => { if (shift?.unit.type === 'picu' && shift.current) sfx.monitor(); };
   renderAll();
@@ -618,6 +629,60 @@ function renderQueue({ ifChanged = false } = {}) {
   }
   mount(ui.queue, children);
   pruneLive();
+  drawWaitingRoom(q);
+}
+
+/** The waiting room strip (P2-08): everyone in the queue, seated in queue order, in their triage color. */
+function drawWaitingRoom(q = shift.queue()) {
+  if (!ui.waiting) return;
+  const row = q.map((enc) => ({ key: enc.c.id, look: enc.c.patient.look, companion: enc.c.patient.companion, color: TRIAGE[enc.c.triage.priority].color }));
+  const shown = ui.waiting.draw(row, shift.unit);
+  ui.waitCanvas.dataset.seated = row.slice(0, shown).map((p) => p.color).join(' '); // read by the E2E test
+}
+
+// ----------------------------------------------------------------------
+// Scene hotspots (P2-08): an extra way into what the buttons already do, so they cost the same (opening a tab
+// or calling costs no time; each item examined or test ordered costs what its button costs). Rules and labels
+// are in game/hotspots.js.
+// ----------------------------------------------------------------------
+function hotspotSnapshot() {
+  const enc = shift.current;
+  const next = shift.done ? null : firstCallable();
+  return {
+    over: shift.over,
+    done: shift.done,
+    room: enc ? { tab, canExamine: enc.c.physical.some((p) => !enc.examined.has(p.id)), needsHypothesis: needsHypothesis(enc) } : null,
+    next: next ? { name: next.c.patient.name, triage: TRIAGE[next.c.triage.priority].label, kind: callKind(next) } : null,
+    canWait: waitButtonShown(shift.queue()),
+  };
+}
+
+function refreshHotspots(step) {
+  if (!shift || !ui.hotspots) return;
+  const enc = shift.current;
+  ui.hotspots.update(hotspotView(hotspotSnapshot()), hotspotHint(step, tab), () => (shift.current ? regionsFor(shift.current.c, shift.current.examined) : []));
+  if (!enc) ui.hotspots.closeMenu(false);
+}
+
+function hotspotDoor() {
+  const next = shift.done ? null : firstCallable();
+  if (!next || shift.current || shift.over) return;
+  callPatient(next);
+}
+
+function hotspotComputer() {
+  if (!shift.current) return;
+  sfx.page();
+  tab = 'tests';
+  renderChart();
+}
+
+function hotspotRegion(id) {
+  if (!shift.current) return;
+  sfx.page();
+  tab = 'physical';
+  ui.focusRegion = id;
+  renderChart();
 }
 
 // what to do when no one is waiting (P2-01)
@@ -904,6 +969,14 @@ function renderChart() {
   );
   pruneLive();
   pane.scrollTop = 0;
+  // the patient's region menu (P2-08) opens the tab on that region's group
+  const group = ui.focusRegion && pane.querySelector(`[data-region-group="${ui.focusRegion}"]`);
+  ui.focusRegion = null;
+  if (group) {
+    pane.scrollTop = group.getBoundingClientRect().top - pane.getBoundingClientRect().top - 8;
+    group.classList.add('region-focus');
+    setTimeout(() => group.classList.remove('region-focus'), 1600);
+  }
 }
 
 // what to do with the room free (P2-01)
@@ -965,9 +1038,12 @@ function paneFor(enc) {
     ];
   }
   if (tab === 'physical') {
+    // grouped by body region (P2-08): each group shows its findings, then the items left to examine
     return [
-      ...c.physical.filter((p) => enc.examined.has(p.id)).map((p) => h('div', { class: 'finding' }, h('b', {}, p.label), p.finding)),
-      h('div', { class: 'opts', style: { marginTop: '8px' } }, c.physical.filter((p) => !enc.examined.has(p.id)).map((p) => h('button', { class: 'opt', ...previewCost(ACTION_COST.physical), onclick: () => doExamine(enc, p.id) }, '🩺 ', p.label))),
+      regionsFor(c, enc.examined).map((g) => h('div', { class: 'opt-group region-group', 'data-region-group': g.id },
+        h('h5', {}, g.label),
+        g.done.map((p) => h('div', { class: 'finding' }, h('b', {}, p.label), p.finding)),
+        g.left.length ? h('div', { class: 'opts' }, g.left.map((p) => h('button', { class: 'opt', ...previewCost(ACTION_COST.physical), onclick: () => doExamine(enc, p.id) }, '🩺 ', p.label))) : null)),
       c.physical.every((p) => enc.examined.has(p.id)) ? h('p', { class: 'muted' }, 'Exame físico completo. Siga para os exames ou para a decisão.') : null,
     ];
   }
@@ -1327,6 +1403,7 @@ function nextStepView() {
 function updateNextStep() {
   const step = shift && ui.chart?.isConnected ? nextStep(nextStepView()) : null;
   markNextStep(step);
+  if (ui.chart?.isConnected) refreshHotspots(step);
   // the coach follows the highlight; a step with no prompt (help, a confirmation) keeps the last one
   if (tutorial?.coach) {
     const prompt = tutorialPrompt(step, tutorial);
@@ -1336,10 +1413,10 @@ function updateNextStep() {
   placeCoach();
 }
 
-// the coach card sits over the scene, just above the queue, so the queue stays visible (wide layout only)
+// the coach card sits over the scene, just above the waiting room, so the queue stays visible (wide layout only)
 const wideLayout = matchMedia('(min-width: 901px)');
 function placeCoach() {
-  const top = tutorial && wideLayout.matches && ui.queue?.isConnected ? ui.queue.getBoundingClientRect().top : null;
+  const top = tutorial && wideLayout.matches && ui.waitStrip?.isConnected ? ui.waitStrip.getBoundingClientRect().top : null;
   const px = top == null ? 0 : Math.max(0, Math.round(innerHeight - top));
   document.documentElement.style.setProperty('--coach-bottom', `${px}px`);
 }

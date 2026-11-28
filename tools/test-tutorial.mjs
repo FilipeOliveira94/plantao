@@ -61,3 +61,9 @@ test('the tutorial shift is a real unit and an easy existing case of its special
     assert.equal(c.type, 'new');
   }
 });
+
+test('the prompts point at the scene hotspots (P2-08)', () => {
+  assert.match(tutorialPrompt('call').join(' '), /porta/);
+  assert.match(tutorialPrompt('tab:physical').join(' '), /clicar na paciente/);
+  assert.match(tutorialPrompt('tab:tests').join(' '), /computador/);
+});

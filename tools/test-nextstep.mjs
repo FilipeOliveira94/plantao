@@ -2,6 +2,7 @@
 // Usage: node --test tools/test-nextstep.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { hotspotHint } from '../src/game/hotspots.js';
 import { nextStep, gathered } from '../src/game/nextstep.js';
 
 const board = (over = {}) => ({ overlay: null, done: false, over: false, room: null, next: null, canWait: false, ...over });
@@ -83,4 +84,13 @@ test('arrival card: attend when urgent or the room is free, else keep the consul
   assert.equal(nextStep(board({ overlay: 'arrival', arrivalUrgent: true, room: room() })), 'attend');
   assert.equal(nextStep(board({ overlay: 'arrival', arrivalUrgent: false })), 'attend');
   assert.equal(nextStep(board({ overlay: 'arrival', arrivalUrgent: false, room: room() })), 'later');
+});
+
+test('scene hotspots mirror the next step only when they would change the screen (P2-08)', () => {
+  assert.equal(hotspotHint('call', 'triage'), 'door');
+  assert.equal(hotspotHint('tab:physical', 'history'), 'patient');
+  assert.equal(hotspotHint('tab:physical', 'physical'), null);
+  assert.equal(hotspotHint('tab:tests', 'triage'), 'computer');
+  assert.equal(hotspotHint('hypothesis', 'tests'), null);
+  for (const step of ['tab:triage', 'tab:history', 'decide', 'finish', 'wait-next', 'send-wait', null]) assert.equal(hotspotHint(step, 'triage'), null);
 });
