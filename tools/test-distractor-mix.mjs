@@ -88,7 +88,7 @@ test('no clearly wrong option, or three, are reported', () => {
 });
 
 // The specialties already tagged (one PR each); the validator turns the mix into an error once all three are in.
-for (const specialty of ['internal-medicine']) {
+for (const specialty of ['internal-medicine', 'pediatrics']) {
   test(`every ${specialty} case passes the distractor mix`, () => {
     const off = CASES.filter((c) => c.specialty === specialty).flatMap((c) => ['diagnosis', 'conduct'].flatMap((k) => {
       const { schema, mix } = distractorMix(c[k]);
