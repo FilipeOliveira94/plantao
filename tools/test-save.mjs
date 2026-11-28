@@ -114,6 +114,7 @@ const rejects = {
   'badge not a string': exported({ badges: ['sherlock', 1] }),
   'muted as string': exported({ settings: { muted: 'no' } }),
   'music volume out of range': exported({ settings: { muted: false, musicVolume: 2 } }),
+  'reduced motion as string': exported({ settings: { muted: false, reducedMotion: 'yes' } }),
   'long name': exported({ doctorName: 'x'.repeat(41) }),
   'name as object': exported({ doctorName: { a: 1 } }),
 };
@@ -124,6 +125,13 @@ for (const [name, input] of Object.entries(rejects)) {
     assert.match(r.error, /\S/);
   });
 }
+
+test('the reduced-motion setting (P2-11) round-trips, and an older save without it reads as off', () => {
+  const on = fromStored(JSON.stringify({ ...V1, version: 3, settings: { muted: false, reducedMotion: true } }));
+  assert.equal(on.settings.reducedMotion, true);
+  assert.equal(parseImport(exportSave(on)).state.settings.reducedMotion, true);
+  assert.equal(fromStored(JSON.stringify({ ...V1, version: 3 })).settings.reducedMotion ?? false, false);
+});
 
 test('import drops well-formed states that have no unit', () => {
   const r = parseImport(exported({ states: ['PE', 'AA', 'BB'] }));

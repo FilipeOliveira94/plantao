@@ -25,7 +25,9 @@ The screens around the scene (menu, chart, queue, popups) are styled only throug
 - **Unit theme:**
   - The game screen takes `--unit-floor`, `--unit-wall` and `--unit-accent` from the unit's palette. The CSS mixes them into light tints for the chart head, the tab strip, and the queue and waiting room, plus a 4px stripe under the top bar.
   - Actions, the next-step highlight and focus rings keep the global `--accent`, so they read the same in every unit.
-- **Contrast:** text tokens are at least 4.5:1 on every surface they sit on, the unit tints included. Control borders are at least 3:1. A new token or unit palette keeps these ratios.
+- **Contrast:** text tokens are at least 4.5:1 on every surface they sit on, the unit tints included. Control borders are at least 3:1. A new token or unit palette keeps these ratios. `tools/test-contrast.mjs` (part of `npm run test:unit`) checks every CSS rule that sets a text color and a background, plus a list of text, border and focus-ring pairs; add a pair there when a new token carries text.
+- **Motion (P2-11):** every animation and transition stops under `html.reduce-motion`, which is on when the OS asks for less motion or the menu's "Movimento reduzido" is on (`src/ui/motion.js`). Popups fade instead of sliding, and the canvas places patients without walking or bobbing. A new animation needs no extra rule unless it must stay visible as a still state (as the ready ring on a queue card does).
+- **Focus:** one ring for every control, `--focus` at 3px, 3:1 on every surface. The next-step outline (P2-01) stays thinner and in the accent, so the two never read as the same thing.
 
 ## Backdrops (scene)
 

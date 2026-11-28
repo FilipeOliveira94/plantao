@@ -120,6 +120,8 @@ export class IsoScene extends IsoPainter {
     this.onStep = null;
     this.onMonitor = null;
     this.onFrame = null; // (anchors) after each frame: screen points (CSS px) above each speaker's head
+    // reduced motion (P2-11): patients appear in place instead of walking, nobody bobs, the monitor trace holds still
+    this.reducedMotion = false;
     this.anchors = { doctor: null, patient: null, companion: null };
     // P2-08: screen rectangles [left, top, width, height] (CSS px) of the clickable door, computer and patient,
     // republished each frame; the patient's only once they stand at the desk or lie in bed
@@ -202,7 +204,7 @@ export class IsoScene extends IsoPainter {
     const items = [];
     const add = (depth, fn) => items.push({ depth, fn });
 
-    if (isUti) this.sceneUti(add, t, dt);
+    if (isUti) this.sceneUti(add, this.reducedMotion ? 0 : t, dt);
     else this.sceneOffice(add);
 
     // patient/companion
@@ -279,7 +281,8 @@ export class IsoScene extends IsoPainter {
       }
       g.stroke();
     });
-    if (this.onMonitor && t - this._lastBeep > 0.75) { this._lastBeep = t; this.onMonitor(); }
+    // the beep follows real time even when the trace holds still (reduced motion)
+    if (this.onMonitor && this.time - this._lastBeep > 0.75) { this._lastBeep = this.time; this.onMonitor(); }
     // infusion pump / ventilator
     add(6.4 + 1.2, () => {
       this.box(6.2, 1.0, 0, 0.7, 0.6, 1.1, '#e8edf1');
@@ -319,7 +322,7 @@ export class IsoScene extends IsoPainter {
         this.box(3.68, 2.0, 0.73 + 0.4 * s, 0.6 * s + 0.05, 0.3 * s, 0.1, look.hair);
         this.anchors.patient = this.P(3.7 + 0.3 * s, 2.05 + 0.25 * s, 0.83 + 0.4 * s);
       });
-      if (p.companion) add(1.8 + 3.8, () => { this.anchors.companion = this.person(1.8, 3.8, p.companion.look, Math.sin(this.time * 2) * 0.01); });
+      if (p.companion) add(1.8 + 3.8, () => { this.anchors.companion = this.person(1.8, 3.8, p.companion.look, this.reducedMotion ? 0 : Math.sin(this.time * 2) * 0.01); });
       return;
     }
 
@@ -329,6 +332,8 @@ export class IsoScene extends IsoPainter {
     let total = 0;
     for (let i = 1; i < path.length; i++) { const l = Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]); lens.push(l); total += l; }
     const speed = 1.8;
+    if (this.reducedMotion && p.phase === 'enter') p.phase = 'idle';
+    if (this.reducedMotion && p.phase === 'exit') { this.patient = null; return; }
     let dist = p.phase === 'enter' ? Math.min(total, p.t * speed) : p.phase === 'exit' ? Math.max(0, total - p.t * speed) : total;
     if (p.phase === 'enter' && dist >= total) p.phase = 'idle';
     if (p.phase === 'exit' && dist <= 0) { this.patient = null; return; }
@@ -338,7 +343,7 @@ export class IsoScene extends IsoPainter {
       if (d <= lens[i]) { const f = d / lens[i]; x = path[i][0] + (path[i + 1][0] - path[i][0]) * f; y = path[i][1] + (path[i + 1][1] - path[i][1]) * f; break; }
       d -= lens[i]; x = path[i + 1][0]; y = path[i + 1][1];
     }
-    const bob = walking ? Math.abs(Math.sin(this.time * 9)) * 0.06 : Math.sin(this.time * 2) * 0.012;
+    const bob = this.reducedMotion ? 0 : walking ? Math.abs(Math.sin(this.time * 9)) * 0.06 : Math.sin(this.time * 2) * 0.012;
     if (walking && this.onStep && this.time - this._lastStep > 0.33) { this._lastStep = this.time; this.onStep(); }
     // an infant is carried by the companion: the click lands on the companion's arms
     if (!walking) this.hotspots.patient = p.companion && look.build === 'infant' ? this.personRect(x - 0.7, y + 0.6, p.companion.look) : this.personRect(x, y, look);
