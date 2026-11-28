@@ -78,8 +78,10 @@ Each note was checked against the open issues. Where an issue already covered it
 | --- | --- | --- | --- | --- | --- |
 | [P0-01](https://github.com/FilipeOliveira94/plantao/issues/8) | CI on every PR | GitHub Actions runs `npm run validate` and `npm run test:e2e`. | Med/Med | Md/Md | none |
 | [P0-02](https://github.com/FilipeOliveira94/plantao/issues/9) | Sync `AGENTS.md` with reality | Fix the case count, point the roadmap section to this file. | Lo/Lo | Sm/Sm | none |
-| [P0-03](https://github.com/FilipeOliveira94/plantao/issues/105) | Brazilian law and regulations review | Before the game is public: CFM resolutions (publicity, telemedicine, educational content vs. medical advice), ECA for pediatric cases, drug names, copyright of quoted references, the Manchester Triage System name and license, SUS and Ministry names, LGPD and Marco Civil for player data. Writes `docs/LEGAL-REVIEW.md` with source, applies or not, and action; each action gets an issue; lawyer-only items are marked. Drafts a disclaimer if needed. No code. | Hi/- | Md/- | none |
-| [P0-04](https://github.com/FilipeOliveira94/plantao/issues/106) | Host the MVP on GitHub Pages | The static game served at `filipeoliveira94.github.io/plantao/`, deployed only from `main`, working under the sub-path, with the P0-03 disclaimer if it asks for one. README gets the link. Cloudflare Pages (P5-02) replaces it when the backend arrives. | Hi/- | Md/- | P0-03 |
+| [P0-03](https://github.com/FilipeOliveira94/plantao/issues/105) | Brazilian law and regulations review | Before the game is public: CFM resolutions (publicity, telemedicine, educational content vs. medical advice), ECA for pediatric cases, drug names, copyright of quoted references, the Manchester Triage System name and license, SUS and Ministry names, LGPD and Marco Civil for player data. Writes `docs/LEGAL-REVIEW.md` with source, applies or not, and action; each action gets an issue; lawyer-only items are marked. Drafts a disclaimer if needed. No code. Result: [`docs/LEGAL-REVIEW.md`](LEGAL-REVIEW.md). | Hi/Hi | Md/Md | none |
+| [P0-04](https://github.com/FilipeOliveira94/plantao/issues/106) | Host the MVP on GitHub Pages | The static game served at `filipeoliveira94.github.io/plantao/`, deployed only from `main`, working under the sub-path, with the notices from `docs/LEGAL-REVIEW.md`: the approved disclaimer and privacy note, and a contact channel. README gets the link. Cloudflare Pages (P5-02) replaces it when the backend arrives. | Hi/- | Md/- | P0-03 |
+| [P0-05](https://github.com/FilipeOliveira94/plantao/issues/122) | Content rules from the legal review | `docs/MEDICAL-CONTENT.md` gets the rules from `docs/LEGAL-REVIEW.md`: fictional people with no identifying detail, minors included; generic (DCB) drug names, no brands; references cited, never copied (no tables, figures or flowcharts); no Manchester flowcharts; no official logos. A sweep of the current cases; an optional validator check for brand names. | Hi/- | Sm/- | P0-03, P1-10 |
+| [P0-06](https://github.com/FilipeOliveira94/plantao/issues/123) | Age rating for the web build | Find which self-classification route (Portaria MJSP 502/2021 art. 45) applies to a free web game outside app stores, and what Portaria 1.048/2025 changes; if a rating is due, show it. Needs a lawyer or the Ministry's answer. | Hi/- | Sm/- | P0-03 |
 
 ## P1: A fair core loop with consequences
 
@@ -149,7 +151,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P4-03](https://github.com/FilipeOliveira94/plantao/issues/39) | Scene backdrop per unit | The room shows where it is: view through the window, weather and light (rain in Belém, cold light in Curitiba), furniture and wear matching the unit type. | Lo/- | Md/- | P4-01 |
 | [P4-04](https://github.com/FilipeOliveira94/plantao/issues/40) | Small-town units | Add units outside state capitals (a rural health post, a small-town hospital) with the resources they would really have. | Med/- | Sm/- | P4-03 |
 | [P4-05](https://github.com/FilipeOliveira94/plantao/issues/41) | Background music per unit | An original chiptune track per unit, synthesized with WebAudio, with rainy versions (the music plus rain) and a volume control. Replaced the first scope (rain, fans, PICU monitors, waiting-room noise) at Filipe's request. | Lo/Lo | Sm/Sm | none |
-| [P4-06](https://github.com/FilipeOliveira94/plantao/issues/75) | Fictional unit names | Units keep their real city and state but get invented names; today three use real neighborhoods and may match real services. The rule goes in the docs so new units follow it. | Lo/- | Sm/- | none |
+| [P4-06](https://github.com/FilipeOliveira94/plantao/issues/75) | Fictional unit names | Units keep their real city and state but get invented names; today three use real neighborhoods and may match real services, and "Hospital Universitário" in Porto Alegre may read as a real one. The rule goes in the docs so new units follow it. | Lo/- | Sm/- | none |
 
 ## P5: Online features (need the backend decision)
 
@@ -189,7 +191,7 @@ Each note was checked against the open issues. Where an issue already covered it
 ## Suggested order
 
 1. Quick wins that fix what the playtest noticed first: P1-01, P1-02, P2-05, P2-06, P3-02, P0-01, P0-02, P4-06.
-2. Go public before the P3 work: P0-03, then P0-04.
+2. Go public before the P3 work: P0-03, then P0-04 (P0-06 first if Filipe decides so). P0-05 can follow at any time, since P1-10 has merged.
 3. Make time matter: P1-04, P1-05, P1-06, P1-11, P1-12, P1-13, then P2-02, P2-03 and P2-12 to show it.
 4. Make the screen lead the player: P2-01, P2-07, P2-04, then P2-08.
 5. Keep the player: P3-12, P3-01, P3-04, P3-14, P3-09, P3-03, P3-05, P3-10, P3-11. P3-13 comes after the MVP. New modes and community: P3-17, P3-18, P3-15, P3-16.
