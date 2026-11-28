@@ -136,11 +136,13 @@ export class IsoScene extends IsoPainter {
   resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const r = this.cv.getBoundingClientRect();
-    this.w = Math.max(320, r.width); this.h = Math.max(220, r.height);
+    // the drawing size is the box size, so hotspot and balloon positions match what is on screen even on a short
+    // phone stage (P2-10); a hidden stage (0 high) keeps a 1px buffer
+    this.w = Math.max(1, r.width); this.h = Math.max(1, r.height);
     this.cv.width = this.w * dpr; this.cv.height = this.h * dpr;
     this.g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const scale = Math.min(this.w / 640, this.h / 400);
-    this.scale = Math.max(0.6, Math.min(1.6, scale));
+    this.scale = Math.max(0.4, Math.min(1.6, scale));
     this.ox = this.w / 2 + 10 * this.scale;
     this.oy = this.h * 0.2;
   }
