@@ -48,7 +48,8 @@ export function queueSummary(queue, now) {
   for (const e of queue) {
     const limit = leaveAt(e.c.triage.priority);
     const wait = Math.min(now, SHIFT_MINUTES) - e.arrivedAt;
-    if (e.status === 'waiting' && e.firstSeenAt == null && limit != null && wait > limit - SOON_MARGIN) leaving++;
+    // like Shift.queuePaid: a threshold past the end of the shift never fires, so nobody is about to leave then
+    if (e.status === 'waiting' && e.firstSeenAt == null && limit != null && wait > limit - SOON_MARGIN && e.arrivedAt + limit < SHIFT_MINUTES) leaving++;
     else if (e.impatient && e.firstSeenAt == null) impatient++;
   }
   return { waiting: queue.length, impatient, leaving };

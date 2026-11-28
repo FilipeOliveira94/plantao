@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { UNITS, ACTION_COST } from '../src/data/catalog.js';
 import { Encounter, consultTarget } from '../src/game/encounter.js';
 import { Shift, scaledTarget, impatienceAt, leaveAt, SOON_MARGIN } from '../src/game/shift.js';
+import { SHIFT_MINUTES } from '../src/game/time.js';
 import { consultBar, patienceBar, waitStage, examProgress, waitSnapshot, jumpImpact, queueSummary } from '../src/game/timebars.js';
 
 const fakeCase = (id, priority) => ({
@@ -108,4 +109,7 @@ test('queue summary counts the waiting, the impatient and those about to leave, 
   angry.firstSeenAt = 5; angry.status = 'paused';
   assert.deepEqual(queueSummary([angry], now), { waiting: 1, impatient: 0, leaving: 0 });
   assert.deepEqual(queueSummary([], now), { waiting: 0, impatient: 0, leaving: 0 });
+  // a patient whose leave threshold falls after the end of the shift can never leave
+  const late = enc('green', SHIFT_MINUTES - leaveAt('green') + 1);
+  assert.equal(queueSummary([late], SHIFT_MINUTES).leaving, 0);
 });

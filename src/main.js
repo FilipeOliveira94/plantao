@@ -1451,7 +1451,7 @@ function updateNextStep() {
 // Upright phones and tablets (P2-10): the coach docks at the bottom and the game shrinks by its height, so it covers
 // nothing. Landscape phones dock it over the stage column, as on wide screens.
 const wideLayout = matchMedia('(min-width: 901px)');
-const sheetLayout = matchMedia('(max-width: 900px) and (min-height: 501px)'); // as in styles.css
+const sheetLayout = matchMedia('(max-width: 900px) and (height > 500px)'); // as in styles.css
 function placeCoach() {
   const wide = wideLayout.matches;
   const top = tutorial && wide && ui.waitStrip?.isConnected ? ui.waitStrip.getBoundingClientRect().top : null;
