@@ -3,7 +3,7 @@ import { UNITS, SPECIALTIES, TRIAGE, EXAMS, EXAM_CATS, UNIT_TYPES, ACTION_COST }
 import { Shift } from './game/shift.js';
 import { ShiftClock } from './game/clock.js';
 import { clockLabelAt } from './game/time.js';
-import { consultBar, patienceBar, examProgress, waitSnapshot, jumpImpact } from './game/timebars.js';
+import { consultBar, patienceBar, examProgress, waitSnapshot, jumpImpact, queueSummary } from './game/timebars.js';
 import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCase, applyShift, BADGES, LEVELS, exportSave, encodeCode, parseImport, MAX_IMPORT_BYTES } from './game/progress.js';
 import { IsoScene, WaitingRoom } from './render/iso.js';
 import { sfx } from './audio/sfx.js';
@@ -31,6 +31,9 @@ let tutorial = null;
 let clock = null; // real-time driver of the shift clock (P1-11)
 let scene = null;
 let ui = {};
+// phone and tablet layout (P2-10): the chart sheet's state and whether the queue shows on phones; neither is saved
+let sheet = 'half';
+let queueOpen = true;
 let tab = 'triage';
 // dx and cd: the final choice on the Decisão tab; hx: the working hypothesis picked but not yet recorded (P1-08)
 let decision = { dx: null, cd: null, hx: null };
@@ -332,6 +335,7 @@ function startTutorial() {
   music.play(unit.music);
   renderGame();
   tutorial.coach = createCoach({ onSkip: skipTutorial });
+  coachSize.observe(tutorial.coach.el);
   setNextStepEmphasis(true);
   updateNextStep();
 }
@@ -339,8 +343,10 @@ function startTutorial() {
 /** Closes the coach and the strong highlight. Called whenever the board leaves a shift. */
 function stopTutorial() {
   if (!tutorial) return;
+  if (tutorial.coach) coachSize.unobserve(tutorial.coach.el);
   tutorial.coach?.close();
   tutorial = null;
+  placeCoach();
   setNextStepEmphasis(false);
   clock?.release('tutorial');
 }
@@ -382,19 +388,26 @@ function renderGame() {
   ui.talk = createTalk();
   ui.hotspots = createHotspots({ onDoor: hotspotDoor, onComputer: hotspotComputer, onRegion: hotspotRegion });
   ui.waitCanvas = h('canvas', { class: 'waiting-canvas', 'aria-hidden': 'true' });
-  ui.queue = h('div', { class: 'queue' });
+  ui.queue = h('div', { class: 'queue', id: 'queue' });
   ui.chart = h('div', { class: 'chart' });
+  // phones (P2-10): the waiting-room drawing gives way to a button with the queue's count; it shows or hides the queue
+  ui.waitBtn = h('button', { type: 'button', class: 'wait-btn', 'aria-controls': 'queue', onclick: () => { queueOpen = !queueOpen; syncLayout(); } });
+  // phones and tablets (P2-10): the chart is a bottom sheet; its handle switches it between half and full height
+  ui.handle = h('button', { type: 'button', class: 'sheet-handle', 'aria-controls': 'chart-sheet', onclick: () => { sheet = sheet === 'full' ? 'half' : 'full'; syncLayout(); } });
+  sheet = 'half';
+  queueOpen = true;
   // per-unit theme (P2-09): the CSS derives the game screen's tints from the unit's palette
   const pal = shift.unit.palette;
   mount(app, h('div', { class: 'game', style: `--unit-floor: ${pal.floor}; --unit-wall: ${pal.wall}; --unit-accent: ${pal.accent}` },
     ui.top,
-    h('div', { class: 'main' },
-      h('div', { class: 'stage' },
-        h('div', { style: { position: 'relative', minHeight: 0 } }, ui.canvas, ui.hotspots.el, ui.talk.el),
+    ui.main = h('div', { class: 'main' },
+      ui.stage = h('div', { class: 'stage' },
+        h('div', { class: 'scene-box' }, ui.canvas, ui.hotspots.el, ui.talk.el),
         // the waiting room (P2-08): the queue below, drawn as people; display only, the cards stay the way to call
         ui.waitStrip = h('div', { class: 'waiting', 'aria-hidden': 'true' }, h('span', { class: 'waiting-title' }, '🪑 Sala de espera'), ui.waitCanvas),
+        ui.waitBtn,
         ui.queue),
-      ui.chart,
+      h('div', { class: 'sheet', id: 'chart-sheet' }, ui.handle, ui.chart),
     ),
   ));
   scene = new IsoScene(ui.canvas);
@@ -422,17 +435,17 @@ function renderTop({ ifChanged = false } = {}) {
   mount(ui.top,
     h('button', { class: 'btn ghost', onclick: confirmLeave, title: 'Sair do plantão' }, '←'),
     h('span', { class: 'unitname' }, shift.unit.name),
-    h('span', { class: 'chip' }, `${shift.unit.city}/${shift.unit.uf}`),
-    h('span', { class: 'chip' }, SPECIALTIES[shift.specialty].icon, ' ', SPECIALTIES[shift.specialty].label),
+    h('span', { class: 'chip city' }, `${shift.unit.city}/${shift.unit.uf}`),
+    h('span', { class: 'chip', title: SPECIALTIES[shift.specialty].label }, SPECIALTIES[shift.specialty].icon, h('span', { class: 'spec-label' }, ' ', SPECIALTIES[shift.specialty].label)),
     h('span', { class: 'spacer' }),
     h('span', { class: 'small muted' }, `${shift.results.length}/${shift.encounters.length} atendidos`),
-    h('span', { class: 'small' }, `Nv ${lvl.number} · ${state.xp} XP`),
+    h('span', { class: 'small xp' }, `Nv ${lvl.number} · ${state.xp} XP`),
     // event effects (P1-09) stay on screen while they last
     ...shift.activeEffects().map((f) => h('span', { class: 'chip effect', title: f.detail }, f.label)),
     h('span', { class: `clock${shift.over ? ' over' : ''}`, title: `Relógio do plantão (termina às ${shift.endLabel})` }, shift.clockLabel, h('span', { class: 'clock-end' }, ` · fim ${shift.endLabel}`)),
     jumpChip(),
-    h('button', { class: 'btn ghost pause-btn', onclick: showPause, disabled: shift.done, title: 'Pausar o relógio do plantão' }, '⏸ Pausar'),
-    h('button', { class: 'btn ghost', onclick: toggleMute }, state.settings.muted ? '🔇' : '🔊'),
+    h('button', { class: 'btn ghost pause-btn', onclick: showPause, disabled: shift.done, title: 'Pausar o relógio do plantão', 'aria-label': 'Pausar' }, '⏸', h('span', { class: 'lbl' }, ' Pausar')),
+    h('button', { class: 'btn ghost', onclick: toggleMute, 'aria-label': state.settings.muted ? 'Ligar o som' : 'Desligar o som' }, state.settings.muted ? '🔇' : '🔊'),
     musicSlider(),
   );
 }
@@ -608,7 +621,8 @@ function renderQueue({ ifChanged = false } = {}) {
   const q = shift.queue();
   // a clock tick redraws the queue only when what it shows changed, so focus and hover stay put
   const showWait = waitButtonShown(q);
-  const sig = JSON.stringify([q.map((e) => [e.c.id, statusOf(e).text, !shift.current && !shift.over]), shift.upcoming().length, !!shift.current, showWait]);
+  const sum = queueSummary(q, shift.clock);
+  const sig = JSON.stringify([q.map((e) => [e.c.id, statusOf(e).text, !shift.current && !shift.over]), shift.upcoming().length, !!shift.current, showWait, sum]);
   if (ifChanged && sig === ui.queueSig) return;
   ui.queueSig = sig;
   const cards = q.map((enc) => {
@@ -630,8 +644,22 @@ function renderQueue({ ifChanged = false } = {}) {
     children.push(h('button', { class: 'btn', 'data-step': 'wait-next', style: { alignSelf: 'center' }, onclick: () => { handleEvents(timed(() => shift.waitForNext())); renderAll(); if (shift.done) setTimeout(showShiftSummary, 400); } }, '☕ Aguardar próximo'));
   }
   mount(ui.queue, children);
+  renderWaitButton(sum);
   pruneLive();
   drawWaitingRoom(q);
+}
+
+/** The phone's waiting button (P2-10): how many wait, and icons for the impatient and those about to leave. */
+function renderWaitButton(sum) {
+  const parts = [`${sum.waiting} ${sum.waiting === 1 ? 'paciente' : 'pacientes'} na espera`];
+  if (sum.impatient) parts.push(`${sum.impatient} ${sum.impatient === 1 ? 'impaciente' : 'impacientes'}`);
+  if (sum.leaving) parts.push(`${sum.leaving} quase indo embora`);
+  ui.waitBtn.setAttribute('aria-label', parts.join(', '));
+  mount(ui.waitBtn,
+    h('span', { 'aria-hidden': 'true' }, '🪑 ', h('b', {}, sum.waiting), ' na espera'),
+    sum.impatient ? h('span', { class: 'wait-flag impatient', title: 'Impacientes', 'aria-hidden': 'true' }, '😤 ', sum.impatient) : null,
+    sum.leaving ? h('span', { class: 'wait-flag leaving', title: 'Quase indo embora', 'aria-hidden': 'true' }, '🚶 ', sum.leaving) : null,
+    h('span', { class: 'wait-toggle', 'aria-hidden': 'true' }, queueOpen ? 'Ocultar fila ▾' : 'Ver fila ▴'));
 }
 
 /** The waiting room strip (P2-08): everyone in the queue, seated in queue order, in their triage color. */
@@ -857,6 +885,7 @@ function callPatient(enc, { openTab } = {}) {
   sfx.call();
   scene.enter(enc.c.patient.look, enc.c.patient.companion);
   tab = openTab ?? resume?.tab ?? (returning ? 'tests' : 'triage');
+  sheet = 'half'; queueOpen = false; // the chart takes the room; the queue folds behind its button on phones
   decision = resume?.decision ?? { dx: null, cd: null, hx: null };
   testQuery = ''; openTestCats.clear(); askedOpen = false;
   ui.talk.clear();
@@ -919,6 +948,7 @@ function renderChart() {
   ui.chartSig = chartSig();
   ui.hoverCost = 0; // the hovered button is gone; a new hover sets it again
   const enc = shift.current;
+  syncLayout();
   if (!enc) {
     const next = shift.done ? null : firstCallable();
     mount(ui.chart, h('div', { class: 'pane', style: { gridRow: '1 / -1', display: 'grid', placeItems: 'center', textAlign: 'center' } },
@@ -1181,6 +1211,7 @@ function sendToWait(enc) {
   say(enc, 'Tá bom, vou aguardar lá fora.');
   scene.exit();
   shift.sendToWait();
+  sheet = 'half'; queueOpen = true;
   enc._notified = false; // calling them set it: toast their results when they come in
   ui.talk.clearLater(1200);
   renderAll();
@@ -1210,6 +1241,7 @@ function finishEncounter(enc) {
   const result = enc.score({ diagnosisId: decision.dx, conductId: decision.cd, now: shift.clock, excusedWait: shift.excusedWait(enc) });
   result.chosen = { dx: decision.dx, cd: decision.cd, hx: enc.hypothesis?.dx ?? null };
   shift.finish(enc, result);
+  sheet = 'half'; queueOpen = true;
   let earned = [];
   if (tutorial) {
     // the tutorial (P2-04): the first finished run pays the case's XP, nothing else; replays pay nothing
@@ -1415,14 +1447,39 @@ function updateNextStep() {
   placeCoach();
 }
 
-// the coach card sits over the scene, just above the waiting room, so the queue stays visible (wide layout only)
+// Wide layout: the coach card sits over the scene, just above the waiting room, so the queue stays visible.
+// Upright phones and tablets (P2-10): the coach docks at the bottom and the game shrinks by its height, so it covers
+// nothing. Landscape phones dock it over the stage column, as on wide screens.
 const wideLayout = matchMedia('(min-width: 901px)');
+const sheetLayout = matchMedia('(max-width: 900px) and (height > 500px)'); // as in styles.css
 function placeCoach() {
-  const top = tutorial && wideLayout.matches && ui.waitStrip?.isConnected ? ui.waitStrip.getBoundingClientRect().top : null;
+  const wide = wideLayout.matches;
+  const top = tutorial && wide && ui.waitStrip?.isConnected ? ui.waitStrip.getBoundingClientRect().top : null;
   const px = top == null ? 0 : Math.max(0, Math.round(innerHeight - top));
   document.documentElement.style.setProperty('--coach-bottom', `${px}px`);
+  const card = tutorial && sheetLayout.matches ? tutorial.coach?.el : null;
+  // the card's top edge, measured from the bottom of the viewport (zero while it is hidden behind a modal)
+  const space = card?.isConnected && card.offsetHeight ? Math.max(0, innerHeight - card.getBoundingClientRect().top) : 0;
+  document.documentElement.style.setProperty('--coach-space', `${Math.round(space)}px`);
 }
 addEventListener('resize', placeCoach);
+const coachSize = new ResizeObserver(() => placeCoach());
+
+/** Phone and tablet layout (P2-10): the sheet's state, the queue's visibility and their buttons' names. */
+function syncLayout() {
+  if (!ui.main) return;
+  const free = !shift.current;
+  ui.main.classList.toggle('room-free', free);
+  ui.main.classList.toggle('sheet-full', !free && sheet === 'full');
+  ui.stage.classList.toggle('queue-open', queueOpen);
+  ui.handle.hidden = free;
+  ui.handle.setAttribute('aria-expanded', String(sheet === 'full'));
+  ui.handle.replaceChildren(h('span', { class: 'grip', 'aria-hidden': 'true' }), sheet === 'full' ? 'Recolher ficha ▾' : 'Expandir ficha ▴');
+  ui.waitBtn.setAttribute('aria-expanded', String(queueOpen));
+  ui.waitBtn.querySelector('.wait-toggle')?.replaceChildren(queueOpen ? 'Ocultar fila ▾' : 'Ver fila ▴');
+  // a control hidden with the stage must not keep focus
+  if (sheet === 'full' && !free && ui.stage.contains(document.activeElement)) ui.handle.focus({ preventScroll: true });
+}
 
 let nextStepQueued = false;
 new MutationObserver(() => {

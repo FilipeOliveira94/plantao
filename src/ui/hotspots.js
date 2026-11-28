@@ -10,6 +10,10 @@ const KEYS = ['door', 'computer', 'patient'];
 // smallest hit area per hotspot (CSS px), centered on the drawn object
 const MIN = { door: [30, 44], computer: [34, 30], patient: [40, 56] };
 const REASON_MS = 3000;
+// on a touch screen (P2-10) every hit area is at least the --touch token (44px), still centered on the object
+const coarse = matchMedia('(pointer: coarse)');
+let touchPx = null; // read once: place() runs every frame
+const touchMin = () => (coarse.matches ? (touchPx ??= parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--touch')) || 0) : 0);
 
 /**
  * @param {{ onDoor: () => void, onComputer: () => void, onRegion: (regionId: string) => void }} handlers
@@ -65,6 +69,7 @@ export function createHotspots({ onDoor, onComputer, onRegion }) {
   /** Called every frame with the scene's rectangles ([left, top, width, height], CSS px in the canvas box). */
   function place(rects) {
     const W = el.clientWidth;
+    const touch = touchMin();
     for (const key of KEYS) {
       const s = spots[key];
       const r = rects[key];
@@ -73,7 +78,7 @@ export function createHotspots({ onDoor, onComputer, onRegion }) {
         continue;
       }
       const [mw, mh] = MIN[key];
-      const w = Math.max(mw, r[2]), hh = Math.max(mh, r[3]);
+      const w = Math.max(mw, touch, r[2]), hh = Math.max(mh, touch, r[3]);
       const left = Math.round(r[0] + r[2] / 2 - w / 2), top = Math.round(r[1] + r[3] / 2 - hh / 2);
       const flip = left + w / 2 > W / 2, below = top < 70;
       const pos = `${left},${top},${Math.round(w)},${Math.round(hh)},${flip},${below}`;

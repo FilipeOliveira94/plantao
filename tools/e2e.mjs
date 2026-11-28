@@ -1015,6 +1015,7 @@ try {
   if (look.calm !== '2px' || look.anim !== 'none' || look.strong !== '3px') throw new Error(`next-step highlight: ${JSON.stringify(look)}`);
   console.log('✔ next step: one highlight per state (call, triage, anamnese, physical, decide, hypothesis, finish, finish-confirm, wait, feedback, paused, pause, arrival, summary); result toast opens the results');
   await page.locator('[data-step=summary-menu]').click();
+  await phoneAndTablet();
   // PICU scene
   if (SHOTS) {
     await page.locator('.unit').last().click();
@@ -1026,6 +1027,120 @@ try {
 } finally {
   await browser.close();
   server.kill();
+}
+
+// Phone and tablet layout (P2-10): in their own touch contexts, so the desktop runs above stay as they are.
+async function phoneAndTablet() {
+  const sizes = [
+    { name: 'phone', width: 390, height: 844, phone: true },
+    { name: 'tablet', width: 820, height: 1180 },
+    { name: 'landscape', width: 844, height: 390, phone: true, side: true }, // stage and chart side by side
+  ];
+  for (const vp of sizes) {
+    const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, hasTouch: true, isMobile: !!vp.phone });
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errors.push(`${vp.name}: ${e.message}`));
+    p.on('console', (m) => { if (m.type() === 'error') errors.push(`${vp.name}: ${m.text()}`); });
+    const fail = (msg) => { throw new Error(`${vp.name} ${vp.width}x${vp.height}: ${msg}`); };
+    const arrival = p.locator('.popup.arrival:not(.out)');
+    await p.goto(`http://localhost:${PORT}/index.html?clock=manual`);
+    // the guided first shift: the coach card never covers the next-step control, the tabs or the footer
+    await p.locator('.tutorial-offer').getByRole('button', { name: 'Começar tutorial' }).click();
+    await p.waitForSelector('.game');
+    const coachCheck = async (what) => {
+      await p.waitForTimeout(250);
+      const r = await p.evaluate(() => {
+        const box = (el) => el && el.getBoundingClientRect();
+        const coach = box(document.querySelector('.popup.coach:not(.out)'));
+        const hit = (el) => { const b = box(el); return b && b.height > 0 && b.bottom > coach.top + 1 && b.top < coach.bottom - 1 && b.right > coach.left + 1 && b.left < coach.right - 1; };
+        const step = document.querySelector('.next-step');
+        return { coach: !!coach, step: step?.dataset.step, covered: [step, document.querySelector('.tabs'), document.querySelector('.footer-actions')].filter((el) => el && hit(el)).map((el) => el.className) };
+      });
+      if (!r.coach || r.covered.length) fail(`coach covers ${what}: ${JSON.stringify(r)}`);
+    };
+    await coachCheck('the call');
+    await p.locator('[data-step=call]').click();
+    await coachCheck('the chart');
+    if (SHOTS) await p.screenshot({ path: `${SHOTS}/p2-10-${vp.name}-tutorial.png` });
+    await p.locator('.popup.coach').getByRole('button', { name: 'Pular tutorial' }).click();
+    await p.waitForSelector('.menu');
+    // a normal shift
+    await p.locator('.unit').first().click();
+    await p.getByRole('button', { name: /Começar plantão/ }).click();
+    await p.waitForSelector('.game');
+    await p.evaluate(() => document.getElementById('toasts')?.replaceChildren());
+    const layout = () => p.evaluate(() => {
+      const box = (sel) => { const el = document.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), h: Math.round(r.height), w: Math.round(r.width) }; };
+      // controls under the touch size: every visible button, tab and hotspot on the shift screen
+      const small = [...document.querySelectorAll('.game button, .game [role=tab], .popup:not(.out) button')]
+        .filter((el) => el.offsetParent && getComputedStyle(el).visibility !== 'hidden' && !el.closest('.queue:not(:has(*))'))
+        .map((el) => { const r = el.getBoundingClientRect(); return [el.textContent.trim().slice(0, 20) || el.className, Math.round(r.width), Math.round(r.height)]; })
+        .filter(([, w, h]) => w < 44 || h < 44);
+      return { docW: document.documentElement.scrollWidth, docH: document.documentElement.scrollHeight, stage: box('.stage'), sheet: box('.sheet'), chart: box('.chart'), tabs: box('.tabs'), footer: box('.footer-actions'), clock: box('.topbar .clock'), small };
+    });
+    let l = await layout();
+    if (l.docW > vp.width || l.docH > vp.height) fail(`page overflows the viewport: ${l.docW}x${l.docH}`);
+    if (!l.clock || l.clock.bottom > vp.height || l.clock.right > vp.width) fail('the clock is not on screen');
+    // phones: the waiting-room drawing gives way to the waiting button, which shows and hides the queue
+    const waitBtn = p.locator('.wait-btn');
+    if (vp.phone) {
+      if (await p.locator('.waiting').isVisible()) fail('the waiting-room drawing shows on a phone');
+      if (!/pacientes? na espera/.test(await waitBtn.getAttribute('aria-label'))) fail(`waiting button: ${await waitBtn.getAttribute('aria-label')}`);
+    } else if (await waitBtn.isVisible()) fail('the waiting button shows on a tablet');
+    // the door hotspot calls the next patient
+    for (let i = 0; i < 10 && !(await p.locator('.hotspot.hs-door[aria-disabled=false]').count()); i++) await p.evaluate(() => window.__plantao.clock.step(20000));
+    for (const later of await p.locator('.popup:not(.out) [data-step=later]').all()) await later.click().catch(() => {});
+    await p.locator('.hotspot.hs-door').tap();
+    await p.waitForFunction(() => !!window.__plantao.shift.current);
+    await p.waitForTimeout(300);
+    l = await layout();
+    if (l.docW > vp.width || l.docH > vp.height) fail(`page overflows with a patient: ${l.docW}x${l.docH}`);
+    if (vp.side ? !(l.stage.right <= l.chart.left + 2) : !(l.stage.top < l.sheet.top)) fail(`the stage is not ${vp.side ? 'beside the chart' : 'above the sheet'}`);
+    for (const k of ['tabs', 'footer']) if (!l[k] || l[k].bottom > vp.height || l[k].top < 0) fail(`${k} not inside the viewport: ${JSON.stringify(l[k])}`);
+    if (l.small.length) fail(`controls under 44px: ${JSON.stringify(l.small)}`);
+    if (vp.phone && await p.locator('.queue').isVisible()) fail('the queue stays open on a phone while a patient is in the room');
+    if (vp.phone) {
+      await waitBtn.tap();
+      if (!(await p.locator('.queue').isVisible()) || await waitBtn.getAttribute('aria-expanded') !== 'true') fail('the waiting button does not show the queue');
+      await waitBtn.tap();
+    }
+    if (SHOTS) await p.screenshot({ path: `${SHOTS}/p2-10-${vp.name}-half.png` });
+    // the sheet: full height hides the stage (and its hotspots), half brings it back; focus never stays on a hidden control
+    const handle = p.locator('.sheet-handle');
+    await p.locator('.hotspot.hs-patient').waitFor({ state: 'visible' }); // once the patient stands at the desk
+    if (vp.side) { if (await handle.isVisible()) fail('a landscape phone shows the sheet handle'); } else {
+    await p.locator('.hotspot.hs-patient').focus();
+    await handle.tap();
+    if (await handle.getAttribute('aria-expanded') !== 'true') fail('the handle does not report the full sheet');
+    const full = await p.evaluate(() => ({ stage: getComputedStyle(document.querySelector('.stage')).visibility, focusHidden: !!document.activeElement.closest('.stage') }));
+    if (full.stage !== 'hidden' || full.focusHidden) fail(`full sheet: ${JSON.stringify(full)}`);
+    if (SHOTS) await p.screenshot({ path: `${SHOTS}/p2-10-${vp.name}-full.png` });
+    await handle.tap();
+    if (await handle.getAttribute('aria-expanded') !== 'false') fail('the handle does not report the half sheet');
+    }
+    // the hotspots follow the canvas after the resize: the patient hotspot opens the region menu
+    await p.waitForTimeout(200);
+    const spot = await p.evaluate(() => {
+      const c = document.querySelector('.stage canvas').getBoundingClientRect(), b = document.querySelector('.hotspot.hs-patient').getBoundingClientRect();
+      return b.width > 0 && b.left >= c.left - 1 && b.right <= c.right + 1 && b.top >= c.top - 1 && b.bottom <= c.bottom + 1;
+    });
+    if (!spot) fail('the patient hotspot is outside the canvas after the sheet came back');
+    await p.locator('.hotspot.hs-patient').tap();
+    await p.locator('.region-menu').waitFor();
+    await p.keyboard.press('Escape');
+    // an arrival popup fits the width
+    await p.evaluate(() => { const s = window.__plantao.shift; const e = s.upcoming()[0]; e.arrivedAt = s.clock + 1; e._arrivalNotified = false; window.__plantao.clock.step(10000); }); // arrives on the next shift minute
+    {
+      await arrival.waitFor({ timeout: 3000 });
+      await p.waitForTimeout(400); // the slide in
+      const pop = await arrival.boundingBox();
+      if (pop.x < 0 || pop.x + pop.width > vp.width + 1) fail(`the arrival popup overflows: ${JSON.stringify(pop)}`);
+      if (SHOTS) await p.screenshot({ path: `${SHOTS}/p2-10-${vp.name}-arrival.png` });
+      await arrival.getByRole('button', { name: 'Depois' }).tap();
+    }
+    await ctx.close();
+  }
+  console.log('✔ phone, tablet and landscape: fits the viewport, stage above the chart sheet, 44px targets, sheet handle, waiting button, hotspots after resize, coach clear of the controls');
 }
 
 if (errors.length) { console.error('Console errors:\n' + errors.join('\n')); process.exit(1); }

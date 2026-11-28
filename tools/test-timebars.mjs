@@ -4,8 +4,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { UNITS, ACTION_COST } from '../src/data/catalog.js';
 import { Encounter, consultTarget } from '../src/game/encounter.js';
-import { Shift, scaledTarget, impatienceAt, leaveAt } from '../src/game/shift.js';
-import { consultBar, patienceBar, waitStage, examProgress, waitSnapshot, jumpImpact } from '../src/game/timebars.js';
+import { Shift, scaledTarget, impatienceAt, leaveAt, SOON_MARGIN } from '../src/game/shift.js';
+import { SHIFT_MINUTES } from '../src/game/time.js';
+import { consultBar, patienceBar, waitStage, examProgress, waitSnapshot, jumpImpact, queueSummary } from '../src/game/timebars.js';
 
 const fakeCase = (id, priority) => ({
   id, triage: { priority }, patient: { name: id, look: {} },
@@ -94,4 +95,21 @@ test('a clock jump names who it moved to a worse stage', () => {
   s.advance(scaledTarget('blue') + 1 - s.clock); // past green's leaving point and blue's target
   assert.deepEqual(jumpImpact(s, again).map((x) => [x.enc.c.id, x.stage]), [['p-green', 'left'], ['p-blue', 'late']]);
   assert.deepEqual(jumpImpact(s, waitSnapshot(s)), []);
+});
+
+test('queue summary counts the waiting, the impatient and those about to leave, each once', () => {
+  const calm = enc('yellow', 0);
+  const angry = enc('yellow', 0); angry.impatient = true;
+  const soon = enc('green', 0);
+  const both = enc('blue', 0); both.impatient = true;
+  const now = Math.max(leaveAt('green'), leaveAt('blue')) - SOON_MARGIN + 1; // neither has left yet: Shift.checkWaiting would mark them
+  assert.deepEqual(queueSummary([calm, angry, soon, both], now), { waiting: 4, impatient: 1, leaving: 2 });
+  // before the margin a green patient is not leaving yet; once called, nobody leaves or counts as impatient
+  assert.equal(queueSummary([soon], leaveAt('green') - SOON_MARGIN - 1).leaving, 0);
+  angry.firstSeenAt = 5; angry.status = 'paused';
+  assert.deepEqual(queueSummary([angry], now), { waiting: 1, impatient: 0, leaving: 0 });
+  assert.deepEqual(queueSummary([], now), { waiting: 0, impatient: 0, leaving: 0 });
+  // a patient whose leave threshold falls after the end of the shift can never leave
+  const late = enc('green', SHIFT_MINUTES - leaveAt('green') + 1);
+  assert.equal(queueSummary([late], SHIFT_MINUTES).leaving, 0);
 });

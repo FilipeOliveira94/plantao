@@ -80,6 +80,15 @@
   --fw-bold: 700;
   --fw-heavy: 800;
 
+  /* layout (P2-10): touch target size (WCAG 2.5.5); upright phones and tablets: the chart sheet at half height
+     takes 3fr of the space below the top bar against the stage's 2fr; landscape phones: stage and chart columns */
+  --touch: 44px;
+  --sheet-half: 3fr;
+  --stage-share: 2fr;
+  --chart-share: 3fr;
+  --stage-cols: 40vw;            /* landscape phones: the stage column's width (2fr of 5), which the coach stays inside */
+  --coach-max-h: 26dvh;          /* upright phones and tablets: the coach card's height cap */
+
   /* spacing, radii, lift */
   --sp-1: 4px;
   --sp-2: 8px;
@@ -194,7 +203,13 @@ body.tutorial .btn.next-step:not(.primary) { background: color-mix(in srgb, var(
 .topbar .spacer { flex: 1; }
 .main { display: grid; grid-template-columns: minmax(340px, 1.05fr) minmax(380px, 1fr); min-height: 0; }
 .stage { position: relative; border-right: 2px solid var(--ink); min-height: 0; display: grid; grid-template-rows: 1fr auto auto; }
+/* phones and tablets only (P2-10): the sheet handle and the phone's waiting button; on wide screens the sheet is just the chart */
+.sheet { display: contents; }
+.sheet-handle, .wait-btn { display: none; }
 .stage canvas { width: 100%; height: 100%; display: block; }
+/* the scene canvas fills its grid row and never sizes it, so its drawing buffer always matches the box (P2-10) */
+.scene-box { position: relative; min-height: 0; overflow: hidden; }
+.scene-box > canvas { position: absolute; inset: 0; }
 .talk { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .balloon { position: absolute; left: 0; top: 0; visibility: hidden; width: max-content; max-width: min(300px, 46%); background: var(--surface-white); border: 2px solid var(--ink); border-radius: var(--r-lg); padding: 7px var(--sp-3); box-shadow: var(--lift-1); font-size: var(--fs-sm); line-height: 1.35; transition: opacity .2s; }
 .balloon[hidden] { display: none; }
@@ -303,18 +318,71 @@ body.tutorial .btn.next-step:not(.primary) { background: color-mix(in srgb, var(
 .badge.locked { opacity: .4; filter: grayscale(1); }
 .badge.new { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-halo); }
 
-#toasts { position: fixed; left: 14px; top: 64px; display: flex; flex-direction: column; gap: var(--sp-2); z-index: 60; max-width: 340px; }
+#toasts { position: fixed; left: 14px; top: 64px; display: flex; flex-direction: column; gap: var(--sp-2); z-index: 60; max-width: min(340px, calc(100vw - 28px)); }
 .toast { background: var(--ink); color: var(--ink-inverse); padding: var(--sp-3) 14px; border-radius: var(--r-md); font-size: var(--fs-sm); box-shadow: var(--shadow-soft); animation: slidein .25s ease-out; pointer-events: none; }
 @keyframes slidein { from { transform: translateX(-30px); opacity: 0; } }
 /* result toasts open the patient's results (P2-01) */
 .toast.clickable { pointer-events: auto; cursor: pointer; border: none; font: inherit; font-size: var(--fs-sm); text-align: left; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ink-inverse) 45%, transparent); text-underline-offset: 3px; }
 .toast.clickable:hover, .toast.clickable:focus-visible { background: color-mix(in srgb, var(--ink) 85%, var(--accent)); }
 
+/* ---------- phones and tablets (P2-10): the screen fits the viewport ---------- */
 @media (max-width: 900px) {
-  .game { height: auto; min-height: 100vh; }
-  .main { grid-template-columns: 1fr; }
-  .stage { border-right: none; border-bottom: 2px solid var(--ink); grid-template-rows: 300px auto auto; }
-  .chart { min-height: 70vh; }
+  .game { height: 100vh; height: calc(100dvh - var(--coach-space, 0px)); grid-template-rows: auto minmax(0, 1fr); }
+  .topbar { gap: var(--sp-1) var(--sp-3); padding: var(--sp-2) var(--sp-3); }
+  .stage { grid-template-rows: minmax(0, 1fr) auto auto auto; overflow: hidden; }
+  .queue { min-height: 0; }
+  .chart { min-height: 0; border-radius: inherit; }
+  .chart-head { padding: var(--sp-2) var(--sp-3); }
+  .pane { padding: var(--sp-3); }
+  .footer-actions { padding: var(--sp-2) var(--sp-3); gap: var(--sp-2); }
+}
+/* upright phones and tablets: the stage on top, the chart a bottom sheet */
+@media (max-width: 900px) and (height > 500px) {
+  .main { grid-template-columns: 1fr; grid-template-rows: minmax(0, var(--stage-share)) minmax(0, var(--sheet-half)); }
+  .main.room-free { grid-template-rows: minmax(0, 1fr) auto; }
+  .main.sheet-full { grid-template-rows: 0 minmax(0, 1fr); }
+  .main.sheet-full .stage { visibility: hidden; }
+  .stage { border-right: none; }
+  .sheet { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; background: var(--surface-raised); border-top: 2px solid var(--ink); border-radius: var(--r-xl) var(--r-xl) 0 0; position: relative; z-index: 1; }
+  .main.sheet-full .sheet { border-radius: 0; }
+  .sheet-handle { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); width: 100%; min-height: var(--touch); padding: var(--sp-1) var(--sp-3); border: none; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink-muted); font-size: var(--fs-xs); font-weight: var(--fw-bold); border-radius: var(--r-xl) var(--r-xl) 0 0; }
+  .sheet-handle[hidden] { display: none; }
+  .sheet-handle .grip { width: var(--touch); height: var(--sp-1); border-radius: var(--r-pill); background: var(--line-strong); }
+}
+.sheet-handle:focus-visible, .wait-btn:focus-visible { outline: 3px solid var(--ink); outline-offset: -3px; }
+/* phones, upright or landscape: a compact top bar, and the waiting room drawing becomes a button that shows or hides the queue */
+@media (max-width: 600px), (max-width: 900px) and (height <= 500px) {
+  .chart .empty-icon { display: none; }
+  .chart h2 { font-size: var(--fs-lg); }
+  .topbar .chip.city, .topbar .spec-label, .topbar .music-vol, .topbar .clock .clock-end, .topbar .xp, .topbar .pause-btn .lbl { display: none; }
+  /* row one: back, unit name, pause and mute; row two (when it does not fit): specialty, count, effects and clock */
+  .topbar > * { order: 1; }
+  .topbar > .btn, .topbar > .unitname { order: 0; }
+  .topbar .unitname { flex: 1 1 40%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar .spacer { display: none; }
+  .waiting { display: none; }
+  .wait-btn { display: flex; align-items: center; gap: var(--sp-3); width: 100%; min-height: var(--touch); padding: var(--sp-1) var(--sp-3); border: none; border-top: 2px solid var(--ink); background: var(--unit-ground); color: var(--ink); font-size: var(--fs-sm); font-weight: var(--fw-semi); text-align: left; }
+  .wait-btn .wait-flag { font-weight: var(--fw-heavy); border-radius: var(--r-pill); padding: 0 var(--sp-2); background: var(--surface-raised); border: 1px solid var(--line-control); }
+  .wait-btn .wait-flag.impatient { background: var(--danger-soft); }
+  .wait-btn .wait-flag.leaving { background: var(--warning-mid); }
+  .wait-btn .wait-toggle { margin-left: auto; color: var(--ink-muted); font-size: var(--fs-xs); }
+  .stage:not(.queue-open) .queue { display: none; }
+}
+/* landscape phones: too short for a sheet, so the stage and the chart sit side by side; the tutorial coach docks
+   over the stage column (as on wide screens) and leaves the chart free */
+@media (max-width: 900px) and (height <= 500px) {
+  .main { grid-template-columns: minmax(0, var(--stage-share)) minmax(0, var(--chart-share)); }
+  .topbar { padding-block: var(--sp-1); }
+  .popup-wrap.dock-bottom-left { padding: var(--sp-2); }
+  .popup-wrap.dock-bottom-left .popup.coach { max-width: calc(var(--stage-cols) - var(--sp-4)); max-height: calc(100dvh - var(--sp-4)); font-size: var(--fs-sm); }
+}
+/* touch screens, at any width (P2-10): every control is at least --touch tall */
+@media (pointer: coarse) {
+  .btn, .tab, .opt, .choice, .region-item, .toast.clickable, .test-cat summary { min-height: var(--touch); }
+  .btn.ghost { min-width: var(--touch); }
+  .tab { display: inline-flex; align-items: center; }
+  .test-cat summary { display: flex; align-items: center; }
+  .music-vol input { height: var(--touch); }
 }
 .music-vol { display: inline-flex; align-items: center; gap: var(--sp-1); }
 .music-vol input { width: 80px; }
@@ -355,11 +423,10 @@ body.tutorial .btn.next-step:not(.primary) { background: color-mix(in srgb, var(
 .coach-note p { margin: var(--sp-1) 0 0; }
 .tutorial-offer { display: flex; gap: var(--sp-3) 18px; flex-wrap: wrap; align-items: center; justify-content: space-between; background: var(--surface-raised); border: 2px solid var(--accent); border-radius: var(--r-lg); padding: var(--sp-3) var(--sp-4); margin: 14px 0 var(--sp-1); }
 .tutorial-offer p { margin: var(--sp-1) 0 0; }
-/* narrow screens: a bottom sheet; the page gets room to scroll everything above it */
-@media (max-width: 900px) {
+/* upright phones and tablets: the coach is a bottom card, and main.js shrinks the game by its height (--coach-space, P2-10) */
+@media (max-width: 900px) and (height > 500px) {
   .popup-wrap.dock-bottom-left { padding: var(--sp-2); }
-  .popup.coach { max-width: none; max-height: 38vh; font-size: var(--fs-sm); }
-  body.tutorial .game { padding-bottom: 40vh; }
+  .popup.coach { max-width: none; width: 100%; max-height: var(--coach-max-h); font-size: var(--fs-sm); }
 }
 @keyframes popup-in { from { transform: translateX(-100vw); } to { transform: none; } }
 @keyframes popup-out { from { transform: none; } to { transform: translateX(100vw); } }

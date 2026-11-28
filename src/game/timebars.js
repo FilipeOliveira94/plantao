@@ -1,6 +1,6 @@
 // Time on screen (P2-02): what the bars show, as fractions in 0..1. No DOM: main.js draws them.
 // The clock is fictitious (time.js), so the screen shows bars, percentages and clock times, never minutes.
-import { scaledTarget, impatienceAt, leaveAt } from './shift.js';
+import { scaledTarget, impatienceAt, leaveAt, SOON_MARGIN } from './shift.js';
 import { consultTarget } from './encounter.js';
 import { SHIFT_MINUTES } from './time.js';
 
@@ -39,6 +39,20 @@ export function patienceBar(enc, now) {
     impatience: leaveAt(pr) != null ? clamp01(1 - impatienceAt(pr) / end) : null,
     stage: waitStage(enc, now),
   };
+}
+
+/** The queue at a glance (P2-10, the phone's waiting button): how many are waiting, how many are impatient and how
+ *  many are about to leave (within SOON_MARGIN of leaving unseen). Each patient counts once, in the worse bucket. */
+export function queueSummary(queue, now) {
+  let impatient = 0, leaving = 0;
+  for (const e of queue) {
+    const limit = leaveAt(e.c.triage.priority);
+    const wait = Math.min(now, SHIFT_MINUTES) - e.arrivedAt;
+    // like Shift.queuePaid: a threshold past the end of the shift never fires, so nobody is about to leave then
+    if (e.status === 'waiting' && e.firstSeenAt == null && limit != null && wait > limit - SOON_MARGIN && e.arrivedAt + limit < SHIFT_MINUTES) leaving++;
+    else if (e.impatient && e.firstSeenAt == null) impatient++;
+  }
+  return { waiting: queue.length, impatient, leaving };
 }
 
 /** Share of a test's wait already past: 0 when ordered, 1 when the result is ready. */
