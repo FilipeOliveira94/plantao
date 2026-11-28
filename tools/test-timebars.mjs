@@ -25,7 +25,7 @@ function shiftWith(patients) {
 test('consultation bar drains with time used and previews an action cut', () => {
   const e = enc('yellow');
   const goal = consultTarget(e.c);
-  assert.deepEqual(consultBar(e), { left: 1, cut: 0, pct: 0, over: false });
+  assert.deepEqual(consultBar(e), { left: 1, cut: 0, pct: 0, over: false, leftMinutes: goal });
   e.think(goal / 2);
   const b = consultBar(e, ACTION_COST.question);
   assert.equal(b.left, 0.5);
@@ -36,7 +36,7 @@ test('consultation bar drains with time used and previews an action cut', () => 
   assert.equal(consultBar(e).left, b.left - b.cut);
   // over the target: empty bar, nothing more to cut, percentage past 100
   e.think(goal);
-  assert.deepEqual({ ...consultBar(e, 2), pct: undefined }, { left: 0, cut: 0, pct: undefined, over: true });
+  assert.deepEqual({ ...consultBar(e, 2), pct: undefined }, { left: 0, cut: 0, pct: undefined, over: true, leftMinutes: 0 });
   assert.ok(consultBar(e).pct > 100);
 });
 
@@ -52,6 +52,8 @@ test('patience bar drains from arrival to the impatience threshold, with the tar
   assert.equal(mid.left, 0.5);
   assert.equal(patienceBar(e, 10 + scaledTarget('yellow') + 1).stage, 'late');
   assert.equal(patienceBar(e, 10 + end + 5).left, 0);
+  // screen readers get the thresholds as clock minutes (P2-11)
+  assert.deepEqual(full.at, { target: 10 + scaledTarget('yellow'), impatience: 10 + end, leave: null });
   e.firstSeenAt = 20;
   assert.equal(patienceBar(e, 30), null);
 });

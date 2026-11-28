@@ -5,13 +5,15 @@ import { consultTarget } from './encounter.js';
 import { SHIFT_MINUTES } from './time.js';
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
+const within = (m) => (m <= SHIFT_MINUTES ? m : null);
 
 /** Consultation budget ("Tempo de consulta"): `left` is the share of the target still unused, `cut` the share an
  *  action costing `cost` consultation minutes would take now (never more than is left), `pct` the target used. */
 export function consultBar(enc, cost = 0) {
   const goal = consultTarget(enc.c);
   const left = clamp01(1 - enc.minutesSpent / goal);
-  return { left, cut: Math.min(left, Math.max(0, cost) / goal), pct: Math.round((enc.minutesSpent / goal) * 100), over: enc.minutesSpent > goal };
+  // leftMinutes: consultation minutes still in the target, for the screen reader's clock time (P2-11); never shown
+  return { left, cut: Math.min(left, Math.max(0, cost) / goal), pct: Math.round((enc.minutesSpent / goal) * 100), over: enc.minutesSpent > goal, leftMinutes: Math.max(0, goal - enc.minutesSpent) };
 }
 
 /** Where a waiting patient stands: 'ok', 'late' (past the scaled Manchester target), 'impatient' or 'left'. */
@@ -38,6 +40,12 @@ export function patienceBar(enc, now) {
     target: clamp01(1 - scaledTarget(pr) / end),
     impatience: leaveAt(pr) != null ? clamp01(1 - impatienceAt(pr) / end) : null,
     stage: waitStage(enc, now),
+    // the same thresholds as clock minutes, for screen readers (P2-11); null when it falls after the end of the shift
+    at: {
+      target: within(enc.arrivedAt + scaledTarget(pr)),
+      impatience: within(enc.arrivedAt + impatienceAt(pr)),
+      leave: leaveAt(pr) != null ? within(enc.arrivedAt + leaveAt(pr)) : null,
+    },
   };
 }
 

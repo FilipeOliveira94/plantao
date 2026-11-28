@@ -8,7 +8,8 @@ import { load, save, reset, levelOf, levelTitle, xpToLevel, careerTrack, applyCa
 import { IsoScene, WaitingRoom } from './render/iso.js';
 import { sfx } from './audio/sfx.js';
 import { music } from './audio/music.js';
-import { h, mount, toast, modal, modalOpen } from './ui/dom.js';
+import { h, mount, toast, modal, modalOpen, keepFocus, focusFallback } from './ui/dom.js';
+import { reducedMotion, systemReducedMotion, setReducedMotion, onReducedMotion } from './ui/motion.js';
 import { createTalk } from './ui/talk.js';
 import { popup, blockingPopupOpen } from './ui/popup.js';
 import { nextStep, TAB_STEP, CALL_LABEL } from './game/nextstep.js';
@@ -24,6 +25,9 @@ let state = load();
 sfx.setMuted(state.settings.muted);
 music.setMuted(state.settings.muted);
 music.setVolume(state.settings.musicVolume ?? 0.4);
+setReducedMotion(state.settings.reducedMotion);
+// the canvas scene follows the reduced-motion switch (P2-11); the menu's toggle follows the OS setting
+onReducedMotion((on) => { if (scene) scene.reducedMotion = on; if (!shift && app.querySelector('.menu')) renderMenu(); });
 
 let shift = null;
 // the guided first shift (P2-04) while it runs: { firstRun, coach }. firstRun: this run awards XP.
@@ -54,7 +58,16 @@ const firstName = (enc) => enc.c.patient.companion ? enc.c.patient.companion.nam
 // ======================================================================
 let menuSel = { unit: null, spec: null };
 
+let menuShown = false;
 function renderMenu() {
+  keepFocus(app, renderMenuNow);
+  // coming back from a shift (its summary removed with the board): the keyboard starts on the menu; on page load
+  // the browser's own start stays
+  if (menuShown && (!document.activeElement || document.activeElement === document.body)) focusFallback();
+  menuShown = true;
+}
+
+function renderMenuNow() {
   stopTutorial();
   clearArrivals();
   scene = null;
@@ -64,7 +77,7 @@ function renderMenu() {
     const locked = lvl.number < u.unlockLevel;
     return h('button', {
       class: `unit ${locked ? 'locked' : ''} ${menuSel.unit?.id === u.id ? 'selected' : ''}`,
-      disabled: locked,
+      disabled: locked, 'data-focus': `unit:${u.id}`, 'aria-pressed': locked ? null : String(menuSel.unit?.id === u.id),
       onclick: () => { sfx.unlock(); sfx.click(); menuSel = { unit: u, spec: u.specialties[0] }; renderMenu(); },
     },
     h('div', { class: 'band', style: { background: `linear-gradient(135deg, ${u.palette.accent}, ${u.palette.wall})` } }, h('span', { class: 'band-label' }, `${UNIT_TYPES[u.type].label} · ${u.city}/${u.uf}`)),
@@ -79,12 +92,12 @@ function renderMenu() {
   const specs = menuSel.unit ? h('div', {},
     h('p', { class: 'section-title' }, 'Especialidade'),
     h('div', { class: 'specs' }, menuSel.unit.specialties.map((s) => h('button', {
-      class: `spec ${menuSel.spec === s ? 'selected' : ''}`,
+      class: `spec ${menuSel.spec === s ? 'selected' : ''}`, 'data-focus': `spec:${s}`, 'aria-pressed': String(menuSel.spec === s),
       onclick: () => { sfx.click(); menuSel.spec = s; renderMenu(); },
     }, SPECIALTIES[s].icon, ' ', SPECIALTIES[s].label))),
   ) : null;
 
-  mount(app, h('div', { class: 'menu' },
+  mount(app, h('div', { class: 'menu', tabindex: '-1', 'data-focus-fallback': '' },
     h('div', { class: 'brand' }, h('div', { class: 'logo' }, '🩺'), h('h1', {}, 'Plantão')),
     h('p', { class: 'tagline' }, 'Atenda, investigue, decida. Um plantão por vez, pelo Brasil afora.'),
     h('div', { class: 'player' },
@@ -99,8 +112,9 @@ function renderMenu() {
         h('button', { class: 'btn', onclick: showCareer }, '🎓 Carreira'),
         h('button', { class: 'btn', onclick: showBadges }, '🏅 Conquistas'),
         h('button', { class: 'btn', onclick: showHelp }, '❓ Como jogar'),
-        h('button', { class: 'btn ghost', onclick: toggleMute, title: 'Som' }, state.settings.muted ? '🔇' : '🔊'),
+        h('button', { class: 'btn ghost', 'data-focus': 'mute', onclick: toggleMute, title: 'Som', 'aria-label': state.settings.muted ? 'Ligar o som' : 'Desligar o som' }, state.settings.muted ? '🔇' : '🔊'),
         musicSlider(),
+        motionToggle(),
       ),
     ),
     state.tutorial == null ? tutorialOffer() : null,
@@ -108,7 +122,7 @@ function renderMenu() {
     h('div', { class: 'units' }, unitCards),
     specs,
     h('div', { class: 'menu-actions' },
-      h('button', { class: 'btn primary', disabled: !menuSel.unit, onclick: () => startShift(menuSel.unit, menuSel.spec) }, 'Começar plantão ▶'),
+      h('button', { class: 'btn primary', 'data-focus': 'start', disabled: !menuSel.unit, onclick: () => startShift(menuSel.unit, menuSel.spec) }, 'Começar plantão ▶'),
       h('button', { class: 'btn ghost small', onclick: showExport }, '💾 Exportar progresso'),
       h('button', { class: 'btn ghost small', onclick: showImport }, '📂 Importar progresso'),
       h('button', { class: 'btn ghost small', onclick: confirmReset }, 'Zerar progresso'),
@@ -138,10 +152,22 @@ function musicSlider() {
   const vol = state.settings.musicVolume ?? 0.4;
   return h('label', { class: 'music-vol small', title: 'Volume da música' }, '🎵 ',
     h('input', {
-      type: 'range', min: 0, max: 100, step: 5, value: Math.round(vol * 100), 'aria-label': 'Volume da música',
+      type: 'range', min: 0, max: 100, step: 5, value: Math.round(vol * 100), 'aria-label': 'Volume da música', 'data-focus': 'music',
       oninput: (e) => { state.settings.musicVolume = e.target.value / 100; music.setVolume(state.settings.musicVolume); },
       onchange: () => save(state),
     }));
+}
+
+/** "Movimento reduzido" (P2-11): saved with the progress. When the OS already asks for less motion the box shows
+ *  checked and locked, and says so in its own text (lesson L56). */
+function motionToggle() {
+  const sys = systemReducedMotion();
+  return h('label', { class: 'reduce-motion-toggle small' },
+    h('input', {
+      type: 'checkbox', 'data-focus': 'reduce-motion', checked: reducedMotion(), disabled: sys,
+      onchange: (e) => { state.settings.reducedMotion = e.target.checked; save(state); setReducedMotion(e.target.checked); },
+    }),
+    'Movimento reduzido', sys ? h('span', { class: 'muted' }, ' · ativado pelo sistema') : null);
 }
 
 /** XP bar; `fraction` in 0..1. */
@@ -191,7 +217,7 @@ function confirmReset() {
     h('h2', {}, 'Zerar progresso?'),
     h('p', {}, 'XP, conquistas e histórico de casos serão apagados deste navegador.'),
     h('div', { class: 'menu-actions' },
-      h('button', { class: 'btn warn', onclick: () => { state = reset(); sfx.setMuted(false); music.setMuted(false); music.setVolume(0.4); m.close(); renderMenu(); } }, 'Zerar'),
+      h('button', { class: 'btn warn', onclick: () => { state = reset(); sfx.setMuted(false); music.setMuted(false); music.setVolume(0.4); setReducedMotion(false); m.close(); renderMenu(); } }, 'Zerar'),
       h('button', { class: 'btn', onclick: () => m.close() }, 'Cancelar')),
   ));
 }
@@ -265,7 +291,7 @@ function confirmImport(next) {
     h('p', { class: 'small muted' }, 'O progresso atual deste navegador será apagado.'),
     h('div', { class: 'menu-actions' },
       h('button', { class: 'btn warn', onclick: () => {
-        state = next; sfx.setMuted(state.settings.muted); music.setMuted(state.settings.muted); music.setVolume(state.settings.musicVolume ?? 0.4); m.close(); renderMenu();
+        state = next; sfx.setMuted(state.settings.muted); music.setMuted(state.settings.muted); music.setVolume(state.settings.musicVolume ?? 0.4); setReducedMotion(state.settings.reducedMotion); m.close(); renderMenu();
         toast(save(state) ? 'Progresso importado.' : 'Progresso importado, mas este navegador não permitiu salvar: ele some ao recarregar a página.');
       } }, 'Substituir'),
       h('button', { class: 'btn', onclick: () => m.close() }, 'Cancelar')),
@@ -297,6 +323,14 @@ function showHelp() {
       h('li', {}, 'Feche com diagnóstico e conduta. A nota considera acerto, itens-chave, exames desnecessários (Choosing Wisely), tempo de espera e janelas críticas.'),
     ),
     h('p', { class: 'small muted' }, 'Dica: em casos graves, o relógio conta. Decida rápido, mas não às cegas.'),
+    h('h3', { class: 'help-keys-title' }, '⌨️ Teclado'),
+    h('ul', { class: 'small help-keys' },
+      h('li', {}, h('kbd', {}, 'Tab'), ' e ', h('kbd', {}, 'Shift+Tab'), ' passam pelos botões; ', h('kbd', {}, 'Enter'), ' ou ', h('kbd', {}, 'Espaço'), ' escolhem.'),
+      h('li', {}, 'Nas abas da ficha, as setas ', h('kbd', {}, '←'), ' ', h('kbd', {}, '→'), ' trocam de aba; ', h('kbd', {}, 'Home'), ' e ', h('kbd', {}, 'End'), ' vão para a primeira e a última.'),
+      h('li', {}, h('kbd', {}, 'F6'), ' leva ao aviso que acabou de aparecer (chegada, imprevisto, tutorial) e volta de lá; ', h('kbd', {}, 'Esc'), ' também volta.'),
+      h('li', {}, h('kbd', {}, 'Esc'), ' fecha janelas e o menu do paciente.'),
+      h('li', {}, 'Movimento reduzido (no menu) tira as animações; ele já vem ligado se o sistema pedir.'),
+    ),
   ));
 }
 
@@ -384,7 +418,8 @@ function showTutorialSummary() {
 function renderGame() {
   ui = {};
   ui.top = h('div', { class: 'topbar' });
-  ui.canvas = h('canvas', { 'aria-label': 'Sala de atendimento' });
+  // the drawing is described in words (P2-11); the hotspots over it and the chart's buttons are the controls
+  ui.canvas = h('canvas', { role: 'img', 'aria-label': 'Sala de atendimento' });
   ui.talk = createTalk();
   ui.hotspots = createHotspots({ onDoor: hotspotDoor, onComputer: hotspotComputer, onRegion: hotspotRegion });
   ui.waitCanvas = h('canvas', { class: 'waiting-canvas', 'aria-hidden': 'true' });
@@ -411,6 +446,7 @@ function renderGame() {
     ),
   ));
   scene = new IsoScene(ui.canvas);
+  scene.reducedMotion = reducedMotion();
   scene.setUnit(shift.unit);
   ui.waiting = new WaitingRoom(ui.waitCanvas);
   // earlier shifts' scenes keep their animation loop running: only the current one places balloons and hotspots
@@ -419,21 +455,36 @@ function renderGame() {
   scene.onStep = () => sfx.step();
   scene.onMonitor = () => { if (shift?.unit.type === 'picu' && shift.current) sfx.monitor(); };
   renderAll();
+  // the menu button that started the shift is gone: the keyboard starts on the chart (P2-11)
+  if (!document.activeElement || document.activeElement === document.body) focusFallback();
 }
 
 function renderAll() { renderTop(); renderQueue(); renderChart(); }
 
-function renderTop({ ifChanged = false } = {}) {
+/** The scene in words (P2-11): who is in the room and how many wait. */
+function sceneLabel() {
+  const enc = shift.current;
+  const p = enc?.c.patient;
+  const room = p ? `Consultório: ${p.name}, ${p.age}${p.companion ? `, com ${p.companion.name}` : ''}` : shift.done ? 'Consultório vazio, plantão encerrado' : 'Consultório livre';
+  const n = shift.queue().length;
+  return `${room}. ${n ? `${n} ${n === 1 ? 'paciente' : 'pacientes'} na espera` : 'Ninguém na espera'}.`;
+}
+const clockText = () => `Relógio do plantão: ${shift.clockLabel}, termina às ${shift.endLabel}`;
+
+function renderTop(opts) { keepFocus(ui.top, () => renderTopNow(opts)); }
+
+function renderTopNow({ ifChanged = false } = {}) {
   const lvl = levelOf(state.xp);
   // a clock tick swaps only the clock face, so the volume slider and the buttons keep focus and drags
   const face = ui.top.querySelector('.clock');
   if (ifChanged && face && ui.topSig === JSON.stringify([shift.results.length, shift.over, shift.done, state.xp, state.settings.muted])) {
     face.firstChild.textContent = shift.clockLabel;
+    face.setAttribute('aria-label', clockText());
     return;
   }
   ui.topSig = JSON.stringify([shift.results.length, shift.over, shift.done, state.xp, state.settings.muted]);
   mount(ui.top,
-    h('button', { class: 'btn ghost', onclick: confirmLeave, title: 'Sair do plantão' }, '←'),
+    h('button', { class: 'btn ghost', 'data-focus': 'leave', onclick: confirmLeave, title: 'Sair do plantão', 'aria-label': 'Sair do plantão' }, '←'),
     h('span', { class: 'unitname' }, shift.unit.name),
     h('span', { class: 'chip city' }, `${shift.unit.city}/${shift.unit.uf}`),
     h('span', { class: 'chip', title: SPECIALTIES[shift.specialty].label }, SPECIALTIES[shift.specialty].icon, h('span', { class: 'spec-label' }, ' ', SPECIALTIES[shift.specialty].label)),
@@ -442,12 +493,14 @@ function renderTop({ ifChanged = false } = {}) {
     h('span', { class: 'small xp' }, `Nv ${lvl.number} · ${state.xp} XP`),
     // event effects (P1-09) stay on screen while they last
     ...shift.activeEffects().map((f) => h('span', { class: 'chip effect', title: f.detail }, f.label)),
-    h('span', { class: `clock${shift.over ? ' over' : ''}`, title: `Relógio do plantão (termina às ${shift.endLabel})` }, shift.clockLabel, h('span', { class: 'clock-end' }, ` · fim ${shift.endLabel}`)),
+    // a timer is not read out on every tick; its name carries the time when the player reaches it
+    h('span', { class: `clock${shift.over ? ' over' : ''}`, role: 'timer', 'aria-label': clockText(), title: `Relógio do plantão (termina às ${shift.endLabel})` }, shift.clockLabel, h('span', { class: 'clock-end' }, ` · fim ${shift.endLabel}`)),
     jumpChip(),
-    h('button', { class: 'btn ghost pause-btn', onclick: showPause, disabled: shift.done, title: 'Pausar o relógio do plantão', 'aria-label': 'Pausar' }, '⏸', h('span', { class: 'lbl' }, ' Pausar')),
-    h('button', { class: 'btn ghost', onclick: toggleMute, 'aria-label': state.settings.muted ? 'Ligar o som' : 'Desligar o som' }, state.settings.muted ? '🔇' : '🔊'),
+    h('button', { class: 'btn ghost pause-btn', 'data-focus': 'pause', onclick: showPause, disabled: shift.done, title: 'Pausar o relógio do plantão', 'aria-label': 'Pausar' }, '⏸', h('span', { class: 'lbl' }, ' Pausar')),
+    h('button', { class: 'btn ghost', 'data-focus': 'mute', onclick: toggleMute, 'aria-label': state.settings.muted ? 'Ligar o som' : 'Desligar o som' }, state.settings.muted ? '🔇' : '🔊'),
     musicSlider(),
   );
+  ui.canvas?.setAttribute('aria-label', sceneLabel());
 }
 
 // ----------------------------------------------------------------------
@@ -526,13 +579,29 @@ function patienceMeter(enc) {
     el.classList.remove('ok', 'late', 'impatient', 'left');
     el.classList.add(b.stage);
     setFill(el, b.left);
+    el.setAttribute('aria-valuetext', patienceText(enc, b));
   }, marks);
+}
+
+/** Screen-reader text for the patience bar (P2-11): its marks as clock times, never minutes. */
+function patienceText(enc, b) {
+  if (b.stage === 'left') return `Foi embora${enc.leftAt != null ? ` às ${clockAt(enc.leftAt)}` : ''}`;
+  const when = (m, future, past) => (m == null ? null : m > shift.clock ? `${future} às ${clockAt(m)}` : `${past} às ${clockAt(m)}`);
+  return [
+    when(b.at.target, 'alvo da classificação', 'passou do alvo da classificação'),
+    when(b.at.impatience, 'fica impaciente', 'ficou impaciente'),
+    when(b.at.leave, 'vai embora', 'foi embora'),
+  ].filter(Boolean).join('; ').replace(/^./, (c) => c.toUpperCase()) || 'Aguardando';
 }
 
 /** Progress of the tests still pending: the one that comes back last. */
 function examMeter(recs, label = 'Exames em andamento') {
   const last = () => recs.reduce((a, r) => (r.readyAt > a.readyAt ? r : a), recs[0]);
-  return liveBar('exam', label, (el) => setFill(el, examProgress(last(), shift.clock)));
+  return liveBar('exam', label, (el) => {
+    const r = last();
+    setFill(el, examProgress(r, shift.clock));
+    el.setAttribute('aria-valuetext', r.readyAt <= shift.clock ? 'Resultado liberado' : `Resultado previsto às ${clockAt(r.readyAt)}`);
+  });
 }
 
 // Clock jump after an action (P2-02): the clock times before and after, and who in the queue it moved to a worse
@@ -566,16 +635,15 @@ function jumpChip() {
 function showPause() {
   if (!clock) return;
   clock.hold('pause');
-  const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); m.close(); } };
+  // Escape closes it (ui/dom.js modal)
   const m = modal(h('div', {},
     h('h2', {}, '⏸ Plantão pausado'),
     h('p', { class: 'muted' }, `Relógio parado às ${shift.clockLabel}.`),
     h('button', { class: 'btn primary', 'data-step': 'continue', onclick: () => m.close() }, 'Continuar ▶'),
   ), {
     className: 'paused',
-    onClose: () => { document.removeEventListener('keydown', onKey, true); clock?.release('pause'); },
+    onClose: () => { clock?.release('pause'); },
   });
-  document.addEventListener('keydown', onKey, true);
   m.box.querySelector('button').focus({ preventScroll: true });
 }
 
@@ -617,7 +685,9 @@ function waitButtonShown(q) {
   return !shift.current && !shift.over && (shift.upcoming().length || waitingExams) && !q.some((e) => statusOf(e).ready || e.status === 'waiting' || e.status === 'paused');
 }
 
-function renderQueue({ ifChanged = false } = {}) {
+function renderQueue(opts) { keepFocus(ui.queue, () => renderQueueNow(opts)); }
+
+function renderQueueNow({ ifChanged = false } = {}) {
   const q = shift.queue();
   // a clock tick redraws the queue only when what it shows changed, so focus and hover stay put
   const showWait = waitButtonShown(q);
@@ -636,7 +706,7 @@ function renderQueue({ ifChanged = false } = {}) {
       h('div', { class: 'small muted' }, `${enc.c.patient.age} · ${tri.label}${enc.c.type === 'follow_up' ? ' · Retorno' : ''}`),
       h('div', { class: 'small' }, st.text),
       patienceMeter(enc) ?? (pend.length ? examMeter(pend) : null),
-      h('button', { class: 'btn small', disabled: !canCall, onclick: () => callPatient(enc) }, 'Chamar'),
+      h('button', { class: 'btn small', 'data-focus': `call:${enc.c.id}`, 'aria-label': `Chamar ${enc.c.patient.name}`, disabled: !canCall, onclick: () => callPatient(enc) }, 'Chamar'),
     );
   });
   const children = cards.length ? cards : [h('div', { class: 'empty' }, emptyQueueText(showWait))];
@@ -645,6 +715,7 @@ function renderQueue({ ifChanged = false } = {}) {
   }
   mount(ui.queue, children);
   renderWaitButton(sum);
+  ui.canvas?.setAttribute('aria-label', sceneLabel());
   pruneLive();
   drawWaitingRoom(q);
 }
@@ -892,6 +963,8 @@ function callPatient(enc, { openTab } = {}) {
   if (enc.c.patient.look.inBed && shift.unit.type === 'picu') sfx.alarm();
   say(enc, resume ? 'Voltei, doutor(a). Podemos continuar?' : returning ? 'Voltei, doutor(a). Os resultados saíram?' : enc.c.opening);
   renderAll();
+  // the keyboard follows the patient into the chart (P2-11), unless a dialog holds it
+  if (!modalOpen() && !blockingPopupOpen()) ui.chart.querySelector('.tab[aria-selected="true"]')?.focus({ preventScroll: true });
 }
 
 // A line on the stage: the doctor's, or the patient side's (the patient or the companion, see Encounter.speaker).
@@ -911,7 +984,9 @@ function consultChip(enc) {
   const b = consultBar(enc, ui.hoverCost ?? 0);
   return h('div', { class: `consult-chip${b.over ? ' over' : ''}`, title: 'Tempo de consulta usado, contando o tempo pensando com o paciente na sala. Acima de 100% do alvo perde pontos.' },
     h('div', { class: 'consult-label' }, h('span', {}, 'Tempo de consulta'), h('b', {}, `${b.pct}% do alvo`)),
-    h('div', { class: 'tbar consult', role: 'meter', 'aria-label': 'Tempo de consulta restante', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': Math.round(b.left * 100) },
+    h('div', { class: 'tbar consult', role: 'meter', 'aria-label': 'Tempo de consulta restante', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': Math.round(b.left * 100),
+      // the target as a clock time (P2-11): where it ends if the consultation goes on without a pause
+      'aria-valuetext': b.over ? `${b.pct}% do alvo, acima do alvo` : `${b.pct}% do alvo usado; o alvo vai até cerca de ${clockAt(Math.min(shift.clock + b.leftMinutes, shift.endsAt))}` },
       h('i', { class: 'fill', style: { width: pctW(b.left) } }),
       h('i', { class: 'cut', style: { left: pctW(b.left - b.cut), width: pctW(b.cut) } })));
 }
@@ -944,14 +1019,29 @@ function refreshChart() {
   if (tc) ui.chart.querySelector('.critical-chip')?.replaceWith(tc);
 }
 
-function renderChart() {
+function renderChart() { keepFocus(ui.chart, renderChartNow); }
+
+const tabId = (id) => `chart-tab-${id}`;
+/** Arrow keys, Home and End move between the chart tabs (WAI-ARIA tabs, automatic activation). */
+function onTabKey(e) {
+  const ids = CHART_TABS.map((t) => t.id);
+  const i = ids.indexOf(tab);
+  const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: ids.length - 1 }[e.key];
+  if (to == null) return;
+  e.preventDefault();
+  const next = ids[(to + ids.length) % ids.length];
+  if (next !== tab) { sfx.page(); tab = next; renderChart(); }
+  document.getElementById(tabId(next))?.focus({ preventScroll: true });
+}
+
+function renderChartNow() {
   ui.chartSig = chartSig();
   ui.hoverCost = 0; // the hovered button is gone; a new hover sets it again
   const enc = shift.current;
   syncLayout();
   if (!enc) {
     const next = shift.done ? null : firstCallable();
-    mount(ui.chart, h('div', { class: 'pane', style: { gridRow: '1 / -1', display: 'grid', placeItems: 'center', textAlign: 'center' } },
+    mount(ui.chart, h('div', { class: 'pane', tabindex: '-1', 'data-focus-fallback': '', style: { gridRow: '1 / -1', display: 'grid', placeItems: 'center', textAlign: 'center' } },
       h('div', {},
         h('div', { class: 'empty-icon', 'aria-hidden': 'true' }, shift.unit.type === 'picu' ? '🛏️' : '🚪'),
         h('h2', {}, shift.done ? 'Plantão encerrado' : 'Consultório livre'),
@@ -973,10 +1063,11 @@ function renderChart() {
   const newResults = Math.max(0, readyCount - seen.readySeen);
   if (tab === 'tests') seen.readySeen = readyCount;
   const counts = { history: enc.asked.size, physical: enc.examined.size };
-  const pane = h('div', { class: 'pane', style: `--tab: ${CHART_TABS.find((t) => t.id === tab).color}` }, paneFor(enc));
+  // the panel (P2-11) is labelled by its tab and takes the focus when the control that had it is gone
+  const pane = h('div', { class: 'pane', id: 'chart-panel', role: 'tabpanel', 'aria-labelledby': tabId(tab), tabindex: '-1', 'data-focus-fallback': '', 'data-focus-group': `pane-${tab}`, style: `--tab: ${CHART_TABS.find((t) => t.id === tab).color}` }, paneFor(enc));
   mount(ui.chart,
     h('div', { class: 'chart-head' },
-      h('span', { class: 'triage-dot', style: { background: tri.color }, title: tri.label }),
+      h('span', { class: 'triage-dot', role: 'img', 'aria-label': `Classificação: ${tri.label}`, style: { background: tri.color }, title: tri.label }),
       h('div', { class: 'patient-id' },
         h('div', { class: 'patient-name' }, c.patient.name, ' ', h('span', { class: 'patient-meta' }, `· ${c.patient.age} · ${c.patient.sex === 'F' ? 'Fem.' : 'Masc.'}`)),
         h('div', { class: 'small muted' }, c.patient.companion ? `Acompanhante: ${c.patient.companion.name}` : 'Desacompanhado(a)', c.type === 'follow_up' ? ' · Consulta de retorno' : ''),
@@ -984,16 +1075,17 @@ function renderChart() {
       tc,
       consultChip(enc),
     ),
-    h('div', { class: 'tabs', role: 'tablist' }, CHART_TABS.map((t) => {
+    h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Ficha do paciente', onkeydown: onTabKey }, CHART_TABS.map((t) => {
       const state = t.id === 'tests' && newResults && tab !== 'tests' ? 'new' : seen.opened.has(t.id) ? 'done' : 'unopened';
       return h('button', {
         class: `tab ${state} ${tab === t.id ? 'active' : ''}`, role: 'tab', 'aria-selected': String(tab === t.id), 'data-step': TAB_STEP[t.id],
+        id: tabId(t.id), 'aria-controls': 'chart-panel', tabindex: tab === t.id ? '0' : '-1', 'data-focus': `tab:${t.id}`,
         'aria-label': [t.label, counts[t.id] ? `${counts[t.id]} ${COUNT_LABEL[t.id]}` : null, state === 'new' ? `${newResults} resultado${newResults > 1 ? 's' : ''} novo${newResults > 1 ? 's' : ''}` : TAB_STATE_LABEL[state]].filter(Boolean).join(', '), style: `--tab: ${t.color}`,
         onclick: () => { sfx.page(); tab = t.id; renderChart(); },
       },
       h('span', { class: 'ic', 'aria-hidden': 'true' }, t.icon), t.label,
-      counts[t.id] ? h('span', { class: 'count' }, counts[t.id]) : null,
-      state === 'new' ? h('span', { class: 'mark new', title: 'Resultados novos' }, `+${newResults}`)
+      counts[t.id] ? h('span', { class: 'count', 'aria-hidden': 'true' }, counts[t.id]) : null,
+      state === 'new' ? h('span', { class: 'mark new', title: 'Resultados novos', 'aria-hidden': 'true' }, `+${newResults}`)
         : state === 'unopened' ? h('span', { class: 'mark', 'aria-hidden': 'true' }, '●') : null);
     })),
     pane,
@@ -1064,9 +1156,9 @@ function paneFor(enc) {
     const asked = enc.log.filter((l) => l.kind === 'q');
     return [
       asked.length ? h('details', { class: 'asked', open: askedOpen, ontoggle: (e) => { askedOpen = e.target.open; } },
-        h('summary', {}, `Já perguntado (${asked.length})`),
+        h('summary', { 'data-focus': 'asked' }, `Já perguntado (${asked.length})`),
         h('ul', {}, asked.map((l) => h('li', {}, h('b', {}, l.q), ' ', enc.speakerFor(l.a).text)))) : null,
-      groups.length ? groups.map(([cat, qs]) => h('div', { class: 'opt-group' }, h('h5', {}, cat), h('div', { class: 'opts' }, qs.map((q) => h('button', { class: 'opt', ...previewCost(ACTION_COST.question), onclick: () => doAsk(enc, q.id) }, q.q))))) : h('p', { class: 'muted' }, 'Sem mais perguntas relevantes. Siga para o exame físico ou para a decisão.'),
+      groups.length ? groups.map(([cat, qs]) => h('div', { class: 'opt-group' }, h('h5', {}, cat), h('div', { class: 'opts' }, qs.map((q) => h('button', { class: 'opt', 'data-focus': `q:${q.id}`, ...previewCost(ACTION_COST.question), onclick: () => doAsk(enc, q.id) }, q.q))))) : h('p', { class: 'muted' }, 'Sem mais perguntas relevantes. Siga para o exame físico ou para a decisão.'),
     ];
   }
   if (tab === 'physical') {
@@ -1075,7 +1167,7 @@ function paneFor(enc) {
       regionsFor(c, enc.examined).map((g) => h('div', { class: 'opt-group region-group', 'data-region-group': g.id },
         h('h5', {}, g.label),
         g.done.map((p) => h('div', { class: 'finding' }, h('b', {}, p.label), p.finding)),
-        g.left.length ? h('div', { class: 'opts' }, g.left.map((p) => h('button', { class: 'opt', ...previewCost(ACTION_COST.physical), onclick: () => doExamine(enc, p.id) }, '🩺 ', p.label))) : null)),
+        g.left.length ? h('div', { class: 'opts' }, g.left.map((p) => h('button', { class: 'opt', 'data-focus': `px:${p.id}`, ...previewCost(ACTION_COST.physical), onclick: () => doExamine(enc, p.id) }, '🩺 ', p.label))) : null)),
       c.physical.every((p) => enc.examined.has(p.id)) ? h('p', { class: 'muted' }, 'Exame físico completo. Siga para os exames ou para a decisão.') : null,
     ];
   }
@@ -1097,7 +1189,7 @@ function paneFor(enc) {
       hypothesisPanel(enc),
       returnNote(enc),
       reqRows.length ? h('div', { style: { marginBottom: '14px' } }, h('h5', { class: 'section-title' }, 'Solicitados'), reqRows) : null,
-      h('input', { type: 'search', class: 'test-search', placeholder: 'Buscar exame (ex.: ECG, urina, lactato)', 'aria-label': 'Buscar exame', value: testQuery,
+      h('input', { type: 'search', class: 'test-search', 'data-focus': 'test-search', placeholder: 'Buscar exame (ex.: ECG, urina, lactato)', 'aria-label': 'Buscar exame', value: testQuery,
         oninput: (e) => { testQuery = e.target.value; fill(); } }),
       list,
       h('p', { class: 'small muted' }, 'Peça só o que muda a conduta. Exames desnecessários tiram pontos.'),
@@ -1107,9 +1199,9 @@ function paneFor(enc) {
     return [
       enc.hypothesis ? h('p', { class: 'small hx-recorded' }, '📝 Hipótese de trabalho: ', h('b', {}, dxLabel(enc, enc.hypothesis.dx)), ` (registrada às ${clockAt(enc.hypothesis.at)})`) : null,
       h('h5', { class: 'section-title' }, 'Hipótese diagnóstica principal'),
-      enc.dxOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'dx', value: o.id, checked: decision.dx === o.id, onchange: () => { decision.dx = o.id; } }), h('span', {}, o.label))),
+      enc.dxOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'dx', 'data-focus': `dx:${o.id}`, value: o.id, checked: decision.dx === o.id, onchange: () => { decision.dx = o.id; } }), h('span', {}, o.label))),
       h('h5', { class: 'section-title', style: { marginTop: '16px' } }, 'Conduta'),
-      enc.cdOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'cd', value: o.id, checked: decision.cd === o.id, onchange: () => { decision.cd = o.id; } }), h('span', {}, o.label))),
+      enc.cdOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'cd', 'data-focus': `cd:${o.id}`, value: o.id, checked: decision.cd === o.id, onchange: () => { decision.cd = o.id; } }), h('span', {}, o.label))),
       h('div', { style: { marginTop: '14px' } }, h('button', { class: 'btn', 'data-step': 'finish', onclick: () => confirmFinish(enc) }, '✔ Finalizar atendimento')),
     ];
   }
@@ -1129,7 +1221,7 @@ function hypothesisPanel(enc) {
   return h('div', { class: 'hx-panel' },
     h('h5', { class: 'section-title' }, '📝 Hipótese de trabalho'),
     h('p', { class: 'small muted' }, 'Antes de pedir exames de laboratório ou de imagem, registre o diagnóstico mais provável até aqui. Depois de registrada, ela não muda. Testes de beira de leito não precisam.'),
-    enc.dxOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'hx', value: o.id, checked: decision.hx === o.id, onchange: () => { decision.hx = o.id; } }), h('span', {}, o.label))),
+    enc.dxOptions.map((o) => h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'hx', 'data-focus': `hx:${o.id}`, value: o.id, checked: decision.hx === o.id, onchange: () => { decision.hx = o.id; } }), h('span', {}, o.label))),
     h('button', { class: 'btn', 'data-step': 'hypothesis', onclick: () => recordHypothesis(enc) }, 'Registrar hipótese'));
 }
 
@@ -1163,10 +1255,10 @@ function testGroups(enc) {
     class: 'opt-group test-cat', open: Boolean(q) || openTestCats.has(cat),
     ontoggle: (e) => { if (!q) { if (e.target.open) openTestCats.add(cat); else openTestCats.delete(cat); } },
   },
-  h('summary', {}, cat, h('span', { class: 'count' }, ids.length)),
+  h('summary', { 'data-focus': `cat:${cat}` }, cat, h('span', { class: 'count' }, ids.length)),
   h('div', { class: 'opts' }, ids.map((id) => {
     const locked = enc.needsHypothesis(id);
-    return h('button', { class: `opt${locked ? ' locked' : ''}`, disabled: locked, title: locked ? 'Registre a hipótese de trabalho antes' : null, ...(locked ? {} : previewCost(ACTION_COST.order)), onclick: () => doRequest(enc, id) },
+    return h('button', { class: `opt${locked ? ' locked' : ''}`, 'data-focus': `test:${id}`, disabled: locked, title: locked ? 'Registre a hipótese de trabalho antes' : null, ...(locked ? {} : previewCost(ACTION_COST.order)), onclick: () => doRequest(enc, id) },
       // a disabled button shows no tooltip on touch screens, so the locked ones say why in their own text
       locked ? '🔒 ' : null, EXAMS[id].label, h('span', { class: 'muted small' }, locked ? ' · registre a hipótese antes' : EXAMS[id].poc ? ' · resultado na consulta' : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ' · resultado em dias' : ' · laboratório')));
   }))));

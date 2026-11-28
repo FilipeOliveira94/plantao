@@ -2,8 +2,9 @@
 // Blocking popups dim the screen and take the clicks and the focus (Escape dismisses them); non-blocking
 // ones leave the game usable and can dismiss themselves after `timeout` ms (paused while hovered or focused).
 // The last action is the safe one ("Depois"): a blocking popup focuses it, so a stray Enter changes nothing. Reused for arrivals (P2-12), random events (P1-09) and
-// the tutorial (P2-04).
-import { h } from './dom.js';
+// the tutorial (P2-04). Keyboard (P2-11): F6 moves the focus into the newest non-blocking popup with actions and
+// back out; Escape inside one also goes back. Under reduced motion the slide becomes a fade (styles.css).
+import { h, returnFocus } from './dom.js';
 
 /** True while a blocking popup is up and not sliding out (the shift clock holds while one is open). */
 export const blockingPopupOpen = () => !!document.querySelector('.popup-wrap.blocking:not(.closing)');
@@ -21,7 +22,7 @@ let seq = 0;
 export function popup(content, { actions = [], blocking = false, timeout = 0, accent, label, className = '', dock, onTimeout, onClose } = {}) {
   let closed = false;
   let timer = null;
-  const returnFocus = blocking ? document.activeElement : null;
+  const opener = blocking ? document.activeElement : null;
   // `then` runs before onClose, so an action (calling a patient) happens before the next popup opens
   const close = (then) => {
     if (closed) return;
@@ -34,8 +35,14 @@ export function popup(content, { actions = [], blocking = false, timeout = 0, ac
     card.addEventListener('animationend', done, { once: true });
     setTimeout(done, OUT_MS + 80);
     document.removeEventListener('keydown', onKey, true);
-    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
-    try { then?.(); } finally { onClose?.(); }
+    const hadFocus = card.contains(document.activeElement);
+    const back = blocking ? opener : hadFocus ? f6Return : null;
+    if (hadFocus) document.activeElement.blur(); // the sliding card keeps no focus
+    try { then?.(); } finally {
+      onClose?.();
+      // after the action: it may have re-rendered the page or opened the next popup, which keep the focus
+      if (blocking || hadFocus) returnFocus(back, wrap);
+    }
   };
   // a blocking popup keeps the keyboard: Tab cycles its buttons, Escape dismisses it with no action
   const onKey = (e) => {
@@ -56,6 +63,7 @@ export function popup(content, { actions = [], blocking = false, timeout = 0, ac
     role: blocking ? 'alertdialog' : 'status',
     'aria-modal': blocking ? 'true' : null,
     'aria-label': label,
+    'aria-keyshortcuts': !blocking && buttons.length ? 'F6' : null,
     style: accent ? { borderLeftColor: accent } : null,
   }, body, buttons.length ? h('div', { class: 'popup-actions' }, buttons) : null);
   const wrap = h('div', { class: `popup-wrap${blocking ? ' blocking' : ''}${dock ? ` dock-${dock}` : ''}` }, card);
@@ -77,3 +85,27 @@ export function popup(content, { actions = [], blocking = false, timeout = 0, ac
   }
   return { close: () => close(), el: card, blocking };
 }
+
+// F6 (P2-11): from the page into the newest non-blocking popup that has actions, and from there back to where the
+// focus was. Escape inside such a popup goes back too (it does not dismiss it: the popup may time out on its own).
+let f6Return = null;
+function newestPopup() {
+  const cards = [...document.querySelectorAll('.popup-wrap:not(.blocking):not(.closing) .popup')].filter((c) => c.querySelector('.popup-actions button'));
+  return cards.at(-1) ?? null;
+}
+document.addEventListener('keydown', (e) => {
+  if (blockingPopupOpen() || document.querySelector('.modal-back')) return;
+  const inside = document.activeElement?.closest?.('.popup-wrap:not(.blocking) .popup');
+  if (e.key === 'Escape' && inside) {
+    e.preventDefault();
+    returnFocus(f6Return, inside);
+    return;
+  }
+  if (e.key !== 'F6') return;
+  if (inside) { e.preventDefault(); returnFocus(f6Return, inside); return; }
+  const card = newestPopup();
+  if (!card) return;
+  e.preventDefault();
+  f6Return = document.activeElement;
+  card.querySelector('.popup-actions button').focus({ preventScroll: true });
+});

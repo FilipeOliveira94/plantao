@@ -153,8 +153,8 @@ try {
     await page.locator('.modal-back.summary').getByRole('button', { name: 'Começar um plantão aqui' }).click();
     await page.waitForSelector('.game');
     if (await coach.count() || await page.evaluate(() => document.body.classList.contains('tutorial') || window.__plantao.tutorial || window.__plantao.shift.encounters.length < 2)) throw new Error('"Começar um plantão aqui" did not start a normal shift');
-    await page.getByRole('button', { name: '←' }).click();
-    await page.getByRole('button', { name: 'Sair' }).click();
+    await page.getByRole('button', { name: 'Sair do plantão' }).click();
+    await page.getByRole('button', { name: 'Sair', exact: true }).click();
     await page.getByRole('button', { name: '🧭 Tutorial' }).click();
     await coach.waitFor();
     await coach.getByRole('button', { name: 'Pular tutorial' }).click();
@@ -178,8 +178,8 @@ try {
     await page.getByRole('button', { name: /Começar plantão/ }).click();
     await page.waitForSelector('.game');
     if (await coach.count() || await page.evaluate(() => document.body.classList.contains('tutorial'))) throw new Error('a normal shift shows the tutorial coach');
-    await page.getByRole('button', { name: '←' }).click();
-    await page.getByRole('button', { name: 'Sair' }).click();
+    await page.getByRole('button', { name: 'Sair do plantão' }).click();
+    await page.getByRole('button', { name: 'Sair', exact: true }).click();
     await page.waitForSelector('.menu');
     console.log('✔ guided first shift: offered on a fresh save, coach follows each step, clock held, XP on the first run only, skip and replay');
   }
@@ -240,8 +240,8 @@ try {
     if (!/Exames/.test(await page.locator('.tab.active').textContent())) throw new Error('the computer did not open the Exames tab');
     if (await page.locator('.hx-panel').count() && !/Registre a hipótese/.test(compLabel)) throw new Error('the computer does not say the hypothesis unlocks lab and imaging');
     if (await page.evaluate(() => window.__plantao.shift.clock) !== clock0) throw new Error('opening from the hotspots moved the clock');
-    await page.getByRole('button', { name: '←' }).click();
-    await page.getByRole('button', { name: 'Sair' }).click();
+    await page.getByRole('button', { name: 'Sair do plantão' }).click();
+    await page.getByRole('button', { name: 'Sair', exact: true }).click();
     await page.waitForSelector('.menu');
     console.log(`✔ scene hotspots: door calls (Tab + Enter), reason on tap, region menu (${items.join(', ')}), computer opens tests, waiting room seats ${wr.seated.split(' ').length}`);
   }
@@ -635,8 +635,8 @@ try {
     await page.locator('.modal .btn.primary').click();
     if ((await step(10000)).clock !== 1) throw new Error('the clock did not resume after the feedback');
     console.log('✔ real-time clock: ticks, thinking counts in the room, holds on pause, popup and feedback');
-    await page.getByRole('button', { name: '←' }).click();
-    await page.getByRole('button', { name: 'Sair' }).click();
+    await page.getByRole('button', { name: 'Sair do plantão' }).click();
+    await page.getByRole('button', { name: 'Sair', exact: true }).click();
   }
   // time on screen (P2-02): the queue's patience bars and the consultation bar drain as the clock runs, hovering an
   // action previews its cut and picking it takes that cut, an action shows its clock jump, and test bars fill up
@@ -690,8 +690,8 @@ try {
     if (!(await width(exam) > e0)) throw new Error('the test bar did not fill as the clock ran');
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/06b-tempo-na-tela.png` });
     console.log('✔ time on screen: patience and consultation bars drain, hover previews the cut, the action takes it and shows the clock jump');
-    await page.getByRole('button', { name: '←' }).click();
-    await page.getByRole('button', { name: 'Sair' }).click();
+    await page.getByRole('button', { name: 'Sair do plantão' }).click();
+    await page.getByRole('button', { name: 'Sair', exact: true }).click();
   }
   // waiting has consequences (P1-06): a green patient left waiting complains, then leaves unseen,
   // and the summary shows the departure and a lower satisfaction. UBS internal medicine always has the green cystitis case.
@@ -1016,6 +1016,7 @@ try {
   console.log('✔ next step: one highlight per state (call, triage, anamnese, physical, decide, hypothesis, finish, finish-confirm, wait, feedback, paused, pause, arrival, summary); result toast opens the results');
   await page.locator('[data-step=summary-menu]').click();
   await phoneAndTablet();
+  await accessibility();
   // PICU scene
   if (SHOTS) {
     await page.locator('.unit').last().click();
@@ -1141,6 +1142,190 @@ async function phoneAndTablet() {
     await ctx.close();
   }
   console.log('✔ phone, tablet and landscape: fits the viewport, stage above the chart sheet, 44px targets, sheet handle, waiting button, hotspots after resize, coach clear of the controls');
+}
+
+// Accessibility (P2-11), in its own contexts like the layout checks above.
+async function accessibility() {
+  // accessibility (P2-11): a keyboard-only playthrough at desktop and phone sizes, the chart's screen-reader labels,
+  // F6 into a non-blocking popup, and reduced motion from the OS setting and from the menu toggle
+  const SKIP_TUTORIAL = JSON.stringify({ version: 3, tutorial: 'skipped' });
+  for (const vp of [{ name: 'desktop', width: 1366, height: 820 }, { name: 'phone', width: 390, height: 844 }]) {
+    const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errors.push(`keyboard ${vp.name}: ${e.message}`));
+    p.on('console', (m) => { if (m.type() === 'error') errors.push(`keyboard ${vp.name}: ${m.text()}`); });
+    const fail = (msg) => { throw new Error(`keyboard ${vp.name}: ${msg}`); };
+    await p.goto(`http://localhost:${PORT}/index.html?clock=manual`);
+    await p.evaluate((v) => localStorage.setItem('plantao.save.v1', v), SKIP_TUTORIAL);
+    await p.reload();
+    const focused = () => p.evaluate(() => {
+      const a = document.activeElement;
+      return { tag: a?.tagName, key: a?.dataset?.focus ?? a?.dataset?.step ?? null, cls: a?.className ?? '', inModal: !!a?.closest('.modal'), inPopup: !!a?.closest('.popup') };
+    });
+    const notBody = async (what) => { const f = await focused(); if (!f.tag || f.tag === 'BODY') fail(`focus fell to the page after ${what}`); return f; };
+    // an urgent arrival takes the keyboard; Escape answers "Depois" for it, as a keyboard player would
+    const key = async (k) => {
+      if (await p.locator('.popup-wrap.blocking:not(.closing)').count()) { await p.keyboard.press('Escape'); await p.waitForTimeout(300); }
+      await p.keyboard.press(k);
+    };
+    /** Presses Tab (or Shift+Tab) until the focused element matches `sel`. */
+    const tabTo = async (sel, back = false) => {
+      for (let i = 0; i < 120; i++) {
+        if (await p.evaluate((s) => document.activeElement?.matches(s), sel)) return;
+        await key(back ? 'Shift+Tab' : 'Tab');
+      }
+      fail(`Tab never reached ${sel}`);
+    };
+    const press = async (sel, k = 'Enter', back = false) => { await tabTo(sel, back); await key(k); await p.waitForTimeout(60); };
+
+    // menu: pick a unit and start, keeping the focus on the card picked
+    await press('.unit:not([disabled])');
+    if ((await notBody('picking a unit')).key?.startsWith('unit:') !== true) fail('focus left the unit card after picking it');
+    await press('[data-focus=start]');
+    await p.waitForSelector('.game');
+    await notBody('starting the shift');
+    await p.evaluate(() => document.getElementById('toasts')?.replaceChildren());
+    // call the next patient: the focus moves onto the chart's selected tab
+    await press('[data-step=call]');
+    let f = await notBody('calling a patient');
+    if (!/\btab\b/.test(f.cls)) fail(`calling did not focus the chart tab: ${JSON.stringify(f)}`);
+    // tabs: arrows, Home and End; the panel is labelled by the selected tab
+    await key('End');
+    if ((await focused()).key !== 'tab:decision') fail('End did not move to the last tab');
+    await key('Home');
+    await key('ArrowRight');
+    const tabs = await p.evaluate(() => {
+      const sel = document.querySelector('.tab[aria-selected=true]');
+      const panel = document.getElementById('chart-panel');
+      return { sel: sel?.id, focus: document.activeElement === sel, labelled: panel?.getAttribute('aria-labelledby'), role: panel?.getAttribute('role'),
+        controls: [...document.querySelectorAll('.tab')].every((t) => t.getAttribute('aria-controls') === 'chart-panel'),
+        roving: [...document.querySelectorAll('.tab')].map((t) => t.tabIndex).join('') };
+    });
+    if (tabs.sel !== 'chart-tab-history' || !tabs.focus || tabs.labelled !== tabs.sel || tabs.role !== 'tabpanel' || !tabs.controls || tabs.roving !== '-10-1-1-1') fail(`tabs: ${JSON.stringify(tabs)}`);
+    // ask a question: the focus stays in the list (on the next question)
+    const asked0 = await p.evaluate(() => window.__plantao.shift.current.asked.size);
+    await press('[data-focus^="q:"]');
+    f = await notBody('asking a question');
+    if (await p.evaluate(() => window.__plantao.shift.current.asked.size) !== asked0 + 1) fail('Enter did not ask the question');
+    if (!f.key?.startsWith('q:')) fail(`after asking, focus is not on the next question but on ${JSON.stringify(f)}`);
+    // examine
+    await press('.tab[aria-selected=true]', 'ArrowRight', true);
+    await press('[data-focus^="px:"]');
+    await notBody('examining');
+    if (!await p.evaluate(() => window.__plantao.shift.current.examined.size)) fail('Enter did not examine');
+    // tests: the locked ones say why in their own text (lesson L56); record the hypothesis, then order one
+    await press('.tab[aria-selected=true]', 'ArrowRight', true);
+    if (await p.locator('.hx-panel').count()) {
+      const locked = await p.evaluate(() => [...document.querySelectorAll('.opt.locked')].map((b) => b.textContent));
+      if (locked.some((t) => !/registre a hipótese antes/.test(t))) fail(`a locked test does not say why: ${locked}`);
+      await press('[data-focus^="hx:"]', 'Space');
+      await press('[data-step=hypothesis]');
+      await notBody('recording the hypothesis');
+      if (!await p.evaluate(() => window.__plantao.shift.current.hypothesis)) fail('the hypothesis was not recorded');
+    }
+    await press('summary[data-focus^="cat:"]');
+    await press('[data-focus^="test:"]:not([disabled])');
+    await notBody('ordering a test');
+    if (!await p.evaluate(() => window.__plantao.shift.current.requested.size)) fail('Enter did not order a test');
+    // labels: meters in clock times (never minutes), the canvas names the patient, triage in words
+    const sr = await p.evaluate(() => ({
+      meters: [...document.querySelectorAll('[role=meter]')].map((m) => m.getAttribute('aria-valuetext') || ''),
+      canvas: document.querySelector('.stage canvas').getAttribute('aria-label'),
+      name: window.__plantao.shift.current.c.patient.name,
+      triage: document.querySelector('.triage-dot').getAttribute('aria-label'),
+      clock: document.querySelector('.clock').getAttribute('aria-label'),
+      hotspots: [...document.querySelectorAll('.hotspot')].map((b) => `${b.getAttribute('aria-label')} ${b.textContent}`),
+    }));
+    if (!sr.meters.length || sr.meters.some((t) => !/\d\d:\d\d|Resultado liberado/.test(t) || /\bmin/.test(t))) fail(`meter texts: ${JSON.stringify(sr.meters)}`);
+    if (!sr.canvas.includes(sr.name) || !/^Classificação: \S/.test(sr.triage) || !/^Relógio do plantão: \d\d:\d\d, termina às \d\d:\d\d$/.test(sr.clock)) fail(`labels: ${JSON.stringify(sr)}`);
+    if (sr.hotspots.some((t) => /\bmin/.test(t))) fail(`a hotspot speaks of minutes: ${sr.hotspots}`);
+    // decide and finish; the confirmation and the feedback keep the keyboard, Escape closes the feedback
+    await press('[data-step=decide]');
+    await press('[data-focus^="dx:"]', 'Space');
+    await press('[data-focus^="cd:"]', 'Space');
+    await press('[data-step=finish]');
+    for (let i = 0; i < 6; i++) await key('Tab');
+    if (!(await focused()).inModal) fail('Tab left the finish confirmation');
+    await press('[data-step=finish-confirm]');
+    await p.locator('.modal-back.feedback').waitFor();
+    if (!(await focused()).inModal) fail('the feedback did not take the focus');
+    await key('Escape');
+    if (await p.locator('.modal-back.feedback').count()) fail('Escape did not close the feedback');
+    await notBody('closing the feedback');
+    // F6: into a non-blocking popup and back; a blocking one already has the keyboard
+    // a calm arrival, so the popup does not block and F6 is what reaches it
+    await p.evaluate(() => { const s = window.__plantao.shift; const e = s.upcoming().find((x) => !['red', 'orange'].includes(x.c.triage.priority)) ?? s.upcoming()[0]; if (e) { e.arrivedAt = s.clock + 1; e._arrivalNotified = false; } window.__plantao.clock.step(10000); });
+    const pop = p.locator('.popup.arrival:not(.out)');
+    await pop.waitFor({ timeout: 3000 }).catch(() => fail('no arrival popup to test F6 on'));
+    {
+      const before = await focused();
+      if (await p.locator('.popup-wrap.blocking:not(.closing)').count()) {
+        if (!before.inPopup) fail('a blocking arrival did not take the focus');
+      } else {
+        if (await pop.getAttribute('aria-keyshortcuts') !== 'F6') fail('the popup does not announce its F6 shortcut');
+        await p.keyboard.press('F6');
+        if (!(await focused()).inPopup) fail('F6 did not reach the popup');
+        await p.keyboard.press('F6');
+        const back = await focused();
+        if (back.inPopup || back.tag === 'BODY') fail(`F6 did not go back: ${JSON.stringify(back)}`);
+      }
+    }
+    await ctx.close();
+  }
+  console.log('✔ keyboard (desktop and phone): a whole case by keyboard, focus kept after each action, tabs pattern, dialogs keep the keyboard, F6 into popups; meters, canvas, triage and clock labels in clock times');
+
+  // reduced motion: from the OS setting, the popup fades and the patient is in place at once
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1366, height: 820 }, reducedMotion: 'reduce' });
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errors.push(`reduced motion: ${e.message}`));
+    const fail = (msg) => { throw new Error(`reduced motion: ${msg}`); };
+    await p.goto(`http://localhost:${PORT}/index.html?clock=manual`);
+    await p.evaluate((v) => localStorage.setItem('plantao.save.v1', v), SKIP_TUTORIAL);
+    await p.reload();
+    const menu = await p.evaluate(() => ({ cls: document.documentElement.classList.contains('reduce-motion'), box: document.querySelector('.reduce-motion-toggle input')?.checked, locked: document.querySelector('.reduce-motion-toggle input')?.disabled, text: document.querySelector('.reduce-motion-toggle')?.textContent }));
+    if (!menu.cls || !menu.box || !menu.locked || !/ativado pelo sistema/.test(menu.text)) fail(`OS setting: ${JSON.stringify(menu)}`);
+    await p.locator('.unit').first().click();
+    await p.getByRole('button', { name: /Começar plantão/ }).click();
+    await p.waitForSelector('.game');
+    await p.locator('[data-step=call]').click();
+    await p.waitForTimeout(150); // walking in takes about two seconds; with reduced motion the patient is at the desk on the next frame
+    if (await p.locator('.hotspot.hs-patient').isHidden()) fail('the patient walked in instead of appearing at the desk');
+    await p.evaluate(() => { const s = window.__plantao.shift; const e = s.upcoming()[0]; e.arrivedAt = s.clock + 1; e._arrivalNotified = false; window.__plantao.clock.step(10000); });
+    const card = p.locator('.popup.arrival:not(.out)');
+    await card.waitFor({ timeout: 3000 });
+    const anim = await card.evaluate((el) => getComputedStyle(el).animationName);
+    if (anim !== 'popup-fade-in') fail(`the popup animation is ${anim}`);
+    const still = await p.evaluate(() => {
+      const hint = document.querySelector('.next-step');
+      const toast = document.querySelector('.toast');
+      return { hint: hint && getComputedStyle(hint).animationName, toast: toast && parseFloat(getComputedStyle(toast).animationDuration) };
+    });
+    if ((still.hint && still.hint !== 'none') || (still.toast != null && still.toast > 0.001)) fail(`motion left: ${JSON.stringify(still)}`);
+    await ctx.close();
+  }
+  // reduced motion from the menu toggle, saved with the progress
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1366, height: 820 } });
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errors.push(`motion toggle: ${e.message}`));
+    const fail = (msg) => { throw new Error(`motion toggle: ${msg}`); };
+    await p.goto(`http://localhost:${PORT}/index.html?clock=manual`);
+    await p.evaluate((v) => localStorage.setItem('plantao.save.v1', v), SKIP_TUTORIAL);
+    await p.reload();
+    const on = () => p.evaluate(() => document.documentElement.classList.contains('reduce-motion'));
+    if (await on()) fail('reduced motion is on without the OS setting or the toggle');
+    await p.locator('.reduce-motion-toggle input').focus();
+    await p.keyboard.press('Space');
+    if (!await on()) fail('the toggle did not turn reduced motion on');
+    if (!await p.evaluate(() => document.activeElement?.matches('.reduce-motion-toggle input'))) fail('the toggle lost the focus');
+    await p.reload();
+    if (!await on() || !await p.locator('.reduce-motion-toggle input').isChecked()) fail('the toggle was not saved');
+    await p.locator('.reduce-motion-toggle input').uncheck();
+    if (await on()) fail('the toggle did not turn reduced motion off');
+    await ctx.close();
+  }
+  console.log('✔ reduced motion: OS setting (toggle shown on and locked), popup fades, patient in place at once, no pulse or slide; menu toggle saved');
 }
 
 if (errors.length) { console.error('Console errors:\n' + errors.join('\n')); process.exit(1); }

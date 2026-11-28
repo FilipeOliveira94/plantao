@@ -106,9 +106,12 @@ function normalize(raw, strict) {
   if (has('settings')) {
     const st = raw.settings;
     const volOk = (v) => typeof v === 'number' && v >= 0 && v <= 1;
-    if (isObj(st) && (!Object.hasOwn(st, 'muted') || typeof st.muted === 'boolean') && (!Object.hasOwn(st, 'musicVolume') || volOk(st.musicVolume))) {
+    if (isObj(st) && (!Object.hasOwn(st, 'muted') || typeof st.muted === 'boolean') && (!Object.hasOwn(st, 'musicVolume') || volOk(st.musicVolume))
+      && (!Object.hasOwn(st, 'reducedMotion') || typeof st.reducedMotion === 'boolean')) {
       out.settings.muted = st.muted ?? false;
       if (Object.hasOwn(st, 'musicVolume')) out.settings.musicVolume = st.musicVolume;
+      // "Movimento reduzido" (P2-11); an older save has no key, which reads as off
+      if (Object.hasOwn(st, 'reducedMotion')) out.settings.reducedMotion = st.reducedMotion;
     } else bad('settings');
   }
   if (has('doctorName')) {
