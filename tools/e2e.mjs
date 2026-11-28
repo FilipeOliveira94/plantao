@@ -838,8 +838,9 @@ try {
   {
     // working hypothesis (P1-08): lab and imaging locked until one is recorded; bedside tests are not; recording costs no consultation time
     await expectStep('hypothesis', 'Exames tab before the working hypothesis');
-    const lab = page.locator('.pane .opt', { hasText: '· laboratório' }).first();
-    if (!(await lab.isDisabled()) || !/🔒/.test(await lab.textContent())) throw new Error('a lab test can be ordered before the working hypothesis');
+    const lab = page.locator('.pane .opt.locked').first();
+    if (!(await lab.isDisabled()) || !/🔒.*registre a hipótese antes/.test(await lab.textContent())) throw new Error('a lab test can be ordered before the working hypothesis, or does not say why it is locked');
+    if (await page.locator('.pane .opt', { hasText: '· laboratório' }).count()) throw new Error('an unlocked lab test before the working hypothesis');
     if (await page.locator('.pane .opt:not(.locked)', { hasText: 'resultado na consulta' }).first().isDisabled()) throw new Error('a bedside test is locked');
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/12f-hypothesis.png` });
     await page.locator('[data-step=hypothesis]').click();

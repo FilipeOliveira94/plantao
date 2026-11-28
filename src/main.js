@@ -1059,7 +1059,8 @@ function testGroups(enc) {
   h('div', { class: 'opts' }, ids.map((id) => {
     const locked = enc.needsHypothesis(id);
     return h('button', { class: `opt${locked ? ' locked' : ''}`, disabled: locked, title: locked ? 'Registre a hipótese de trabalho antes' : null, ...(locked ? {} : previewCost(ACTION_COST.order)), onclick: () => doRequest(enc, id) },
-      locked ? '🔒 ' : null, EXAMS[id].label, h('span', { class: 'muted small' }, EXAMS[id].poc ? ' · resultado na consulta' : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ' · resultado em dias' : ' · laboratório')));
+      // a disabled button shows no tooltip on touch screens, so the locked ones say why in their own text
+      locked ? '🔒 ' : null, EXAMS[id].label, h('span', { class: 'muted small' }, locked ? ' · registre a hipótese antes' : EXAMS[id].poc ? ' · resultado na consulta' : (UNIT_TYPES[shift.unit.type].labResultsOnReturn ? ' · resultado em dias' : ' · laboratório')));
   }))));
 }
 
