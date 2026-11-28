@@ -18,7 +18,8 @@ export function h(tag, props = {}, ...children) {
 }
 
 export function mount(parent, ...nodes) {
-  parent.replaceChildren(...nodes.flat());
+  // like h(): null and false are skipped (replaceChildren would turn them into the text "null" or "false")
+  parent.replaceChildren(...nodes.flat(Infinity).filter((n) => n != null && n !== false));
   return parent;
 }
 
