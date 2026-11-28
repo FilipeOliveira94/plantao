@@ -20,6 +20,9 @@
   --line-strong: #b8ad97;      /* dashed document edge, data rules */
   --line-control: #968b74;     /* borders of options, choices, fields: 3.3:1 on white */
   --edge: rgba(31, 42, 51, .35);
+  --label-scrim: rgba(31, 42, 51, .7);  /* white text on any unit color: 8:1 or more */
+  --tag-shade: rgba(31, 42, 51, .14);   /* darkens red and blue triage tags so white text reaches 4.5:1 */
+  --well-rule: var(--line-strong);
 
   /* roles */
   --accent: #1f7a6b;           /* actions, next step, focus: 5.2:1 with white */
@@ -149,6 +152,7 @@ body.tutorial .btn.next-step:not(.primary) { background: color-mix(in srgb, var(
 .unit:hover:not(.locked) { transform: translateY(-2px); }
 .unit.selected { outline: 4px solid var(--gold); }
 .unit .band { height: 54px; display: flex; align-items: flex-end; padding: var(--sp-2) var(--sp-3); color: var(--ink-inverse); font-weight: var(--fw-heavy); font-size: var(--fs-sm); letter-spacing: .05em; }
+.unit .band-label { background: var(--label-scrim); border-radius: var(--r-sm); padding: 2px var(--sp-2); }
 .unit .body { padding: var(--sp-3) var(--sp-3) var(--sp-3); }
 .unit .body h3 { font-size: var(--fs-md); }
 .unit.locked { cursor: not-allowed; }
@@ -238,7 +242,7 @@ body.tutorial .btn.next-step:not(.primary) { background: color-mix(in srgb, var(
 }
 .pane > .section-title:first-child, .test-cats > .test-cat:first-child summary { margin-top: 0; }
 .opt-group h5 { margin-top: 0; }
-.opt-group + .opt-group { margin-top: var(--sp-5); }
+.opt-group:not(.test-cat) + .opt-group { margin-top: var(--sp-5); }
 
 /* level 3, data: what the player has learned sits in sunken wells with a thin rule in the tab's color */
 .vitals { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: var(--sp-2); margin: var(--sp-3) 0 14px; }
@@ -366,7 +370,8 @@ body.tutorial .btn.next-step:not(.primary) { background: color-mix(in srgb, var(
 }
 @keyframes popup-fade-in { from { opacity: 0; } }
 @keyframes popup-fade-out { to { opacity: 0; } }
-.arrival .arrival-tag { display: inline-block; color: var(--ink-inverse); font-weight: var(--fw-heavy); font-size: var(--fs-xs); border-radius: var(--r-pill); padding: 2px var(--sp-3); }
+.arrival .arrival-tag { display: inline-block; color: var(--ink-inverse); background-image: linear-gradient(var(--tag-shade), var(--tag-shade)); font-weight: var(--fw-heavy); font-size: var(--fs-xs); border-radius: var(--r-pill); padding: 2px var(--sp-3); }
+.arrival .arrival-tag.on-light { color: var(--ink); background-image: none; }
 .arrival .arrival-name { font-weight: var(--fw-heavy); font-size: var(--fs-md); margin-top: 6px; }
 .arrival .arrival-complaint { margin: 6px 0 0; }
 .arrival.compact { max-width: 360px; padding: var(--sp-3) 14px; }

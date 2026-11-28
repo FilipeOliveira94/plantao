@@ -64,7 +64,7 @@ function renderMenu() {
       disabled: locked,
       onclick: () => { sfx.unlock(); sfx.click(); menuSel = { unit: u, spec: u.specialties[0] }; renderMenu(); },
     },
-    h('div', { class: 'band', style: { background: `linear-gradient(135deg, ${u.palette.accent}, ${u.palette.wall})` } }, `${UNIT_TYPES[u.type].label} · ${u.city}/${u.uf}`),
+    h('div', { class: 'band', style: { background: `linear-gradient(135deg, ${u.palette.accent}, ${u.palette.wall})` } }, h('span', { class: 'band-label' }, `${UNIT_TYPES[u.type].label} · ${u.city}/${u.uf}`)),
     h('div', { class: 'body' },
       h('h3', {}, u.name),
       h('p', { class: 'small muted', style: { margin: '6px 0' } }, u.flavor),
@@ -798,7 +798,7 @@ function showNextArrival() {
   const urgent = pr === 'red' || pr === 'orange';
   if (urgent) sfx.alarm();
   const own = popup(h('div', {},
-    h('span', { class: 'arrival-tag', style: { background: tri.color, color: ['yellow', 'orange', 'green'].includes(pr) ? 'var(--ink)' : null } }, `${urgent ? '🚨 ' : ''}Chegou: ${tri.label}`),
+    h('span', { class: `arrival-tag${['yellow', 'orange', 'green'].includes(pr) ? ' on-light' : ''}`, style: { background: tri.color } }, `${urgent ? '🚨 ' : ''}Chegou: ${tri.label}`),
     h('div', { class: 'arrival-name' }, enc.c.patient.name, ' ', h('span', { class: 'muted small' }, `· ${enc.c.patient.age}`)),
     h('p', { class: 'arrival-complaint small' }, enc.c.triage.complaint),
   ), {
