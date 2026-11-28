@@ -58,7 +58,14 @@ const firstName = (enc) => enc.c.patient.companion ? enc.c.patient.companion.nam
 // ======================================================================
 let menuSel = { unit: null, spec: null };
 
-function renderMenu() { keepFocus(app, renderMenuNow); }
+let menuShown = false;
+function renderMenu() {
+  keepFocus(app, renderMenuNow);
+  // coming back from a shift (its summary removed with the board): the keyboard starts on the menu; on page load
+  // the browser's own start stays
+  if (menuShown && (!document.activeElement || document.activeElement === document.body)) focusFallback();
+  menuShown = true;
+}
 
 function renderMenuNow() {
   stopTutorial();
@@ -145,7 +152,7 @@ function musicSlider() {
   const vol = state.settings.musicVolume ?? 0.4;
   return h('label', { class: 'music-vol small', title: 'Volume da música' }, '🎵 ',
     h('input', {
-      type: 'range', min: 0, max: 100, step: 5, value: Math.round(vol * 100), 'aria-label': 'Volume da música',
+      type: 'range', min: 0, max: 100, step: 5, value: Math.round(vol * 100), 'aria-label': 'Volume da música', 'data-focus': 'music',
       oninput: (e) => { state.settings.musicVolume = e.target.value / 100; music.setVolume(state.settings.musicVolume); },
       onchange: () => save(state),
     }));
@@ -210,7 +217,7 @@ function confirmReset() {
     h('h2', {}, 'Zerar progresso?'),
     h('p', {}, 'XP, conquistas e histórico de casos serão apagados deste navegador.'),
     h('div', { class: 'menu-actions' },
-      h('button', { class: 'btn warn', onclick: () => { state = reset(); sfx.setMuted(false); music.setMuted(false); music.setVolume(0.4); m.close(); renderMenu(); } }, 'Zerar'),
+      h('button', { class: 'btn warn', onclick: () => { state = reset(); sfx.setMuted(false); music.setMuted(false); music.setVolume(0.4); setReducedMotion(false); m.close(); renderMenu(); } }, 'Zerar'),
       h('button', { class: 'btn', onclick: () => m.close() }, 'Cancelar')),
   ));
 }
@@ -284,7 +291,7 @@ function confirmImport(next) {
     h('p', { class: 'small muted' }, 'O progresso atual deste navegador será apagado.'),
     h('div', { class: 'menu-actions' },
       h('button', { class: 'btn warn', onclick: () => {
-        state = next; sfx.setMuted(state.settings.muted); music.setMuted(state.settings.muted); music.setVolume(state.settings.musicVolume ?? 0.4); m.close(); renderMenu();
+        state = next; sfx.setMuted(state.settings.muted); music.setMuted(state.settings.muted); music.setVolume(state.settings.musicVolume ?? 0.4); setReducedMotion(state.settings.reducedMotion); m.close(); renderMenu();
         toast(save(state) ? 'Progresso importado.' : 'Progresso importado, mas este navegador não permitiu salvar: ele some ao recarregar a página.');
       } }, 'Substituir'),
       h('button', { class: 'btn', onclick: () => m.close() }, 'Cancelar')),
