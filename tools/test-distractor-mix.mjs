@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { distractorMix, DISTRACTOR_KINDS, MAX_OPTIONS } from './distractor-mix.mjs';
+import { CASES } from '../src/data/cases/index.js';
 
 const P = 'plausible';
 const W = 'clearly-wrong';
@@ -67,3 +68,14 @@ test('no clearly wrong option, or three, are reported', () => {
   assert.match(distractorMix(block(['c', P, P])).mix.join(), /0 clearly wrong, needs 1 or 2/);
   assert.match(distractorMix(block(['c', P, P, W, W, W])).mix.join(), /3 clearly wrong, needs 1 or 2/);
 });
+
+// The specialties already tagged (one PR each); the validator turns the mix into an error once all three are in.
+for (const specialty of ['internal-medicine']) {
+  test(`every ${specialty} case passes the distractor mix`, () => {
+    const off = CASES.filter((c) => c.specialty === specialty).flatMap((c) => ['diagnosis', 'conduct'].flatMap((k) => {
+      const { schema, mix } = distractorMix(c[k]);
+      return [...schema, ...mix].map((m) => `${c.id} ${k}: ${m}`);
+    }));
+    assert.deepEqual(off, []);
+  });
+}
