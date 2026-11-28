@@ -51,7 +51,7 @@ export default [
       correct: 'dengue_c',
       options: [
         { id: 'dengue_b', label: 'Dengue sem sinais de alarme (Grupo B)', kind: 'plausible' },
-        { id: 'dengue_c', label: 'Dengue com sinais de alarme (Grupo C)' },
+        { id: 'dengue_c', label: 'Dengue com sinais de alarme (Grupo C)', kind: 'correct' },
         { id: 'dengue_d', label: 'Dengue grave com choque (Grupo D)', kind: 'plausible' },
         // TODO(medical review): tagged clearly wrong because the case gives no flood or mud contact and dengue IgM is reactive; confirm.
         { id: 'lepto', label: 'Leptospirose', kind: 'clearly-wrong' },
@@ -61,7 +61,7 @@ export default [
     conduct: {
       correct: 'obs_ev',
       options: [
-        { id: 'obs_ev', label: 'Leito de observação/internação, hidratação venosa imediata (10 mL/kg de cristaloide na 1ª hora), reavaliação clínica e de hematócrito; suspender AINE.' },
+        { id: 'obs_ev', label: 'Leito de observação/internação, hidratação venosa imediata (10 mL/kg de cristaloide na 1ª hora), reavaliação clínica e de hematócrito; suspender AINE.', kind: 'correct' },
         { id: 'alta_vo', label: 'Alta com hidratação oral de 60 mL/kg/dia, dipirona 1 g de 6/6 h se dor ou febre, hemograma de controle e retorno em 48 h ou antes se piorar.', kind: 'plausible', harmful: true },
         { id: 'aine', label: 'Alta com ibuprofeno 600 mg de 8/8 h para a dor abdominal e a mialgia, hidratação oral e retorno em 48 h com novo hemograma.', kind: 'clearly-wrong', harmful: true },
         { id: 'plaquetas', label: 'Internar e transfundir 1 unidade de plaquetas a cada 10 kg pela contagem de 62.000/mm³, com hidratação oral e nova contagem de plaquetas em 24 h.', kind: 'plausible', harmful: true },
@@ -122,7 +122,7 @@ export default [
     diagnosis: {
       correct: 'iamcsst',
       options: [
-        { id: 'iamcsst', label: 'IAM com supradesnivelamento de ST (parede anterior)' },
+        { id: 'iamcsst', label: 'IAM com supradesnivelamento de ST (parede anterior)', kind: 'correct' },
         { id: 'iamssst', label: 'IAM sem supradesnivelamento de ST (infradesnível de ST no ECG)', kind: 'plausible' },
         { id: 'angina', label: 'Angina estável (dor aos esforços, alivia com repouso)', kind: 'clearly-wrong' },
         { id: 'drge', label: 'Doença do refluxo gastroesofágico (esofagite péptica)', kind: 'clearly-wrong' },
@@ -132,7 +132,7 @@ export default [
     conduct: {
       correct: 'reperfusao',
       options: [
-        { id: 'reperfusao', label: 'AAS 300 mg mastigado, monitorização, acionar regulação/SAMU para reperfusão (angioplastia primária; fibrinólise se angioplastia não disponível em tempo hábil).' },
+        { id: 'reperfusao', label: 'AAS 300 mg mastigado, monitorização, acionar regulação/SAMU para reperfusão (angioplastia primária; fibrinólise se angioplastia não disponível em tempo hábil).', kind: 'correct' },
         { id: 'aguarda_trop', label: 'AAS 300 mg e monitorização na sala de emergência, sem acionar a regulação; colher troponina, repetir em 3 h e só então decidir sobre reperfusão e transferência.', kind: 'plausible', harmful: true },
         { id: 'ibp_alta', label: 'Tratar como gastrite: omeprazol 40 mg EV, antiácido e sintomáticos na unidade; alta com omeprazol oral e consulta na UBS em 7 dias.', kind: 'clearly-wrong', harmful: true },
         { id: 'eda', label: 'Omeprazol oral, orientação dietética e encaminhamento para endoscopia digestiva alta ambulatorial, com retorno após o exame.', kind: 'clearly-wrong', harmful: true },
@@ -193,7 +193,7 @@ export default [
     diagnosis: {
       correct: 'pac',
       options: [
-        { id: 'pac', label: 'Pneumonia adquirida na comunidade (baixo risco, CURB-65 = 0)' },
+        { id: 'pac', label: 'Pneumonia adquirida na comunidade (baixo risco, CURB-65 = 0)', kind: 'correct' },
         { id: 'bronquite', label: 'Bronquite aguda (viral, sem consolidação pulmonar)', kind: 'plausible' },
         { id: 'tb', label: 'Tuberculose pulmonar ativa (forma pós-primária)', kind: 'clearly-wrong' },
         { id: 'tep', label: 'Tromboembolismo pulmonar agudo (com infarto pulmonar)', kind: 'plausible' },
@@ -203,7 +203,7 @@ export default [
     conduct: {
       correct: 'ambulatorial',
       options: [
-        { id: 'ambulatorial', label: 'Tratamento ambulatorial com amoxicilina (ou macrolídeo), sintomáticos, orientação de sinais de alarme e reavaliação em 48–72 h.' },
+        { id: 'ambulatorial', label: 'Tratamento ambulatorial com amoxicilina (ou macrolídeo), sintomáticos, orientação de sinais de alarme e reavaliação em 48–72 h.', kind: 'correct' },
         { id: 'internacao_ev', label: 'Internação em enfermaria com ceftriaxona 1 g EV de 12/12 h associada a macrolídeo, hemoculturas e reavaliação diária até a troca para via oral.', kind: 'plausible' },
         { id: 'uti', label: 'Internação em UTI com ceftriaxona e azitromicina EV, gasometria arterial, hemoculturas e monitorização contínua.', kind: 'clearly-wrong' },
         { id: 'sintomaticos', label: 'Apenas sintomáticos (dipirona, hidratação e lavagem nasal), sem antibiótico, tratando como virose; retorno se piorar.', kind: 'plausible' },
@@ -260,7 +260,7 @@ export default [
     diagnosis: {
       correct: 'cistite',
       options: [
-        { id: 'cistite', label: 'Cistite aguda não complicada' },
+        { id: 'cistite', label: 'Cistite aguda não complicada', kind: 'correct' },
         { id: 'pielo', label: 'Pielonefrite aguda', kind: 'plausible' },
         { id: 'vaginite', label: 'Vulvovaginite (candidíase)', kind: 'clearly-wrong' },
         { id: 'uretrite', label: 'Uretrite por IST (clamídia/gonococo)', kind: 'plausible' },
@@ -270,7 +270,7 @@ export default [
     conduct: {
       correct: 'curto',
       options: [
-        { id: 'curto', label: 'Fosfomicina 3 g dose única ou nitrofurantoína por 5 dias; orientar retorno se febre ou dor lombar.' },
+        { id: 'curto', label: 'Fosfomicina 3 g dose única ou nitrofurantoína por 5 dias; orientar retorno se febre ou dor lombar.', kind: 'correct' },
         { id: 'cipro14', label: 'Ciprofloxacino 500 mg de 12/12 h por 14 dias, com urocultura de controle ao fim do tratamento e retorno se surgir febre.', kind: 'plausible' },
         { id: 'ceftri', label: 'Internação com ceftriaxona 1 g EV ao dia, urocultura e hemoculturas, até 48 h sem febre e troca para via oral.', kind: 'clearly-wrong' },
         { id: 'esperar_uro', label: 'Colher urocultura com antibiograma e só iniciar antibiótico com o resultado, mesmo com disúria e polaciúria.', kind: 'plausible' },
@@ -334,7 +334,7 @@ export default [
     diagnosis: {
       correct: 'dm2_adesao',
       options: [
-        { id: 'dm2_adesao', label: 'DM2 com controle inadequado por baixa adesão (intolerância gastrointestinal à metformina)' },
+        { id: 'dm2_adesao', label: 'DM2 com controle inadequado por baixa adesão (intolerância gastrointestinal à metformina)', kind: 'correct' },
         { id: 'dm2_controlado', label: 'DM2 controlado (diarreia sem relação com a medicação e metas glicêmicas atingidas)', kind: 'clearly-wrong' },
         { id: 'lada', label: 'Diabetes autoimune latente do adulto (LADA), com perda progressiva da função da célula beta', kind: 'clearly-wrong' },
         { id: 'drc', label: 'Doença renal do diabetes, com metformina contraindicada pela queda da filtração glomerular', kind: 'plausible' },
@@ -344,7 +344,7 @@ export default [
     conduct: {
       correct: 'retitular',
       options: [
-        { id: 'retitular', label: 'Reintroduzir metformina com as refeições, em dose baixa e titulação lenta (ou formulação XR); associar 2º antidiabético; iniciar estatina; reforçar MEV e retorno em 3 meses.' },
+        { id: 'retitular', label: 'Reintroduzir metformina com as refeições, em dose baixa e titulação lenta (ou formulação XR); associar 2º antidiabético; iniciar estatina; reforçar MEV e retorno em 3 meses.', kind: 'correct' },
         { id: 'insulina', label: 'Suspender a metformina e os demais orais e iniciar insulina basal-bolus (NPH e regular, 0,5 UI/kg/dia), com glicemias capilares antes das refeições e retorno em 1 mês.', kind: 'plausible' },
         // TODO(medical review): tagged clearly wrong because HbA1c 9,4% rules out diet alone at once; confirm it is not plausible.
         { id: 'so_dieta', label: 'Suspender a metformina pela diarreia e manter apenas dieta e atividade física, com nova HbA1c em 3 meses antes de decidir a medicação.', kind: 'clearly-wrong' },
@@ -410,8 +410,8 @@ export default [
       correct: 'pseudocrise',
       acceptable: ['urgencia'],
       options: [
-        { id: 'pseudocrise', label: 'Pseudocrise hipertensiva (PA elevada por dor e estresse, sem lesão aguda de órgão-alvo, em hipertensa sem tratamento regular)' },
-        { id: 'urgencia', label: 'Urgência hipertensiva (PA muito elevada sem lesão aguda de órgão-alvo, com redução gradual da PA em 24–48 h)' },
+        { id: 'pseudocrise', label: 'Pseudocrise hipertensiva (PA elevada por dor e estresse, sem lesão aguda de órgão-alvo, em hipertensa sem tratamento regular)', kind: 'correct' },
+        { id: 'urgencia', label: 'Urgência hipertensiva (PA muito elevada sem lesão aguda de órgão-alvo, com redução gradual da PA em 24–48 h)', kind: 'acceptable' },
         { id: 'encefalopatia', label: 'Emergência hipertensiva: encefalopatia hipertensiva (cefaleia, confusão mental e lesão cerebral aguda pela PA elevada)', kind: 'plausible' },
         { id: 'hsa', label: 'Hemorragia subaracnóidea (cefaleia súbita e intensa, a pior da vida, com PA elevada em resposta ao sangramento)', kind: 'plausible' },
         { id: 'sca', label: 'Emergência hipertensiva com síndrome coronariana aguda (lesão miocárdica aguda associada à PA elevada)', kind: 'clearly-wrong' },
@@ -420,7 +420,7 @@ export default [
     conduct: {
       correct: 'calma_analgesia',
       options: [
-        { id: 'calma_analgesia', label: 'Repouso em ambiente calmo, analgésico para a cefaleia e nova medida da PA; retomar o anti-hipertensivo oral de uso habitual, orientar adesão e garantir reavaliação precoce na UBS.' },
+        { id: 'calma_analgesia', label: 'Repouso em ambiente calmo, analgésico para a cefaleia e nova medida da PA; retomar o anti-hipertensivo oral de uso habitual, orientar adesão e garantir reavaliação precoce na UBS.', kind: 'correct' },
         { id: 'nifedipina_sl', label: 'Nifedipina de liberação rápida 10 mg (cápsula) sublingual para baixar a PA agora, nova medida da PA em 30 minutos e alta com a receita do anti-hipertensivo.', kind: 'plausible', harmful: true },
         { id: 'nitroprussiato', label: 'Sala de emergência com nitroprussiato de sódio EV a 0,5 mcg/kg/min em bomba de infusão, monitorização contínua da PA e titulação até normalizar a pressão.', kind: 'clearly-wrong', harmful: true },
         { id: 'internar_tc', label: 'Internar para tomografia de crânio, fundo de olho, função renal e investigação de hipertensão secundária antes de retomar o anti-hipertensivo oral.', kind: 'plausible' },
@@ -487,7 +487,7 @@ export default [
     diagnosis: {
       correct: 'avci_janela',
       options: [
-        { id: 'avci_janela', label: 'AVC isquêmico agudo dentro da janela de trombólise (menos de 4,5 h)' },
+        { id: 'avci_janela', label: 'AVC isquêmico agudo dentro da janela de trombólise (menos de 4,5 h)', kind: 'correct' },
         { id: 'avch', label: 'AVC hemorrágico (hematoma intraparenquimatoso hipertensivo)', kind: 'plausible' },
         { id: 'ait', label: 'Ataque isquêmico transitório (déficit com resolução espontânea)', kind: 'clearly-wrong' },
         { id: 'hipoglicemia', label: 'Hipoglicemia com déficit focal (imita AVC e reverte com glicose)', kind: 'plausible' },
@@ -497,7 +497,7 @@ export default [
     conduct: {
       correct: 'protocolo_avc',
       options: [
-        { id: 'protocolo_avc', label: 'Acionar o protocolo de AVC: avaliação do neurologista, TC de crânio sem contraste imediata e, sem hemorragia e com menos de 4,5 h do início, trombólise EV com alteplase (PA abaixo de 185/110 mmHg); jejum e monitorização contínua por 24 h.' },
+        { id: 'protocolo_avc', label: 'Acionar o protocolo de AVC: avaliação do neurologista, TC de crânio sem contraste imediata e, sem hemorragia e com menos de 4,5 h do início, trombólise EV com alteplase (PA abaixo de 185/110 mmHg); jejum e monitorização contínua por 24 h.', kind: 'correct' },
         { id: 'baixar_pa', label: 'Normalizar a PA (abaixo de 140/90 mmHg) com anti-hipertensivo EV antes de qualquer outra medida; só então TC de crânio sem contraste e avaliação do neurologista para decidir a trombólise com alteplase.', kind: 'plausible', harmful: true },
         // TODO(medical review): tagged clearly wrong because it gives full-dose heparin before the CT excludes bleeding; the AF makes
         // it tempting, so confirm it should not count as plausible.
@@ -570,8 +570,8 @@ export default [
       correct: 'lepto_grave',
       acceptable: ['lepto_precoce'],
       options: [
-        { id: 'lepto_grave', label: 'Leptospirose com sinais de alerta (comprometimento renal e pulmonar)' },
-        { id: 'lepto_precoce', label: 'Leptospirose em fase precoce (septicêmica), sem sinais de alerta' },
+        { id: 'lepto_grave', label: 'Leptospirose com sinais de alerta (comprometimento renal e pulmonar)', kind: 'correct' },
+        { id: 'lepto_precoce', label: 'Leptospirose em fase precoce (septicêmica), sem sinais de alerta', kind: 'acceptable' },
         { id: 'dengue_c', label: 'Dengue com sinais de alarme (Grupo C), com dor abdominal e hepatomegalia', kind: 'plausible' },
         { id: 'pac', label: 'Pneumonia adquirida na comunidade com sepse de foco pulmonar', kind: 'plausible' },
         { id: 'hepatite', label: 'Hepatite viral aguda (forma ictérica, vírus A ou B)', kind: 'clearly-wrong' },
@@ -580,7 +580,7 @@ export default [
     conduct: {
       correct: 'internar_atb_ev',
       options: [
-        { id: 'internar_atb_ev', label: 'Internar com solicitação de UTI; antibiótico EV já (penicilina G cristalina 1,5 milhão UI de 6/6 h ou ceftriaxona 1–2 g/dia, por pelo menos 7 dias); oxigênio; hidratação cautelosa com controle de diurese, ureia e creatinina e diálise precoce se a oligúria persistir; colher sorologia e notificar.' },
+        { id: 'internar_atb_ev', label: 'Internar com solicitação de UTI; antibiótico EV já (penicilina G cristalina 1,5 milhão UI de 6/6 h ou ceftriaxona 1–2 g/dia, por pelo menos 7 dias); oxigênio; hidratação cautelosa com controle de diurese, ureia e creatinina e diálise precoce se a oligúria persistir; colher sorologia e notificar.', kind: 'correct' },
         { id: 'alta_vo', label: 'Alta com doxiciclina 100 mg VO de 12/12 h por 5 a 7 dias (ou amoxicilina), sintomáticos sem AAS, hidratação oral e retorno em 48 h com ureia, creatinina e hemograma; colher sorologia e notificar.', kind: 'clearly-wrong', harmful: true },
         { id: 'hidratacao_vigorosa', label: 'Tratar como dengue com sinais de alarme: leito de observação e hidratação venosa vigorosa, com expansões de 20 mL/kg repetidas até melhorar a diurese, sem antibiótico; colher sorologias para dengue e leptospirose e notificar.', kind: 'plausible', harmful: true },
         { id: 'sintomaticos', label: 'Tratar em casa com sintomáticos: AAS para febre e mialgia, hidratação oral abundante e repouso; sem antibiótico por ser quadro viral, colher sorologia e retornar em 48 h ou se surgir sangramento.', kind: 'clearly-wrong', harmful: true },

@@ -1,22 +1,26 @@
-// Unit tests for the distractor mix (P1-10): one correct option, two plausible distractors, one or two clearly
-// wrong ones, at most five options in all. Acceptable options sit outside the mix and carry no kind.
+// Unit tests for the option kinds (P1-10): one correct option, two plausible distractors, one or two clearly
+// wrong ones, at most five options in all. Every option carries a kind; the correct option and acceptable ones
+// carry 'correct' and 'acceptable', matching the block's `correct` and `acceptable` fields, outside the mix.
 // Usage: node --test tools/test-distractor-mix.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { distractorMix, DISTRACTOR_KINDS, MAX_OPTIONS } from './distractor-mix.mjs';
+import { distractorMix, DISTRACTOR_KINDS, OPTION_KINDS, MAX_OPTIONS } from './distractor-mix.mjs';
 import { CASES } from '../src/data/cases/index.js';
 
 const P = 'plausible';
 const W = 'clearly-wrong';
+const KIND = { c: 'correct', a: 'acceptable' };
 // a block from a list of kinds: 'c' is the correct option, 'a' an acceptable one, anything else a distractor kind
+// (undefined: an untagged distractor). Every option is tagged as the schema asks.
 function block(kinds) {
-  const options = kinds.map((k, i) => ({ id: `o${i}`, label: `opção ${i}`, ...(k === 'c' || k === 'a' || k === undefined ? {} : { kind: k }) }));
+  const options = kinds.map((k, i) => ({ id: `o${i}`, label: `opção ${i}`, ...(k === undefined ? {} : { kind: KIND[k] ?? k }) }));
   const acceptable = kinds.flatMap((k, i) => (k === 'a' ? [`o${i}`] : []));
   return { correct: `o${kinds.indexOf('c')}`, ...(acceptable.length ? { acceptable } : {}), options };
 }
 
 test('the kinds and the cap', () => {
   assert.deepEqual(DISTRACTOR_KINDS, ['plausible', 'clearly-wrong']);
+  assert.deepEqual(OPTION_KINDS, ['correct', 'acceptable', 'plausible', 'clearly-wrong']);
   assert.equal(MAX_OPTIONS, 5);
 });
 
@@ -42,14 +46,28 @@ test('a distractor without a kind is reported', () => {
   assert.ok(mix.some((m) => /no kind on o3/.test(m)), mix.join('; '));
 });
 
-test('a kind on the correct or an acceptable option is a schema error', () => {
+test('an untagged correct or acceptable option is reported in the mix, like an untagged distractor', () => {
+  const b = block(['c', 'a', P, P, W]);
+  delete b.options[0].kind;
+  delete b.options[1].kind;
+  const { schema, mix } = distractorMix(b);
+  assert.deepEqual(schema, []);
+  assert.ok(mix.some((m) => /no kind on o0, o1/.test(m)), mix.join('; '));
+});
+
+test('a kind that disagrees with `correct` or `acceptable` is a schema error', () => {
   const b = block(['c', 'a', P, P, W]);
   b.options[0].kind = P;
-  b.options[1].kind = W;
+  b.options[1].kind = 'correct';
+  b.options[2].kind = 'correct';
+  b.options[4].kind = 'acceptable';
   const { schema } = distractorMix(b);
-  assert.equal(schema.length, 2);
-  assert.match(schema[0], /correct option o0 must not have a kind/);
-  assert.match(schema[1], /acceptable option o1 must not have a kind/);
+  assert.deepEqual(schema, [
+    'o0 has kind plausible, but it is the correct option',
+    'o1 has kind correct, but it is an acceptable option',
+    'o2 has kind correct, but it is not the correct option',
+    'o4 has kind acceptable, but it is not in acceptable',
+  ]);
 });
 
 test('an unknown kind is a schema error, not a mix warning', () => {
