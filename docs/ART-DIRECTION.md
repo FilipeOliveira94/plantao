@@ -13,6 +13,20 @@ How the game looks and sounds, and where its art and sound may come from. P4 iss
 - **People** stay the simple block figures already in the renderer. No faces with expressions, no caricature of patients or staff, no logos of real institutions or brands.
 - **Readability first.** Backdrops sit behind the room and the patient. They are lower contrast than the furniture, and nothing in them animates faster than slow loops (rain, clouds, a blinking light).
 
+## Interface tokens and unit theme
+
+The screens around the scene (menu, chart, queue, popups) are styled only through the tokens at the top of `styles.css` (P2-09).
+
+- **Tokens, not raw colors.** A rule outside `:root` uses `var(--…)` for every color, font size, radius and spacing. The only raw colors are the ones that come from data and are set inline: triage priority, chart tab and unit palette.
+- **Type scale:** 8 steps: `--fs-2xs` 11px, `--fs-xs` 12, `--fs-sm` 13, `--fs-base` 15, `--fs-md` 17, `--fs-lg` 20, `--fs-xl` 26 and `--fs-display` 40. Weights are `--fw-semi`, `--fw-bold` and `--fw-heavy`.
+- **Chart hierarchy:**
+  - The patient head comes first, then one uppercase section-heading style shared by every tab, then the content.
+  - What the player has learned (findings, vitals, results) sits in sunken wells with a thin rule in the tab's color. What they can do (options, choices) sits on raised white cards with a firm border.
+- **Unit theme:**
+  - The game screen takes `--unit-floor`, `--unit-wall` and `--unit-accent` from the unit's palette. The CSS mixes them into light tints for the chart head, the tab strip, and the queue and waiting room, plus a 4px stripe under the top bar.
+  - Actions, the next-step highlight and focus rings keep the global `--accent`, so they read the same in every unit.
+- **Contrast:** text tokens are at least 4.5:1 on every surface they sit on, the unit tints included. Control borders are at least 3:1. A new token or unit palette keeps these ratios.
+
 ## Backdrops (scene)
 
 The room's window and, later, the area behind the room show where the unit is. A backdrop has three layers, back to front:

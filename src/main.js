@@ -64,7 +64,7 @@ function renderMenu() {
       disabled: locked,
       onclick: () => { sfx.unlock(); sfx.click(); menuSel = { unit: u, spec: u.specialties[0] }; renderMenu(); },
     },
-    h('div', { class: 'band', style: { background: `linear-gradient(135deg, ${u.palette.accent}, ${u.palette.wall})` } }, `${UNIT_TYPES[u.type].label} · ${u.city}/${u.uf}`),
+    h('div', { class: 'band', style: { background: `linear-gradient(135deg, ${u.palette.accent}, ${u.palette.wall})` } }, h('span', { class: 'band-label' }, `${UNIT_TYPES[u.type].label} · ${u.city}/${u.uf}`)),
     h('div', { class: 'body' },
       h('h3', {}, u.name),
       h('p', { class: 'small muted', style: { margin: '6px 0' } }, u.flavor),
@@ -86,7 +86,7 @@ function renderMenu() {
     h('p', { class: 'tagline' }, 'Atenda, investigue, decida. Um plantão por vez, pelo Brasil afora.'),
     h('div', { class: 'player' },
       h('div', {},
-        h('div', { style: { fontWeight: 800, fontSize: '18px' } }, `Nível ${lvl.number} · ${lvl.title}`),
+        h('div', { class: 'level-title' }, `Nível ${lvl.number} · ${lvl.title}`),
         h('div', { class: 'small muted' }, `${state.xp} XP · ${state.shifts} plantões · ${state.badges.length}/${Object.keys(BADGES).length} conquistas`),
         xpBar(lvl.progress),
         lvl.nextXp ? h('div', { class: 'small muted', style: { marginTop: '4px' } }, `Próximo nível em ${lvl.nextXp - state.xp} XP`) : null,
@@ -384,7 +384,9 @@ function renderGame() {
   ui.waitCanvas = h('canvas', { class: 'waiting-canvas', 'aria-hidden': 'true' });
   ui.queue = h('div', { class: 'queue' });
   ui.chart = h('div', { class: 'chart' });
-  mount(app, h('div', { class: 'game' },
+  // per-unit theme (P2-09): the CSS derives the game screen's tints from the unit's palette
+  const pal = shift.unit.palette;
+  mount(app, h('div', { class: 'game', style: `--unit-floor: ${pal.floor}; --unit-wall: ${pal.wall}; --unit-accent: ${pal.accent}` },
     ui.top,
     h('div', { class: 'main' },
       h('div', { class: 'stage' },
@@ -796,7 +798,7 @@ function showNextArrival() {
   const urgent = pr === 'red' || pr === 'orange';
   if (urgent) sfx.alarm();
   const own = popup(h('div', {},
-    h('span', { class: 'arrival-tag', style: { background: tri.color, color: pr === 'yellow' ? 'var(--ink)' : null } }, `${urgent ? '🚨 ' : ''}Chegou: ${tri.label}`),
+    h('span', { class: `arrival-tag${['yellow', 'orange', 'green'].includes(pr) ? ' on-light' : ''}`, style: { background: tri.color } }, `${urgent ? '🚨 ' : ''}Chegou: ${tri.label}`),
     h('div', { class: 'arrival-name' }, enc.c.patient.name, ' ', h('span', { class: 'muted small' }, `· ${enc.c.patient.age}`)),
     h('p', { class: 'arrival-complaint small' }, enc.c.triage.complaint),
   ), {
@@ -898,7 +900,7 @@ function previewCost(cost) {
 // the critical window counts consultation time, thinking included, like the score (P1-12)
 function criticalChip(enc) {
   const tc = enc.c.timeCritical;
-  return tc ? h('span', { class: 'chip critical-chip', style: { background: enc.minutesSpent > tc.minutes ? '#f6c1b8' : '#fde9b5' } }, `⏱ Janela crítica: ${Math.round((enc.minutesSpent / tc.minutes) * 100)}%`) : null;
+  return tc ? h('span', { class: `chip critical-chip${enc.minutesSpent > tc.minutes ? ' over' : ''}` }, `⏱ Janela crítica: ${Math.round((enc.minutesSpent / tc.minutes) * 100)}%`) : null;
 }
 
 /** What a clock tick can change in the chart: a full redraw when it does, else only the chips. */
@@ -921,7 +923,7 @@ function renderChart() {
     const next = shift.done ? null : firstCallable();
     mount(ui.chart, h('div', { class: 'pane', style: { gridRow: '1 / -1', display: 'grid', placeItems: 'center', textAlign: 'center' } },
       h('div', {},
-        h('div', { style: { fontSize: '46px' } }, shift.unit.type === 'picu' ? '🛏️' : '🚪'),
+        h('div', { class: 'empty-icon', 'aria-hidden': 'true' }, shift.unit.type === 'picu' ? '🛏️' : '🚪'),
         h('h2', {}, shift.done ? 'Plantão encerrado' : 'Consultório livre'),
         h('p', { class: 'muted free-room-hint' }, freeRoomText(next)),
         shift.done ? h('button', { class: 'btn', 'data-step': 'end-shift', onclick: showShiftSummary }, 'Encerrar plantão') : null,
@@ -941,12 +943,12 @@ function renderChart() {
   const newResults = Math.max(0, readyCount - seen.readySeen);
   if (tab === 'tests') seen.readySeen = readyCount;
   const counts = { history: enc.asked.size, physical: enc.examined.size };
-  const pane = h('div', { class: 'pane' }, paneFor(enc));
+  const pane = h('div', { class: 'pane', style: `--tab: ${CHART_TABS.find((t) => t.id === tab).color}` }, paneFor(enc));
   mount(ui.chart,
     h('div', { class: 'chart-head' },
       h('span', { class: 'triage-dot', style: { background: tri.color }, title: tri.label }),
-      h('div', { style: { flex: 1 } },
-        h('div', { style: { fontWeight: 800, fontSize: '17px' } }, c.patient.name, ' ', h('span', { class: 'muted small' }, `· ${c.patient.age} · ${c.patient.sex === 'F' ? 'Fem.' : 'Masc.'}`)),
+      h('div', { class: 'patient-id' },
+        h('div', { class: 'patient-name' }, c.patient.name, ' ', h('span', { class: 'patient-meta' }, `· ${c.patient.age} · ${c.patient.sex === 'F' ? 'Fem.' : 'Masc.'}`)),
         h('div', { class: 'small muted' }, c.patient.companion ? `Acompanhante: ${c.patient.companion.name}` : 'Desacompanhado(a)', c.type === 'follow_up' ? ' · Consulta de retorno' : ''),
       ),
       tc,
@@ -1019,7 +1021,7 @@ function paneFor(enc) {
   if (tab === 'triage') {
     return [
       h('div', { class: 'small muted' }, 'Queixa na triagem'),
-      h('div', { style: { fontWeight: 700, fontSize: '16px' } }, c.triage.complaint),
+      h('div', { class: 'complaint' }, c.triage.complaint),
       h('div', { class: 'vitals' }, Object.entries(c.triage.vitals).map(([k, v]) => h('div', { class: 'vital' }, h('span', {}, k), h('b', {}, v)))),
       c.triage.note ? h('p', { class: 'small' }, '📝 ', c.triage.note) : null,
       c.previousNote ? h('div', { class: 'doc' }, h('h4', {}, '📄 ', c.previousNote.title), c.previousNote.text) : null,
@@ -1295,7 +1297,7 @@ function showFeedback(enc, r, earned, leveled) {
     h('details', {}, h('summary', { class: 'small' }, 'Referências'), h('ol', { class: 'refs' }, c.references.map((ref) => h('li', {}, ref)))),
     h('p', { class: 'small report-case' }, h('a', { href: reportUrl(c, r.chosen), target: '_blank', rel: 'noopener noreferrer' }, '⚠️ Relatar um problema neste caso'), ' (abre uma issue pública no GitHub; precisa de conta)'),
     earned.length ? h('div', { style: { marginTop: '12px' } }, h('h3', { style: { marginBottom: '8px' } }, 'Nova conquista!'), h('div', { class: 'badges' }, earned.map((id) => h('div', { class: 'badge new' }, h('span', { class: 'ic' }, BADGES[id].icon), h('div', {}, h('b', {}, BADGES[id].name), h('div', { class: 'small muted' }, BADGES[id].desc)))))) : null,
-    leveled ? h('p', { style: { fontWeight: 800, marginTop: '12px' } }, `🎉 Subiu para o nível ${levelOf(state.xp).number}: ${levelOf(state.xp).title}!`) : null,
+    leveled ? h('p', { class: 'level-up', style: { marginTop: '12px' } }, `🎉 Subiu para o nível ${levelOf(state.xp).number}: ${levelOf(state.xp).title}!`) : null,
     h('div', { class: 'menu-actions', style: { marginTop: '16px' } }, h('button', { class: 'btn primary', 'data-step': 'feedback-next', onclick: () => m.close() }, shift.done ? 'Encerrar plantão' : 'Próximo paciente')),
   ), {
     className: 'feedback',
@@ -1359,7 +1361,7 @@ function showShiftSummary() {
       h('li', {}, h('b', {}, 'Total'), h('b', {}, `+${total} XP`)),
     ),
     earned.length ? h('div', {}, h('h3', { style: { marginBottom: '8px' } }, 'Conquistas'), h('div', { class: 'badges' }, earned.map((id) => h('div', { class: 'badge new' }, h('span', { class: 'ic' }, BADGES[id].icon), h('div', {}, h('b', {}, BADGES[id].name)))))) : null,
-    leveled ? h('p', { style: { fontWeight: 800 } }, `🎉 Nível ${levelOf(state.xp).number}: ${levelOf(state.xp).title}! Novas unidades podem ter sido desbloqueadas.`) : null,
+    leveled ? h('p', { class: 'level-up' }, `🎉 Nível ${levelOf(state.xp).number}: ${levelOf(state.xp).title}! Novas unidades podem ter sido desbloqueadas.`) : null,
     h('div', { class: 'menu-actions', style: { marginTop: '14px' } },
       h('button', { class: 'btn primary', 'data-step': 'summary-menu', onclick: () => { document.querySelector('.modal-back')?.remove(); shift = null; renderMenu(); } }, 'Voltar ao menu'),
       h('button', { class: 'btn', onclick: () => { document.querySelector('.modal-back')?.remove(); startShift(finished.unit, finished.specialty); } }, 'Novo plantão aqui'),
