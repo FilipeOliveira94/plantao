@@ -3,6 +3,7 @@ import { CASES } from '../src/data/cases/index.js';
 import { EXAMS, EXAM_CATS, UNIT_TYPES, UNITS, SPECIALTIES, TRIAGE } from '../src/data/catalog.js';
 import { LEVELS } from '../src/game/progress.js';
 import { actionTarget, focusedMinutes, THINKING_ALLOWANCE } from '../src/game/encounter.js';
+import { distractorMix } from './distractor-mix.mjs';
 
 const errors = [];
 const warn = [];
@@ -16,6 +17,12 @@ const LONGEST_MARGIN = 1.2; // correct is the longest and at least 20% longer th
 const SHORT_RATIO = 0.6; // the other options average less than 60% of the correct one's length
 const balanced = { off: 0, total: 0 };
 const balance = (id, msg) => (BALANCE_IS_ERROR ? err(id, msg) : warn.push(`[${id}] ${msg}`));
+// Distractor mix: 2 plausible and 1 or 2 clearly wrong per list, at most 5 options (P1-10, tools/distractor-mix.mjs).
+// Warnings while the specialty PRs tag the cases; the last of them sets MIX_IS_ERROR to true. A malformed tag is
+// always an error.
+const MIX_IS_ERROR = false;
+const mixed = { off: 0 };
+const mixIssue = (id, msg) => (MIX_IS_ERROR ? err(id, msg) : warn.push(`[${id}] ${msg}`));
 
 function optionBalance(block) {
   const correct = block.options.find((o) => o.id === block.correct);
@@ -92,6 +99,9 @@ for (const c of CASES) {
     const unbalanced = optionBalance(block);
     if (unbalanced.length) { balanced.off++; balance(id, `${k} unbalanced: ${unbalanced.join('; ')}`); }
     balanced.total++;
+    const { schema, mix } = distractorMix(block);
+    for (const m of schema) err(id, `${k}: ${m}`);
+    if (mix.length) { mixed.off++; mixIssue(id, `${k} distractor mix: ${mix.join('; ')}`); }
   }
   if (c.conduct?.options?.find((o) => o.id === c.conduct.correct)?.harmful) err(id, 'correct conduct is marked harmful');
 }
@@ -110,6 +120,7 @@ for (const u of UNITS) for (const s of u.specialties) {
 
 console.log(`${CASES.length} cases checked.`);
 console.log(`Option balance: ${balanced.off} of ${balanced.total} option lists give the answer away by length.`);
+console.log(`Distractor mix: ${mixed.off} of ${balanced.total} option lists are off the mix.`);
 if (warn.length) console.log(`\nWarnings (${warn.length}):\n  ` + warn.join('\n  '));
 if (errors.length) { console.error(`\nErrors (${errors.length}):\n  ` + errors.join('\n  ')); process.exit(1); }
 console.log('\nOK, no errors.');

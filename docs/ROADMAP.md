@@ -66,6 +66,12 @@ Each note was checked against the open issues. Where an issue already covered it
 | AI-driven live consultation | New: P7-06, an idea, long-term and not scheduled. |
 | Requested features page | New: P3-18. New: P5-06, a site form so players need no GitHub account, once the backend is live. |
 
+## Feature requests, 2026-11-28
+
+| Request | Where it goes |
+| --- | --- |
+| A comment on every option saying why it is right or wrong | New: P3-19, after P1-10. Wider than P3-06, which covers only the wrong option the player chose. |
+
 ## P0: Foundations
 
 | ID | Issue | Scope | Expected/Seen Risk | Expected/Seen Size | Depends on |
@@ -132,6 +138,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P3-16](https://github.com/FilipeOliveira94/plantao/issues/108) | Quick mode | "Modo rápido": each case as a short vignette with five shuffled diagnosis options and immediate feedback. A `vignette` per case that uses only findings already in the case, checked by `validate-cases`; vignettes in one PR per specialty, cases stay "pending". Existing cases for now; generated cases (P7-05) later, each with a vignette. | Hi/- | Md/- | P1-03 |
 | [P3-17](https://github.com/FilipeOliveira94/plantao/issues/109) | Optional case rating | A subtle, optional 1 to 5 star row on the feedback screen; never blocks the flow, can be changed or cleared, stored in the local save. Sending ratings is P5-03's job. | Lo/- | Sm/- | none |
 | [P3-18](https://github.com/FilipeOliveira94/plantao/issues/110) | Requested features page | "Sugestões" from the menu: requested and planned features with their status, from a data file in the repo, and a button that opens a prefilled GitHub issue. A form without a GitHub account is P5-06. | Lo/- | Sm/- | none |
+| [P3-19](https://github.com/FilipeOliveira94/plantao/issues/120) | Comments on every option | Every diagnosis and management option, the correct one included, gets a short pt-BR comment on why it is right or wrong for this case, pointing to what the case shows or to its references. The feedback screen lists every option with its comment and marks the correct one and the one chosen. `validate-cases` checks every option has one. One PR per specialty; cases stay "pending". The plan decides with Filipe whether P3-06 closes as covered. | Hi/- | Md/- | P1-10 |
 
 ## P4: A sense of place
 
@@ -186,7 +193,7 @@ Each note was checked against the open issues. Where an issue already covered it
 3. Make time matter: P1-04, P1-05, P1-06, P1-11, P1-12, P1-13, then P2-02, P2-03 and P2-12 to show it.
 4. Make the screen lead the player: P2-01, P2-07, P2-04, then P2-08.
 5. Keep the player: P3-12, P3-01, P3-04, P3-14, P3-09, P3-03, P3-05, P3-10, P3-11. P3-13 comes after the MVP. New modes and community: P3-17, P3-18, P3-15, P3-16.
-6. Content fairness, in parallel as review capacity allows: P1-03, P1-10, P3-06, P6-01, P6-08.
+6. Content fairness, in parallel as review capacity allows: P1-03, P1-10, P3-06, P3-19, P6-01, P6-08.
 7. Place and polish: P4, P2-09 to P2-11.
 8. Online: P5, starting with the ADR (P5-01).
 9. Clinical course: P7-01, then P7-02, P7-03 and P7-04. P3-07 before P7-04. P7-05 and P7-06 are long-term and not scheduled.
