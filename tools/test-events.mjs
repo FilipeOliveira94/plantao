@@ -64,9 +64,9 @@ test('a seed gives the same events, and the event roll draws from its own stream
     ['im-hypertensive-pseudocrisis', 0], ['im-stemi', 32], ['im-leptospirosis-warning-signs', 64],
     ['im-cap', 89], ['im-dengue-warning-signs', 120],
   ]);
-  const quiet = new Shift({ unit: UPA, specialty: 'internal-medicine', seed: 1, events: false });
-  assert.equal(quiet.pendingEvents.length, 0);
-  assert.equal(optionsOf(s), optionsOf(quiet));
+  const quiet = (seed) => new Shift({ unit: UPA, specialty: 'internal-medicine', seed, events: false });
+  assert.equal(quiet(1).pendingEvents.length, 0);
+  for (let seed = 0; seed < 50; seed++) assert.equal(optionsOf(make(seed)), optionsOf(quiet(seed)), `seed ${seed}`);
 });
 
 test('an event fires once, when the clock reaches it, as a popup event with its text', () => {
