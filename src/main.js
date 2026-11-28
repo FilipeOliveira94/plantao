@@ -390,7 +390,7 @@ function renderGame() {
       h('div', { class: 'stage' },
         h('div', { style: { position: 'relative', minHeight: 0 } }, ui.canvas, ui.hotspots.el, ui.talk.el),
         // the waiting room (P2-08): the queue below, drawn as people; display only, the cards stay the way to call
-        h('div', { class: 'waiting', 'aria-hidden': 'true' }, h('span', { class: 'waiting-title' }, '🪑 Sala de espera'), ui.waitCanvas),
+        ui.waitStrip = h('div', { class: 'waiting', 'aria-hidden': 'true' }, h('span', { class: 'waiting-title' }, '🪑 Sala de espera'), ui.waitCanvas),
         ui.queue),
       ui.chart,
     ),
@@ -1413,10 +1413,10 @@ function updateNextStep() {
   placeCoach();
 }
 
-// the coach card sits over the scene, just above the queue, so the queue stays visible (wide layout only)
+// the coach card sits over the scene, just above the waiting room, so the queue stays visible (wide layout only)
 const wideLayout = matchMedia('(min-width: 901px)');
 function placeCoach() {
-  const top = tutorial && wideLayout.matches && ui.queue?.isConnected ? ui.queue.getBoundingClientRect().top : null;
+  const top = tutorial && wideLayout.matches && ui.waitStrip?.isConnected ? ui.waitStrip.getBoundingClientRect().top : null;
   const px = top == null ? 0 : Math.max(0, Math.round(innerHeight - top));
   document.documentElement.style.setProperty('--coach-bottom', `${px}px`);
 }

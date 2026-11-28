@@ -51,7 +51,7 @@ function computer(v) {
 export function hotspotHint(step, tab) {
   if (step === 'call') return 'door';
   if (step === 'tab:physical' && tab !== 'physical') return 'patient';
-  if ((step === 'tab:tests' || step === 'hypothesis') && tab !== 'tests') return 'computer';
+  if (step === 'tab:tests' && tab !== 'tests') return 'computer';
   return null;
 }
 

@@ -92,6 +92,5 @@ test('scene hotspots mirror the next step only when they would change the screen
   assert.equal(hotspotHint('tab:physical', 'physical'), null);
   assert.equal(hotspotHint('tab:tests', 'triage'), 'computer');
   assert.equal(hotspotHint('hypothesis', 'tests'), null);
-  assert.equal(hotspotHint('hypothesis', 'decision'), 'computer');
   for (const step of ['tab:triage', 'tab:history', 'decide', 'finish', 'wait-next', 'send-wait', null]) assert.equal(hotspotHint(step, 'triage'), null);
 });

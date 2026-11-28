@@ -282,7 +282,8 @@ body.tutorial .btn.next-step:not(.primary) { background: color-mix(in srgb, var(
 .hotspot { position: absolute; pointer-events: auto; padding: 0; background: transparent; border: 2px solid transparent; border-radius: 10px; cursor: pointer; }
 .hotspot[hidden] { display: none; }
 .hotspot[aria-disabled='true'] { cursor: not-allowed; }
-.hotspot:hover, .hotspot:focus-visible { border-color: color-mix(in srgb, var(--accent) 70%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); outline: none; }
+.hotspot:hover, .hotspot:focus-visible { border-color: color-mix(in srgb, var(--accent) 70%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.hotspot:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .hotspot[aria-disabled='true']:hover, .hotspot[aria-disabled='true']:focus-visible, .hotspot[aria-disabled='true'].show { border-color: color-mix(in srgb, var(--muted) 60%, transparent); background: transparent; }
 /* next step (P2-01): the same calm accent as the chart buttons; stronger in the tutorial (P2-04) */
 .hotspot.hs-hint { border-color: var(--accent); border-style: dashed; }

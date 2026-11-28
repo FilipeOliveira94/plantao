@@ -202,7 +202,7 @@ try {
     if (!wr.queue.includes(' ') || wr.seated !== wr.queue) throw new Error(`waiting room ${wr.seated} != queue ${wr.queue}`);
     const door = page.locator('[data-hotspot=door]');
     const first = await page.evaluate(() => window.__plantao.shift.queue()[0].c.patient.name);
-    if (!(await door.getAttribute('aria-label')).includes(`Chamar ${first}`) || !/Não gasta tempo/.test(await door.getAttribute('aria-description'))) throw new Error(`door label: ${await door.getAttribute('aria-label')}`);
+    if (!(await door.getAttribute('aria-label')).includes(`Chamar ${first}`) || !/Não gasta tempo/.test(await door.locator('.hs-label').textContent())) throw new Error(`door label: ${await door.getAttribute('aria-label')}`);
     if (!await door.evaluate((b) => b.classList.contains('hs-hint'))) throw new Error('the door does not mirror the "call" next step');
     await door.hover();
     if (!await door.locator('.hs-label').isVisible()) throw new Error('hovering the door shows no label');
@@ -234,7 +234,7 @@ try {
     if (!/Exame físico/.test(await page.locator('.tab.active').textContent())) throw new Error('a region did not open the Exame físico tab');
     if (!await page.locator(`.pane .region-group[data-region-group="${regions.at(-1)}"]`).isVisible()) throw new Error('the tab does not show the chosen region group');
     const computer = page.locator('[data-hotspot=computer]');
-    const compLabel = await computer.getAttribute('aria-description');
+    const compLabel = await computer.locator('.hs-label').textContent();
     if (!/Cada pedido gasta tempo da consulta/.test(compLabel)) throw new Error(`computer label: ${compLabel}`);
     await computer.click();
     if (!/Exames/.test(await page.locator('.tab.active').textContent())) throw new Error('the computer did not open the Exames tab');

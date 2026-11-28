@@ -22,9 +22,10 @@ export function createHotspots({ onDoor, onComputer, onRegion }) {
 
   for (const key of KEYS) {
     const title = h('b');
-    const detail = h('span');
+    const detail = h('span', { id: `hs-${key}-detail` });
+    // the visible label is for sighted users; screen readers get the same text as the name and the description
     const label = h('span', { class: 'hs-label', 'aria-hidden': 'true' }, title, detail);
-    const btn = h('button', { type: 'button', class: `hotspot hs-${key}`, 'data-hotspot': key, hidden: true }, label);
+    const btn = h('button', { type: 'button', class: `hotspot hs-${key}`, 'data-hotspot': key, 'aria-describedby': `hs-${key}-detail`, hidden: true }, label);
     if (key === 'patient') { btn.setAttribute('aria-haspopup', 'menu'); btn.setAttribute('aria-expanded', 'false'); }
     const s = { btn, title, detail, enabled: false, pos: '', timer: 0 };
     btn.addEventListener('click', (e) => {
@@ -53,9 +54,8 @@ export function createHotspots({ onDoor, onComputer, onRegion }) {
       s.enabled = v.enabled;
       if (s.title.textContent !== v.title) s.title.textContent = v.title;
       if (s.detail.textContent !== v.detail) s.detail.textContent = v.detail;
-      // the name is what it does; the cost or the reason is its description (so the name stays short and unique)
-      s.btn.setAttribute('aria-label', v.title);
-      if (v.detail) s.btn.setAttribute('aria-description', v.detail); else s.btn.removeAttribute('aria-description');
+      // the name is what it does (without the icon); the cost or the reason is its description
+      s.btn.setAttribute('aria-label', v.title.replace(/^\S+\s+/u, ''));
       s.btn.setAttribute('aria-disabled', String(!v.enabled));
       s.btn.classList.toggle('hs-hint', hint === key && v.enabled);
     }
@@ -111,7 +111,8 @@ export function createHotspots({ onDoor, onComputer, onRegion }) {
     spots.patient.btn.setAttribute('aria-expanded', 'true');
     placeMenu();
     items[0].focus({ preventScroll: true });
-    setTimeout(() => document.addEventListener('pointerdown', outside, true));
+    const own = menu;
+    setTimeout(() => { if (menu === own) document.addEventListener('pointerdown', outside, true); });
   }
 
   function outside(e) { if (menu && !menu.contains(e.target) && e.target !== spots.patient.btn && !spots.patient.btn.contains(e.target)) closeMenu(false); }

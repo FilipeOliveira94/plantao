@@ -127,7 +127,8 @@ export class IsoScene extends IsoPainter {
     this._lastStep = 0;
     this._lastBeep = 0;
     this.resize();
-    window.addEventListener('resize', () => this.resize());
+    // the canvas follows its grid row, which changes with the window and with the rows below it (waiting room, queue)
+    new ResizeObserver(() => this.resize()).observe(canvas);
     const loop = (ts) => { this.frame(ts / 1000); requestAnimationFrame(loop); };
     requestAnimationFrame(loop);
   }
@@ -362,7 +363,7 @@ export class WaitingRoom extends IsoPainter {
     super(canvas);
     this.sig = '';
     this.last = null;
-    window.addEventListener('resize', () => { if (this.cv.isConnected && this.last) { this.sig = ''; this.draw(...this.last); } });
+    new ResizeObserver(() => { if (this.last) this.draw(...this.last); }).observe(canvas);
   }
 
   /**
