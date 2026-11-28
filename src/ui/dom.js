@@ -53,7 +53,8 @@ const byKey = (root, [a, v]) => root.querySelector(`[${a}="${CSS.escape(v)}"]`);
 /**
  * Runs `render` (which re-mounts `container`) and gives the keyboard focus back to the same control, so a
  * keyboard player keeps their place after every action. When that control is gone (a question already asked),
- * focus goes to the next control of its `[data-focus-group]`, else to the container's `[data-focus-fallback]`.
+ * focus goes to the next control of the same kind (same `data-focus` prefix, "q:") in its `[data-focus-group]`,
+ * else to the container's `[data-focus-fallback]`.
  * Does nothing when focus was not inside `container`.
  */
 export function keepFocus(container, render) {
@@ -62,12 +63,15 @@ export function keepFocus(container, render) {
   const key = keyOf(active);
   const groupEl = active.closest('[data-focus-group]');
   const group = groupEl?.getAttribute('data-focus-group');
-  const index = groupEl ? [...groupEl.querySelectorAll('[data-focus]')].indexOf(active) : -1;
+  const prefix = (active.getAttribute('data-focus') ?? '').split(':')[0];
+  const sameKind = (root) => [...(root?.querySelectorAll('[data-focus]') ?? [])].filter((el) => el.getAttribute('data-focus').split(':')[0] === prefix && !el.disabled);
+  const index = groupEl ? sameKind(groupEl).indexOf(active) : -1;
   const out = render();
   if (active.isConnected || focusOwnedElsewhere(container) || (document.activeElement !== document.body && container.contains(document.activeElement))) return out;
   let target = key && byKey(container, key);
-  if (!target && group) {
-    const items = [...(byKey(container, ['data-focus-group', group])?.querySelectorAll('[data-focus]') ?? [])];
+  if (target?.disabled) target = null;
+  if (!target && group && index >= 0) {
+    const items = sameKind(byKey(container, ['data-focus-group', group]));
     target = items[Math.min(index, items.length - 1)];
   }
   target ||= container.querySelector('[data-focus-fallback]');

@@ -513,6 +513,10 @@ body.tutorial .hotspot.hs-hint { border-width: 3px; border-style: solid; box-sha
 
 /* keyboard (P2-11): the menu root takes the focus only as a fallback, so it shows no ring; the chart panel does */
 .menu:focus { outline: none; }
+/* the focus ring wins over the outlines that mark state: a selected card keeps its gold as a halo, the next step
+   (P2-01) keeps its accent border */
+.unit.selected:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; box-shadow: var(--lift-2), 0 0 0 7px var(--gold); }
+.next-step:focus-visible, body.tutorial .next-step:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .help-keys-title { margin-top: var(--sp-4); }
 .help-keys { padding-left: 18px; }
 kbd { font-family: var(--mono); font-size: var(--fs-xs); background: var(--surface-sunken); border: 1px solid var(--line-control); border-radius: var(--r-sm); padding: 0 5px; }

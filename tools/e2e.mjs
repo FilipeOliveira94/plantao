@@ -1207,7 +1207,7 @@ async function accessibility() {
     await press('[data-focus^="q:"]');
     f = await notBody('asking a question');
     if (await p.evaluate(() => window.__plantao.shift.current.asked.size) !== asked0 + 1) fail('Enter did not ask the question');
-    if (!f.key?.startsWith('q:') && f.key !== 'asked') fail(`after asking, focus is on ${JSON.stringify(f)}`);
+    if (!f.key?.startsWith('q:')) fail(`after asking, focus is not on the next question but on ${JSON.stringify(f)}`);
     // examine
     await press('.tab[aria-selected=true]', 'ArrowRight', true);
     await press('[data-focus^="px:"]');
