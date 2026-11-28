@@ -71,6 +71,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | Request | Where it goes |
 | --- | --- |
 | A comment on every option saying why it is right or wrong | New: P3-19, after P1-10. Wider than P3-06, which covers only the wrong option the player chose. |
+| Tag the correct option with a kind too, for one standard | P1-10 tags `correct` and `acceptable` alongside the fields, checked for agreement. New: P0-05 makes the kind the only record, later. |
 
 ## P0: Foundations
 
@@ -80,6 +81,7 @@ Each note was checked against the open issues. Where an issue already covered it
 | [P0-02](https://github.com/FilipeOliveira94/plantao/issues/9) | Sync `AGENTS.md` with reality | Fix the case count, point the roadmap section to this file. | Lo/Lo | Sm/Sm | none |
 | [P0-03](https://github.com/FilipeOliveira94/plantao/issues/105) | Brazilian law and regulations review | Before the game is public: CFM resolutions (publicity, telemedicine, educational content vs. medical advice), ECA for pediatric cases, drug names, copyright of quoted references, the Manchester Triage System name and license, SUS and Ministry names, LGPD and Marco Civil for player data. Writes `docs/LEGAL-REVIEW.md` with source, applies or not, and action; each action gets an issue; lawyer-only items are marked. Drafts a disclaimer if needed. No code. | Hi/- | Md/- | none |
 | [P0-04](https://github.com/FilipeOliveira94/plantao/issues/106) | Host the MVP on GitHub Pages | The static game served at `filipeoliveira94.github.io/plantao/`, deployed only from `main`, working under the sub-path, with the P0-03 disclaimer if it asks for one. README gets the link. Cloudflare Pages (P5-02) replaces it when the backend arrives. | Hi/- | Md/- | P0-03 |
+| [P0-05](https://github.com/FilipeOliveira94/plantao/issues/126) | Option kind as the only record of the answer | Drop the `correct` and `acceptable` fields from the option lists and have scoring, the hypothesis step, the feedback screens, E2E and the unit tests read each option's `kind` (P1-10). The answers do not change; a script checks every case before and after. An engine PR, apart from content PRs. | Hi/- | Md/- | P1-10 |
 
 ## P1: A fair core loop with consequences
 

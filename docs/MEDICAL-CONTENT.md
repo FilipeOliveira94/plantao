@@ -7,7 +7,7 @@
 3. **Doses** only when they are part of the lesson, written as the guideline range (e.g. "10–20 mL/kg"). Never a dose without a source.
 4. **Brazilian epidemiology:** arboviruses in the North/Northeast in the rainy season, respiratory viruses in the southern winter, and so on.
 5. **Real patients are messy.** Colloquial speech, vague symptoms, drugs called by nickname ("the little white one", "the blue inhaler"), self-medication, companions who don't know the history. Key information may require a follow-up question (`requires`).
-6. **Wrong options are real medicine, in a set mix.** Each `diagnosis` and `conduct` list has one correct option, two `plausible` distractors and one or two `clearly-wrong` ones, at most five options in all (acceptable diagnoses included). Each distractor carries its `kind` (see "Distractor kinds" below). Mark `harmful: true` when a choice causes harm (e.g. NSAIDs in dengue, bicarbonate in DKA), whatever its kind. Wrong options of both kinds may carry invented numbers (doses, intervals, durations) as long as they are clinically plausible; rule 3 applies to the correct option, acceptable options and the rest of the case.
+6. **Wrong options are real medicine, in a set mix.** Each `diagnosis` and `conduct` list has one correct option, two `plausible` distractors and one or two `clearly-wrong` ones, at most five options in all (acceptable diagnoses included). Every option carries its `kind` (see "Distractor kinds" below). Mark `harmful: true` when a choice causes harm (e.g. NSAIDs in dengue, bicarbonate in DKA), whatever its kind. Wrong options of both kinds may carry invented numbers (doses, intervals, durations) as long as they are clinically plausible; rule 3 applies to the correct option, acceptable options and the rest of the case.
 7. **Review:** every case must be reviewed by a physician of that specialty before the first final release (v1.0). MVP releases (v0.x) may ship cases that are still pending review. A case may reach `main` unreviewed only if it is listed as pending in `docs/REVIEW-STATUS.md`.
 
 ## Distractor kinds
@@ -19,9 +19,9 @@
 
 - Both kinds are real medicine, with the length and detail of the correct option (P1-03). No joke options and no invented diseases or drugs.
 - The kind is not shown to the player.
-- The correct option and `acceptable` options carry no `kind`; they sit outside the count of two plausible and one or two clearly wrong.
+- The correct option carries `kind: 'correct'` and each `acceptable` option `kind: 'acceptable'`, matching the list's `correct` and `acceptable` fields (the game reads the fields; P0-05 makes the kind the only record). They sit outside the count of two plausible and one or two clearly wrong.
 - If the case does not show why a plausible option is wrong, change the option or its kind. Do not add a finding only to justify the tag.
-- `npm run validate` checks the mix (`tools/distractor-mix.mjs`). A `kind` other than the two above, or a `kind` on the correct or an acceptable option, is an error.
+- `npm run validate` checks the mix (`tools/distractor-mix.mjs`). An unknown `kind`, or a `kind` that disagrees with `correct` or `acceptable`, is an error.
 
 ## Language
 
@@ -56,8 +56,8 @@ All player-facing text (patient speech, findings, options, teaching notes) is in
   // tests not listed return "Sem alterações significativas." and count as unnecessary
   diagnosis: { correct, acceptable?: [ids], options: [{ id, label, kind? }] },
   conduct:   { correct, options: [{ id, label, kind?, harmful? }] },
-  // kind: 'plausible' | 'clearly-wrong' on every option except the correct and acceptable ones; 2 plausible,
-  // 1 or 2 clearly wrong, at most 5 options per list (rule 6, "Distractor kinds")
+  // kind: 'correct' | 'acceptable' | 'plausible' | 'clearly-wrong' on every option, matching correct and acceptable;
+  // 2 plausible, 1 or 2 clearly wrong, at most 5 options per list (rule 6, "Distractor kinds")
   teaching: '3–6 sentences explaining the reasoning',
   references: ['…'],
 }

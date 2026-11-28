@@ -56,13 +56,17 @@ test('a UBS never gets lab_delay (its lab results come only at the follow-up vis
 test('a seed gives the same events, and the event roll draws from its own stream', () => {
   const sig = (s) => s.pendingEvents.map((e) => `${e.id}@${e.at}`).join();
   for (let seed = 0; seed < 50; seed++) assert.equal(sig(make(seed)), sig(make(seed)));
-  // seed 1 rolls an event; its cases, arrivals and option order match main before P1-09 (fixture from that code)
+  // seed 1 rolls an event; its cases and arrivals match main before P1-09 (fixture from that code), and its option
+  // order matches the same seed with events off (a fixed option order broke whenever case content changed, P1-10)
   const s = make(1);
   assert.equal(s.pendingEvents.length, 1);
-  assert.deepEqual(s.encounters.map((e) => [e.c.id, e.arrivedAt, e.dxOptions[0].id]), [
-    ['im-hypertensive-pseudocrisis', 0, 'hsa'], ['im-stemi', 32, 'drge'], ['im-leptospirosis-warning-signs', 64, 'pac'],
-    ['im-cap', 89, 'pac'], ['im-dengue-warning-signs', 120, 'dengue_d'],
+  assert.deepEqual(s.encounters.map((e) => [e.c.id, e.arrivedAt]), [
+    ['im-hypertensive-pseudocrisis', 0], ['im-stemi', 32], ['im-leptospirosis-warning-signs', 64],
+    ['im-cap', 89], ['im-dengue-warning-signs', 120],
   ]);
+  const quiet = (seed) => new Shift({ unit: UPA, specialty: 'internal-medicine', seed, events: false });
+  assert.equal(quiet(1).pendingEvents.length, 0);
+  for (let seed = 0; seed < 50; seed++) assert.equal(optionsOf(make(seed)), optionsOf(quiet(seed)), `seed ${seed}`);
 });
 
 test('an event fires once, when the clock reaches it, as a popup event with its text', () => {
