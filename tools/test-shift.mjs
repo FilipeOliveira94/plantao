@@ -10,6 +10,9 @@ import { applyShift } from '../src/game/progress.js';
 import { clockLabelAt, shownMinutes, SHIFT_MINUTES, REAL_SHIFT_MINUTES } from '../src/game/time.js';
 import { UNITS, TRIAGE } from '../src/data/catalog.js';
 
+// orders a test for the patient in the room, recording a working hypothesis first (P1-08 gates lab and imaging)
+const order = (s, id) => { s.recordHypothesis(s.current.c.diagnosis.options[0].id); return s.requestExam(id); };
+
 const UPA = UNITS.find((u) => u.type === 'upa');
 
 // A shift whose patients all arrive at 07:00 with the given priorities; complaints follow `complain`.
@@ -160,7 +163,7 @@ test('pause puts the patient in the room back in the queue with all progress kep
   first.ask(q.id);
   first.examine(first.c.physical[0].id);
   const examId = Object.keys(first.c.exams || {}).find((id) => !first.c.exams[id].brought) ?? 'capillary_glucose';
-  const { rec } = s.requestExam(examId);
+  const { rec } = order(s, examId);
   const before = { spent: first.minutesSpent, seenAt: first.firstSeenAt, readyAt: rec.readyAt };
 
   // the next patient arrives

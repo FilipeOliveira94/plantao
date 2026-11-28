@@ -18,6 +18,10 @@ export const OVERTIME_CAP = 40;
 // patient turns impatient (impatienceAt, P1-06), per internal minute past it, up to the cap. Game balance.
 export const WAIT_POINTS_PER_MINUTE = 1;
 export const WAIT_CAP = 40;
+// Final diagnosis points, and the working hypothesis (P1-08): 20% of them, so the early commitment counts
+// without outweighing the final decision. Game balance.
+export const DX_POINTS = { correct: 100, acceptable: 50 };
+export const HYPOTHESIS_SHARE = 0.2;
 const EPS = 1e-6;
 
 /** Target for the consultation's actions: the case's own `consultMinutes`, else the triage default. */
@@ -36,6 +40,16 @@ export function focusedMinutes(c) {
   const tests = Object.values(c.exams || {}).filter((e) => e.relevance === 'key' && !e.brought).length;
   return asked.size * ACTION_COST.question + physical * ACTION_COST.physical + tests * ACTION_COST.order;
 }
+
+/** How a diagnosis option compares with the case: 'correct', 'acceptable' or 'different'. Used for the final
+ *  diagnosis and for the working hypothesis, so both always agree. */
+export function dxMatch(c, dxId) {
+  if (dxId === c.diagnosis.correct) return 'correct';
+  return (c.diagnosis.acceptable || []).includes(dxId) ? 'acceptable' : 'different';
+}
+
+/** A test that needs a working hypothesis first (P1-08): anything not done at the bedside (lab, imaging). */
+export const gatedExam = (examId) => !EXAMS[examId]?.poc;
 
 export class Encounter {
   constructor(caseData, unitType) {
@@ -58,6 +72,9 @@ export class Encounter {
     this.impatient = false; // waited past the Manchester target plus a margin (Shift.checkWaiting)
     this.leftAt = null; // shift clock when a low-priority patient gave up and left unseen
     this.log = [];
+    // working hypothesis (P1-08): { dx, at } once recorded, at = shift clock. The first stage decision of an
+    // encounter; care in stages (P7-01) can grow it into a list of such decisions.
+    this.hypothesis = null;
     // display order of the answer options; Shift shuffles them once per encounter
     this.dxOptions = caseData.diagnosis.options;
     this.cdOptions = caseData.conduct.options;
@@ -98,6 +115,18 @@ export class Encounter {
   think(minutes = 1) {
     this.minutesSpent += minutes;
     this.time.thinking += minutes;
+  }
+
+  /** Records the working hypothesis, once, from this case's diagnosis options. Costs no consultation time. */
+  recordHypothesis(dxId, now) {
+    if (this.hypothesis || !this.c.diagnosis.options.some((o) => o.id === dxId)) return false;
+    this.hypothesis = { dx: dxId, at: now };
+    return true;
+  }
+
+  /** True while ordering this test must wait for a working hypothesis. Tests the patient brought never do. */
+  needsHypothesis(examId) {
+    return !this.hypothesis && gatedExam(examId) && !this.requested.has(examId);
   }
 
   get availableQuestions() {
@@ -155,11 +184,24 @@ export class Encounter {
     let pts = 0;
     const add = (v, label) => { pts += v; lines.push({ v, label }); };
 
-    const dxOk = diagnosisId === c.diagnosis.correct;
-    const dxAcceptable = (c.diagnosis.acceptable || []).includes(diagnosisId);
-    if (dxOk) add(100, 'Diagnóstico correto');
-    else if (dxAcceptable) add(50, 'Diagnóstico aceitável');
+    const dx = dxMatch(c, diagnosisId);
+    const dxOk = dx === 'correct';
+    const dxAcceptable = dx === 'acceptable';
+    if (dxOk) add(DX_POINTS.correct, 'Diagnóstico correto');
+    else if (dxAcceptable) add(DX_POINTS.acceptable, 'Diagnóstico aceitável');
     else add(0, 'Diagnóstico incorreto');
+
+    // Working hypothesis (P1-08): a share of the diagnosis points, counted in the maximum only when one was
+    // recorded, so ordering a lab just to earn it never pays
+    const hx = this.hypothesis;
+    const hxPoints = Math.round(DX_POINTS.correct * HYPOTHESIS_SHARE);
+    let hypothesis = null;
+    if (hx) {
+      const match = dxMatch(c, hx.dx);
+      const v = match === 'different' ? 0 : Math.round(DX_POINTS[match] * HYPOTHESIS_SHARE);
+      add(v, { correct: 'Hipótese de trabalho correta', acceptable: 'Hipótese de trabalho aceitável', different: 'Hipótese de trabalho incorreta' }[match]);
+      hypothesis = { dx: hx.dx, at: hx.at, match, kept: hx.dx === diagnosisId, points: v };
+    }
 
     const cdOpt = c.conduct.options.find((o) => o.id === conductId);
     const cdOk = conductId === c.conduct.correct;
@@ -204,7 +246,7 @@ export class Encounter {
       add(-Math.min(OVERTIME_CAP, over * OVERTIME_POINTS_PER_MINUTE), `Consulta acima do tempo-alvo (${Math.round((this.minutesSpent / goal) * 100)}% do alvo)`);
     }
 
-    const max = 100 + 60 + 60 + (c.timeCritical ? 25 : 0);
+    const max = DX_POINTS.correct + 60 + 60 + (c.timeCritical ? 25 : 0) + (hx ? hxPoints : 0);
     const pct = Math.max(0, pts) / max;
     const stars = !dxOk && !dxAcceptable ? (cdOk ? 1 : 0) : pct >= 0.8 ? 3 : pct >= 0.55 ? 2 : 1;
 
@@ -213,7 +255,7 @@ export class Encounter {
       harmful: !!cdOpt?.harmful, unnecessaryCount: unnecessary.length,
       keyHit, keyTotal, questionsAsked: this.asked.size, minutesSpent: this.minutesSpent,
       waited, consultTarget: goal, time: { ...this.time }, timeCriticalOk: c.timeCritical ? this.minutesSpent <= c.timeCritical.minutes : null,
-      noUnnecessary: unnecessary.length === 0 && this.requested.size > 0,
+      noUnnecessary: unnecessary.length === 0 && this.requested.size > 0, hypothesis,
     };
   }
 }

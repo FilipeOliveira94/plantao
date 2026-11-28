@@ -15,10 +15,10 @@ function reachableSteps() {
   const openedSets = [['triage'], ['history'], ['triage', 'history'], ['triage', 'history', 'physical', 'tests']];
   const rooms = [null];
   for (const tab of tabs) for (const opened of openedSets) for (const newResults of [0, 1]) for (const asked of [0, 2])
-    for (const examined of [0, 1]) for (const canAsk of [true, false]) for (const pending of [0, 1]) {
-      rooms.push({ tab, opened: [...new Set([...opened, tab])], newResults, asked, examined, canAsk, canExamine: true, pending });
+    for (const examined of [0, 1]) for (const canAsk of [true, false]) for (const pending of [0, 1]) for (const needsHypothesis of [false, true]) {
+      rooms.push({ tab, opened: [...new Set([...opened, tab])], newResults, asked, examined, canAsk, canExamine: true, pending, needsHypothesis });
     }
-  for (const overlay of [null, 'pause', 'summary', 'feedback', 'other', 'event', 'arrival']) for (const room of rooms)
+  for (const overlay of [null, 'pause', 'summary', 'feedback', 'confirm', 'other', 'event', 'arrival']) for (const room of rooms)
     for (const next of [null, 'waiting', 'results', 'paused']) for (const done of [false, true]) for (const over of [false, true])
       for (const canWait of [false, true]) for (const arrivalUrgent of [false, true]) {
         steps.add(nextStep({ overlay, arrivalUrgent, done, over, room, next, canWait }));

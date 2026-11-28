@@ -10,6 +10,9 @@ import { Shift, SHIFT_MINUTES, impatienceAt } from '../src/game/shift.js';
 import { ShiftClock, MAX_UPDATE_MS } from '../src/game/clock.js';
 import { REAL_SECONDS_PER_MINUTE, TIME_SCALE } from '../src/game/time.js';
 
+// orders a test for the patient in the room, recording a working hypothesis first (P1-08 gates lab and imaging)
+const order = (s, id) => { s.recordHypothesis(s.current.c.diagnosis.options[0].id); return s.requestExam(id); };
+
 const MINUTE_MS = REAL_SECONDS_PER_MINUTE * 1000;
 const fakeCase = (id, priority) => ({
   id, triage: { priority }, patient: { name: id, look: {} },
@@ -203,7 +206,7 @@ test('waiting for a result and time an event takes do not count against the time
   const e = new Encounter(criticalCase(10), 'hospital'); e.arrivedAt = 0; s.encounters = [e];
   s.call(e);
   s.labExtra = 30; // a lab delay event is on
-  const { rec } = s.requestExam('head_ct');
+  const { rec } = order(s, 'head_ct');
   assert.ok(rec.delayedFrom > s.clock);
   s.advance(rec.delayedFrom - s.clock); // stand-in for the undelayed wait
   s.tick(MINUTE_MS * 5); // real time stuck on the delayed result: lost time, not thinking

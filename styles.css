@@ -143,6 +143,14 @@ body.tutorial .btn.next-step:not(.primary) { background: color-mix(in srgb, var(
 .opt { text-align: left; border: 2px solid var(--line); background: #fff; border-radius: 10px; padding: 7px 10px; font-size: 14px; }
 .opt:hover { border-color: var(--ink); }
 .opt.done { opacity: .55; }
+/* working hypothesis (P1-08): lab and imaging locked until it is recorded */
+.opt.locked { opacity: .55; cursor: not-allowed; background: #f3efe6; }
+.opt.locked:hover { border-color: var(--line); }
+.hx-panel { border: 2px dashed var(--accent); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; background: #f6fbf9; }
+.hx-panel .btn { margin-top: 4px; }
+.hx-recorded, .return-note { background: #f3efe6; border-radius: 10px; padding: 6px 10px; margin: 0 0 10px; font-size: 14px; }
+.hx-note { border-left: 4px solid var(--accent); padding-left: 10px; }
+.pending-warn { color: #9a4b00; font-weight: 700; }
 .finding { background: #f3efe6; border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; font-size: 14px; }
 .finding b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .exam-row { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; border-bottom: 1px solid var(--line); padding: 7px 0; font-size: 14px; }

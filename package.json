@@ -12,7 +12,7 @@
     "validate": "node tools/validate-cases.mjs && node tools/build-references.mjs --check",
     "references": "node tools/build-references.mjs",
     "serve": "python3 -m http.server 8080",
-    "test:unit": "node --test tools/test-save.mjs tools/test-shift.mjs tools/test-time.mjs tools/test-clock.mjs tools/test-events.mjs tools/test-wait-penalty.mjs tools/test-timebars.mjs tools/test-nextstep.mjs tools/test-tutorial.mjs",
+    "test:unit": "node --test tools/test-save.mjs tools/test-shift.mjs tools/test-time.mjs tools/test-clock.mjs tools/test-events.mjs tools/test-wait-penalty.mjs tools/test-timebars.mjs tools/test-nextstep.mjs tools/test-tutorial.mjs tools/test-hypothesis.mjs",
     "test:e2e": "node tools/e2e.mjs",
     "test": "npm run validate && npm run test:unit && npm run test:e2e"
   },

@@ -11,9 +11,10 @@
  * @property {boolean} canAsk questions left to ask
  * @property {boolean} canExamine physical exam items left
  * @property {number} pending tests still running
+ * @property {boolean} [needsHypothesis] no working hypothesis yet and a lab or imaging test is still orderable (P1-08)
  *
  * @typedef {object} NextStepView
- * @property {null|'pause'|'summary'|'feedback'|'other'|'event'|'arrival'} overlay what covers the board, if anything
+ * @property {null|'pause'|'summary'|'feedback'|'confirm'|'other'|'event'|'arrival'} overlay what covers the board, if anything
  * @property {boolean} [arrivalUrgent] the arrival card is red or orange
  * @property {boolean} done the shift is over and no one is in the room
  * @property {boolean} over the shift clock reached the end
@@ -36,6 +37,8 @@ export function nextStep(v) {
     case 'pause': return 'continue';
     case 'summary': return 'summary-menu';
     case 'feedback': return 'feedback-next';
+    // finishing asks for confirmation (P1-08)
+    case 'confirm': return 'finish-confirm';
     case 'other': return null;
     case 'event': return 'event-ok';
     // an urgent arrival, or any arrival while the room is free, is the next patient; otherwise keep the consultation
@@ -60,6 +63,8 @@ function roomStep(r, v) {
   if (!gathered(r)) return r.asked > 0 || !r.canAsk ? TAB_STEP.physical : TAB_STEP.history;
   // tests still out: see someone else meanwhile, or wait in the room when no one else can be called
   if (r.pending && !v.over) return v.next ? 'send-wait' : 'wait-here';
+  // on the Exames tab, lab and imaging wait for a working hypothesis (P1-08)
+  if (r.tab === 'tests' && r.needsHypothesis) return 'hypothesis';
   return 'decide';
 }
 

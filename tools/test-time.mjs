@@ -7,6 +7,9 @@ import { UNITS, ACTION_COST, TRIAGE } from '../src/data/catalog.js';
 import { Encounter } from '../src/game/encounter.js';
 import { Shift, scaledTarget, impatienceAt, leaveAt, SOON_MARGIN } from '../src/game/shift.js';
 
+// orders a test for the patient in the room, recording a working hypothesis first (P1-08 gates lab and imaging)
+const order = (s, id) => { s.recordHypothesis(s.current.c.diagnosis.options[0].id); return s.requestExam(id); };
+
 // a minimal synthetic case: only the fields the engine reads
 const fakeCase = (id, priority) => ({
   id, triage: { priority }, patient: { name: id, look: {} },
@@ -33,7 +36,7 @@ test('consultation minutes by action add up to minutesSpent', () => {
   s.call(e);
   e.ask('q1'); e.ask('q2'); e.ask('q1'); // a repeated question costs nothing
   e.examine('p1');
-  s.requestExam('ecg'); s.requestExam('cbc');
+  order(s, 'ecg'); order(s, 'cbc');
   const r = decide(e);
   assert.deepEqual(r.time, { questions: 2 * ACTION_COST.question, physical: ACTION_COST.physical, orders: 2 * ACTION_COST.order, thinking: 0 });
   assert.equal(r.time.questions + r.time.physical + r.time.orders + r.time.thinking, r.minutesSpent);
@@ -43,12 +46,12 @@ test('waiting in the room and in the waiting room are recorded as clock spans, n
   const s = shiftWith([['green', 0]]);
   const e = s.encounters[0];
   s.call(e);
-  s.requestExam('ecg'); // point-of-care
+  order(s, 'ecg'); // point-of-care
   const t0 = s.clock;
   s.waitInRoom();
   assert.deepEqual(e.roomWaits, [{ from: t0, to: s.clock }]);
   assert.equal(e.pendingExams(s.clock).length, 0);
-  s.requestExam('cbc');
+  order(s, 'cbc');
   s.sendToWait();
   const out = s.clock;
   s.waitForNext();

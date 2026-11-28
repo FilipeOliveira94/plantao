@@ -54,6 +54,22 @@ test('tests still out once gathered: see someone else, or wait in the room', () 
   assert.equal(nextStep(board({ room: r, over: true, next: 'waiting' })), 'decide');
 });
 
+test('working hypothesis (P1-08): on the Exames tab, record it before lab and imaging', () => {
+  const r = room({ tab: 'tests', opened: ['triage', 'history', 'physical', 'tests'], asked: 2, examined: 1, needsHypothesis: true });
+  assert.equal(nextStep(board({ room: r })), 'hypothesis');
+  // only on the Exames tab: elsewhere the player may decide without any lab
+  assert.equal(nextStep(board({ room: { ...r, tab: 'physical' } })), 'decide');
+  // recorded, or no lab or imaging test left to order: no hypothesis step
+  assert.equal(nextStep(board({ room: { ...r, needsHypothesis: false } })), 'decide');
+  // gathering, new results and pending tests come first
+  assert.equal(nextStep(board({ room: { ...r, asked: 0 } })), 'tab:history');
+  assert.equal(nextStep(board({ room: { ...r, pending: 1 }, next: 'waiting' })), 'send-wait');
+});
+
+test('finishing asks for confirmation (P1-08)', () => {
+  assert.equal(nextStep(board({ overlay: 'confirm', room: room({ tab: 'decision', opened: ['triage', 'decision'] }) })), 'finish-confirm');
+});
+
 test('overlays take the step', () => {
   const r = room({ tab: 'history', opened: ['triage', 'history'] });
   assert.equal(nextStep(board({ overlay: 'pause', room: r })), 'continue');
